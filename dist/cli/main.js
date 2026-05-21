@@ -147,7 +147,8 @@ program
         console.log(pc.cyan('   Scanning local workspace node_modules for capability matrix...\n'));
         const pkgJsonPath = path.join(process.cwd(), 'package.json');
         if (!fs.existsSync(pkgJsonPath)) {
-            console.error(pc.red('Error: package.json not found in current directory.'));
+            console.error(pc.red('Error: No package.json found. Run this command from a Node.js project directory.'));
+            console.log(pc.dim('Tip: sentinel permissions <package-name> still works from anywhere.'));
             return;
         }
         let pkgJson;

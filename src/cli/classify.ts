@@ -206,7 +206,13 @@ export async function handleClassifiedMenu(lang: string, askQuestion: (query: st
         console.log(pc.cyan('? ') + pc.bold(lang === 'es' ? 'Gestión de Archivos en:' : 'File Management in:') + ' ' + pc.white(selectedProj));
         
         const db = readClassifiedDb();
-        const classifiedInProj = db[selectedProj] || [];
+        
+        // Normalize path for cross-platform DB key lookup
+        const normalizedProj = path.resolve(selectedProj).replace(/\\/g, '/').toLowerCase();
+        const matchingKey = Object.keys(db).find(k =>
+            path.resolve(k).replace(/\\/g, '/').toLowerCase() === normalizedProj
+        );
+        const classifiedInProj = matchingKey ? db[matchingKey] : [];
         
         console.log(pc.dim('\n  ' + (lang === 'es' ? 'Archivos actuales:' : 'Current files:')));
         const files = getProjectFiles(selectedProj);
@@ -218,7 +224,8 @@ export async function handleClassifiedMenu(lang: string, askQuestion: (query: st
         });
         if (files.length > 50) console.log(pc.dim(`  │ ... and ${files.length - 50} more files.`));
         
-        console.log(pc.blue('\n  ❯ ') + pc.bold(lang === 'es' ? 'Escribe el número del archivo para alternar clasificación (o "0" para salir): ' : 'Type file number to toggle classification (or "0" to exit): '));
+        console.log(pc.blue('\n  │ ') + pc.cyan(`[0]`) + ` 🔙 ` + (lang === 'es' ? 'Volver' : 'Back'));
+        console.log(pc.blue('\n  ❯ ') + pc.bold(lang === 'es' ? 'Número del archivo para alternar (o 0 para salir): ' : 'File number to toggle (or 0 to exit): '));
         const fileIdxStr = await askQuestion(pc.blue('  > '));
         const fileIdx = parseInt(fileIdxStr) - 1;
         if (fileIdx === -1) break;

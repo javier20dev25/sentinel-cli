@@ -251,6 +251,7 @@ program
     .description('Manually audit a package for supply chain threats.')
     .argument('<package>', 'Package name or name@version')
     .option('--details', 'Show detailed evidence for each finding')
+    .option('--summary', 'Condensed output — counts only, no evidence')
     .action(async (pkg, options) => {
         const result = await shield.analyzePackage(pkg);
 
@@ -264,7 +265,7 @@ program
         // Try npm metadata
         try {
             const info = JSON.parse(execSync(`npm view ${pkg} description author homepage --json 2>NUL`, { encoding: 'utf8', timeout: 10000 }));
-            if (info.description) console.log(pc.white(`  Desc:      ${pc.dim(String(info.description).substring(0, 120))}`));
+            if (info.description) console.log(pc.white(`  Desc:      ${pc.dim(String(info.description).substring(0, 100))}`));
             if (info.author?.name || info.maintainers?.[0]?.name) {
                 const author = info.author?.name || info.maintainers?.[0]?.name;
                 console.log(pc.white(`  Author:    ${pc.dim(author)}`));
@@ -277,18 +278,101 @@ program
                              pc.bgGreen(pc.black(' SAFE '));
         console.log(`\n  Verdict:   ${verdictColor}\n`);
 
-        // Findings with evidence
-        if (result.findings.length > 0) {
-            console.log(pc.magenta('═'.repeat(60)));
-            console.log(pc.bold(`🔍 ${result.findings.length} FINDING(S) — Evidence below:`));
-            console.log(pc.magenta('═'.repeat(60) + '\n'));
+        // Findings
+        if (result.findings.length === 0) {
+            console.log(pc.green('✔ No threats detected. Package appears clean.\n'));
+            return;
+        }
 
+        // Group by capability type for summary
+        const byType = new Map<string, number>();
+        const bySeverity = new Map<string, number>();
+        for (const f of result.findings) {
+            byType.set(f.type, (byType.get(f.type) || 0) + 1);
+            bySeverity.set(f.severity, (bySeverity.get(f.severity) || 0) + 1);
+        }
+
+        if (options.summary) {
+            console.log(pc.bold(`🔍 ${result.findings.length} FINDING(S) — Summary:`));
+            console.log('');
+            const severityOrder = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+            for (const sev of severityOrder) {
+                const count = bySeverity.get(sev);
+                if (!count) continue;
+                const color = sev === 'CRITICAL' || sev === 'HIGH' ? pc.red :
+                             sev === 'MEDIUM' ? pc.yellow : pc.dim;
+                console.log(color(`  ${sev.padEnd(10)} ${'■'.repeat(Math.min(count, 20))} ${count}`));
+            }
+            console.log('');
+            for (const [type, count] of byType) {
+                console.log(pc.dim(`  ${type.padEnd(25)} ${count} occurrence(s)`));
+            }
+            console.log(pc.dim(`\n  Run with --details for full evidence.`));
+            return;
+        }
+
+        // Default: show HIGH+ with evidence, capability overview for LOW/MEDIUM
+        const highFindings = result.findings.filter(f => f.severity === 'HIGH' || f.severity === 'CRITICAL');
+        const lowFindings = result.findings.filter(f => f.severity === 'LOW' || f.severity === 'MEDIUM');
+
+        console.log(pc.magenta('═'.repeat(60)));
+        console.log(pc.bold(`🔍 ${result.findings.length} FINDING(S)`));
+        console.log(pc.magenta('═'.repeat(60) + '\n'));
+
+        // Capability bar chart
+        console.log(pc.dim('  Capability distribution:'));
+        for (const [type, count] of byType) {
+            const bar = '█'.repeat(Math.min(count, 20));
+            const color = type.startsWith('SECRET_') || type === 'POTENTIAL_SECRET' ? pc.red :
+                         type === 'NETWORK_ACTIVITY' ? pc.yellow : pc.cyan;
+            console.log(`   ${color(bar)} ${pc.dim(type + ' ' + count)}`);
+        }
+        console.log('');
+
+        // HIGH+ findings with evidence
+        if (highFindings.length > 0) {
+            console.log(pc.red(`  ■ HIGH/CRITICAL findings (${highFindings.length}):\n`));
+            const grouped = new Map<string, typeof highFindings>();
+            for (const f of highFindings) {
+                if (!grouped.has(f.file)) grouped.set(f.file, []);
+                grouped.get(f.file)!.push(f);
+            }
+            for (const [file, findings] of grouped) {
+                console.log(`   ${pc.dim('📄')} ${pc.bold(file)}`);
+                const shown = new Set<string>();
+                for (const f of findings) {
+                    const key = f.type + f.line;
+                    if (shown.has(key)) continue;
+                    shown.add(key);
+                    console.log(`     ${pc.red(f.type.padEnd(22))} ${pc.dim('Line ' + f.line)}`);
+                    if (options.details) {
+                        console.log(`     ${pc.dim('  Code: ' + f.snippet.substring(0, 150))}`);
+                    }
+                }
+                console.log('');
+            }
+        }
+
+        // Low/medium: just list counts
+        if (lowFindings.length > 0 && !options.details) {
+            const byTypeLow = new Map<string, number>();
+            for (const f of lowFindings) {
+                byTypeLow.set(f.type, (byTypeLow.get(f.type) || 0) + 1);
+            }
+            console.log(pc.dim(`  ■ LOW/MEDIUM (${lowFindings.length}):`));
+            for (const [type, count] of byTypeLow) {
+                console.log(pc.dim(`     ${type.padEnd(22)} ${count} occurrence(s)`));
+            }
+            console.log(pc.dim('   Run with --details for full evidence.\n'));
+        }
+
+        // Full details mode
+        if (options.details) {
             const grouped = new Map<string, typeof result.findings>();
             for (const f of result.findings) {
                 if (!grouped.has(f.file)) grouped.set(f.file, []);
                 grouped.get(f.file)!.push(f);
             }
-
             for (const [file, fileFindings] of grouped) {
                 console.log(` ${pc.cyan('📄')} ${pc.bold(file)}`);
                 for (const f of fileFindings) {
@@ -297,21 +381,17 @@ program
                                      f.severity === 'MEDIUM' ? pc.bgYellow : pc.bgCyan;
                     console.log(`   ${sevColor(pc.black(` ${f.severity.padEnd(8)} `))} ${pc.bold(f.type)}`);
                     console.log(`   ${pc.dim('  Line ' + f.line + ': ' + f.description)}`);
-                    if (options.details || f.severity !== 'LOW') {
-                        console.log(`   ${pc.dim('  Code: ' + f.snippet.substring(0, 200))}`);
-                    }
+                    console.log(`   ${pc.dim('  Code: ' + f.snippet.substring(0, 200))}`);
                     console.log();
                 }
             }
+        }
 
-            // User decision prompt
-            if (result.verdict !== 'SAFE') {
-                console.log(pc.yellow('⚠️  This package has suspicious findings.'));
-                console.log(pc.dim('   Review the evidence above. If you consider them false positives,'));
-                console.log(pc.dim('   install manually with: npm install ' + pkg + '\n'));
-            }
-        } else {
-            console.log(pc.green('✔ No threats detected. Package appears clean.\n'));
+        // User decision prompt
+        if (result.verdict !== 'SAFE') {
+            console.log(pc.yellow('⚠️  This package has suspicious findings.'));
+            console.log(pc.dim('   Review the evidence above. If you consider them false positives,'));
+            console.log(pc.dim('   install manually with: npm install ' + pkg + '\n'));
         }
     });
 

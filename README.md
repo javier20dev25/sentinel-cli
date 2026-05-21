@@ -356,6 +356,43 @@ The workflow at `.github/workflows/sentinel-pr-bot.yml` triggers on `pull_reques
 
 Findings are hyperlinked to the exact file and line via deep links constructed from `github.server_url`, `github.repository`, and the PR head SHA. The workflow uses only GitHub-provided infrastructure and consumes zero external API resources.
 
+## Contributing (Pull Requests)
+
+This repository accepts external contributions subject to the following rules:
+
+1. Open an issue describing the proposed change before submitting a PR. Unprompted PRs may be closed without review.
+2. All PRs are scanned by Sentinel's PR Bot (SAST + supply chain analysis) before human review. Malicious or obfuscated submissions will be blocked and the author reported.
+3. TypeScript code must compile with zero errors under `tsc --strict`. The codebase targets ES6 with CommonJS modules.
+4. SAST rule additions must be submitted to `src/core/lite/lite_scanner.ts` alongside a test file in `tests/` that triggers the new rule.
+5. Supply chain analysis features must include a `verify-pkg` test against a known-safe package and a known-suspicious package.
+6. Do not include `dist/` build artifacts in PRs (already gitignored).
+7. No emoji, no marketing language, no ASCII art in code or documentation.
+
+## Reporting Bugs
+
+Open an issue at https://github.com/javier20dev25/sentinel-cli/issues with the following information:
+
+- CLI version (`sentinel --version`)
+- Node.js version
+- Operating system
+- The exact command that produced the error
+- Full terminal output (including the integrity check preamble)
+- If the bug is a false positive: the file content or code pattern that triggered it, and why the detection is incorrect
+
+## Reporting Security Vulnerabilities
+
+Sentinel is a security tool; its own security is treated as critical infrastructure. Vulnerabilities in Sentinel CLI itself must be reported privately:
+
+- Email: javier20dev25@sentinel.security
+- Do NOT open a public GitHub issue for security vulnerabilities.
+- Acknowledgment within 48 hours. Fix target: 7 days for critical issues, 30 days for moderate issues.
+- Scope: CLI binary, SAST rules in `lite_scanner.ts`, Signal Vault persistence logic, Supply Chain Shield tarball extraction, Integrity Manager, and OS-level Guard injection.
+- Out of scope: third-party npm dependencies (report those to their respective maintainers).
+
+## Self-Scan Results
+
+Sentinel can scan its own source tree. Running `sentinel scan ./src --json` on the current codebase produces zero SAST findings -- the scanner does not flag any of its own patterns as malicious. The integrity manager will report `COMPROMISED` if the code hash stored in `integrity.json` does not match the runtime hash, which is expected when the source has been modified after the manifest was generated. This is the integrity system functioning as designed, not a vulnerability.
+
 ## License
 
 BUSSL-1.1 -- Business Source License 1.1. See [LICENSE](LICENSE).

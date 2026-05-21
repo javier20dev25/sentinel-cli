@@ -36,37 +36,25 @@ function parsePackageChanges(files: { filename: string; patch: string }[]): stri
         let inDeps = false;
 
         for (const line of lines) {
-            if (line.startsWith('+') && !line.startsWith('+++')) {
-                const content = line.substring(1);
+            if (line.startsWith('---') || line.startsWith('@@') || line.startsWith('diff')) continue;
+            const content = line.substring(1);
 
-                if (content.includes('"dependencies"') || content.includes('"devDependencies"') || content.includes('"peerDependencies"')) {
-                    inDeps = true;
-                    continue;
-                }
-
-                if (inDeps && content.trim() === '}') {
-                    inDeps = false;
-                    continue;
-                }
-                if (inDeps && content.trim() === '},') {
-                    inDeps = false;
-                    continue;
-                }
-
-                if (inDeps) {
-                    const match = content.match(/"(@[^"@\s]+\/[^"@\s]+|[a-z0-9][^"@\s]*)"\s*:/);
-                    if (match) {
-                        let pkg = match[1].trim();
-                        if (pkg.endsWith(',')) pkg = pkg.slice(0, -1).trim();
-                        if (pkg) pkgs.add(pkg);
-                    }
-                }
+            if (content.includes('"dependencies"') || content.includes('"devDependencies"') || content.includes('"peerDependencies"')) {
+                if (!line.startsWith('-')) inDeps = true;
+                continue;
             }
 
-            if (line.startsWith('-') && !line.startsWith('---')) {
-                const content = line.substring(1);
-                if (content.includes('"dependencies"') || content.includes('"devDependencies"') || content.includes('"peerDependencies"')) {
-                    inDeps = false;
+            if (inDeps && (content.trim() === '}' || content.trim() === '},')) {
+                inDeps = false;
+                continue;
+            }
+
+            if (line.startsWith('+') && inDeps) {
+                const match = content.match(/"(@[^"@\s]+\/[^"@\s]+|[a-z0-9_-][^"@\s]*)"\s*:/);
+                if (match) {
+                    let pkg = match[1].trim();
+                    if (pkg.endsWith(',')) pkg = pkg.slice(0, -1).trim();
+                    if (pkg) pkgs.add(pkg);
                 }
             }
         }

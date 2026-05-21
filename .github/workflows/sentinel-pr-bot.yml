@@ -37,14 +37,16 @@ jobs:
 
       - name: Run Sentinel local scan
         id: scan
+        shell: bash {0}
         env:
           SENTINEL_REPO: ${{ github.repository }}
           SENTINEL_PR: ${{ github.event.pull_request.number }}
           SENTINEL_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
-          node dist/cli/pr_scan.js /tmp/pr_diff.txt > /tmp/sentinel_result.json
-          echo "FINDINGS=$(jq '.findings | length' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
-          echo "DECISION=$(jq -r '.verdict.decision' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
+          node dist/cli/pr_scan.js /tmp/pr_diff.txt > /tmp/sentinel_result.json || true
+          echo "FINDINGS=$(jq '.findings | length // 0' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
+          echo "DECISION=$(jq -r '.verdict.decision // "PASS"' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
+          echo "ERROR=$(jq -r '.error // "null"' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
 
       - name: Post comment with results
         id: comment

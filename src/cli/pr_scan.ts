@@ -3,7 +3,8 @@ import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 
 function parseUnifiedDiff(raw: string): { filename: string; patch: string }[] {
-    const parts = raw.split(/(?=^diff --git )/m);
+    const clean = raw.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+    const parts = clean.split(/(?=^diff --git )/m);
     const files: { filename: string; patch: string }[] = [];
 
     for (const part of parts) {
@@ -15,10 +16,10 @@ function parseUnifiedDiff(raw: string): { filename: string; patch: string }[] {
         }
     }
 
-    if (files.length === 0 && raw.trim()) {
-        const m = raw.match(/^\+\+\+ b\/(.+)$/m);
+    if (files.length === 0 && clean.trim()) {
+        const m = clean.match(/^\+\+\+ b\/(.+)$/m);
         const filename = m ? m[1].trim() : 'PR.diff';
-        files.push({ filename, patch: raw });
+        files.push({ filename, patch: clean });
     }
 
     return files;
@@ -27,8 +28,7 @@ function parseUnifiedDiff(raw: string): { filename: string; patch: string }[] {
 async function main() {
     const diffFile = process.argv[2];
     if (!diffFile) {
-        const err = { error: 'Usage: node pr_scan.js <diff_file>' };
-        console.log(JSON.stringify(err));
+        process.stderr.write('Usage: node pr_scan.js <diff_file>\n');
         process.exit(1);
     }
 
@@ -38,6 +38,8 @@ async function main() {
     const author = process.env.SENTINEL_AUTHOR || 'unknown';
 
     const files = parseUnifiedDiff(diff);
+    process.stderr.write(`[pr_scan] files=${files.length} diffBytes=${diff.length}\n`);
+
     const scanner = new LiteScanner();
     const result = await scanner.auditPR(repo, prNumber, author, files);
 
@@ -64,6 +66,7 @@ async function main() {
 }
 
 main().catch(err => {
+    process.stderr.write(`[pr_scan] ERROR: ${err.stack || err.message}\n`);
     console.log(JSON.stringify({ error: err.message }));
     process.exit(1);
 });

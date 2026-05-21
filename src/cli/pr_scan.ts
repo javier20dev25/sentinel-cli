@@ -90,7 +90,10 @@ async function main() {
         process.stderr.write(`[pr_scan] supplyChain: ${changedPkgs.join(', ')}\n`);
         const shield = new SupplyChainShield();
         const batchSize = Math.min(changedPkgs.length, 5);
+        const origLog = console.log;
+        console.log = () => {};
         const results = await shield.analyzeBatch(changedPkgs.slice(0, batchSize));
+        console.log = origLog;
         supplyChain = results.map(r => ({
             package: r.pkg,
             verdict: r.verdict,

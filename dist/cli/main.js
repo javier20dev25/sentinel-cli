@@ -96,9 +96,25 @@ program
 program
     .command('integrity')
     .description('Check the integrity of the Sentinel CLI and its local environment.')
-    .action(() => __awaiter(void 0, void 0, void 0, function* () {
+    .option('--uptime', 'Show integrity chain with verified uptime counter')
+    .option('--watch', 'Watch uptime in real-time (updates every second)')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
     const status = yield integrity.checkIntegrity();
-    integrity.report(status.level, status.reasons);
+    integrity.report(status.level, status.reasons, options.uptime || options.watch);
+    if (options.watch && status.level === 'TRUSTED') {
+        const chain = integrity.getChain();
+        console.log(pc.dim('   Watching integrity chain (Ctrl+C to stop)...\n'));
+        const interval = setInterval(() => {
+            const s = chain.getStatus();
+            const elapsed = chain.formatDuration(s.accumulatedSeconds);
+            process.stdout.write(`\r${pc.green('   🔗')} ${pc.white(elapsed)} ${pc.dim('verified uptime')}   `);
+        }, 1000);
+        process.on('SIGINT', () => {
+            clearInterval(interval);
+            process.stdout.write('\n');
+            process.exit(0);
+        });
+    }
 }));
 program
     .command('doctor')

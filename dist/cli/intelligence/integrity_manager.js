@@ -54,10 +54,37 @@ const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const crypto = __importStar(require("crypto"));
 const pc = __importStar(require("picocolors"));
+const integrity_chain_1 = require("./integrity_chain");
 class IntegrityManager {
     constructor() {
         this.cliRoot = path.join(__dirname, '..', '..', '..');
         this.vaultPath = path.join(os.homedir(), '.sentinel', 'vault.db');
+        this.chain = new integrity_chain_1.IntegrityChain();
+    }
+    calculateRulesHash() {
+        const distPaths = [
+            path.join(this.cliRoot, 'dist', 'core', 'lite', 'lite_scanner.js'),
+            path.join(this.cliRoot, 'dist', 'cli', 'intelligence', 'signal_vault.js'),
+        ];
+        const hash = crypto.createHash('sha256');
+        let found = false;
+        for (const p of distPaths) {
+            if (fs.existsSync(p)) {
+                hash.update(fs.readFileSync(p, 'utf8'));
+                found = true;
+            }
+        }
+        if (!found) {
+            const srcPath = path.join(this.cliRoot, 'src', 'core', 'lite', 'lite_scanner.ts');
+            if (fs.existsSync(srcPath)) {
+                hash.update(fs.readFileSync(srcPath, 'utf8'));
+                found = true;
+            }
+        }
+        return found ? hash.digest('hex') : 'unable-to-verify';
+    }
+    getChain() {
+        return this.chain;
     }
     /**
      * Performs a full system integrity audit.
@@ -106,32 +133,18 @@ class IntegrityManager {
                 reasons.push('Environment marked as untrusted by security policy.');
                 level = 'COMPROMISED';
             }
+            // 6. Integrity Chain Check
+            const codeHash = this.calculateRulesHash();
+            if (codeHash !== 'unable-to-verify') {
+                const { chainStatus } = this.chain.recordBoot(codeHash);
+                if (chainStatus.status === 'BROKEN') {
+                    reasons.push('Integrity chain broken: code hash mismatch or link hash verification failed.');
+                    if (level !== 'COMPROMISED')
+                        level = 'SUSPECT';
+                }
+            }
             return { level, reasons };
         });
-    }
-    calculateRulesHash() {
-        // Hash the compiled LiteScanner (dist JS) — the file that actually runs
-        const distPaths = [
-            path.join(this.cliRoot, 'dist', 'core', 'lite', 'lite_scanner.js'),
-            path.join(this.cliRoot, 'dist', 'cli', 'intelligence', 'signal_vault.js'),
-        ];
-        const hash = crypto.createHash('sha256');
-        let found = false;
-        for (const p of distPaths) {
-            if (fs.existsSync(p)) {
-                hash.update(fs.readFileSync(p, 'utf8'));
-                found = true;
-            }
-        }
-        if (!found) {
-            // Fallback: hash source files for dev mode
-            const srcPath = path.join(this.cliRoot, 'src', 'core', 'lite', 'lite_scanner.ts');
-            if (fs.existsSync(srcPath)) {
-                hash.update(fs.readFileSync(srcPath, 'utf8'));
-                found = true;
-            }
-        }
-        return found ? hash.digest('hex') : 'unable-to-verify';
     }
     verifySignedManifest() {
         const manifestPath = path.join(this.cliRoot, 'integrity.json');
@@ -146,10 +159,13 @@ class IntegrityManager {
             return true; // Dev mode: don't block on manifest issues
         }
     }
-    report(level, reasons) {
+    report(level, reasons, showChain = false) {
         console.log(pc.magenta('\n🛡️  SENTINEL HOST INTEGRITY CHECK'));
         if (level === 'TRUSTED') {
             console.log(pc.green('   ✓ Local environment verified and trusted.\n'));
+            if (showChain) {
+                this.reportChain();
+            }
         }
         else {
             const color = level === 'COMPROMISED' ? pc.red : pc.yellow;
@@ -160,6 +176,28 @@ class IntegrityManager {
                 console.log(pc.red('\n   🚨 SECURITY ALERT: Sentinel is running in DEGRADED MODE.'));
                 console.log(pc.dim('      Automatic blocking and privileged actions disabled.\n'));
             }
+        }
+    }
+    reportChain() {
+        const status = this.chain.getStatus();
+        if (status.status === 'EMPTY') {
+            console.log(pc.dim('   🔗 Integrity chain: no sessions recorded yet.\n'));
+            return;
+        }
+        const color = status.status === 'INTACT' ? pc.green : pc.red;
+        console.log(color(`   🔗 INTEGRITY CHAIN: ${status.status} (${status.totalLinks} links)`));
+        if (status.lastLink) {
+            console.log(pc.dim(`      Code Hash: ${status.lastLink.code_hash.substring(0, 16)}...`));
+        }
+        console.log(pc.white(`      Verified Uptime: ${this.chain.formatDuration(status.accumulatedSeconds)}`));
+        console.log(pc.dim(`      Chain Start: ${status.chainStart}`));
+        console.log(pc.dim(`      Last Verified: ${status.lastVerified}`));
+        if (status.status === 'BROKEN') {
+            console.log(pc.red('\n   🚨 CHAIN BROKEN: Code has been modified since boot.'));
+            console.log(pc.dim('      This may indicate tampering.\n'));
+        }
+        else {
+            console.log(pc.dim('\n      If this counter seems wrong, your Sentinel may be tampered with.\n'));
         }
     }
 }

@@ -15,24 +15,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Call Sentinel Cloud Engine
-        id: scan
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npx tsc
+
+      - name: Get PR diff
+        id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "::group::Scanning PR #${{ github.event.pull_request.number }} with Sentinel Cloud Engine"
-          RESPONSE=$(curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"repo\": \"${{ github.repository }}\",
-              \"prNumber\": ${{ github.event.pull_request.number }},
-              \"provider_token\": \"${{ secrets.GITHUB_TOKEN }}\"
-            }" \
-            https://sentinel-psi-nine.vercel.app/api/scan/pr)
-          echo "$RESPONSE" > /tmp/sentinel_result.json
-          echo "::endgroup::"
+          gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr_diff.txt
+          echo "DIFF_SIZE=$(wc -c < /tmp/pr_diff.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Post Sentinel Report
+      - name: Run Sentinel local scan
+        id: scan
+        env:
+          SENTINEL_REPO: ${{ github.repository }}
+          SENTINEL_PR: ${{ github.event.pull_request.number }}
+          SENTINEL_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          node dist/cli/pr_scan.js /tmp/pr_diff.txt > /tmp/sentinel_result.json
+          echo "FINDINGS=$(jq '.findings | length' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
+          echo "DECISION=$(jq -r '.verdict.decision' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Post comment with results
+        id: comment
         uses: actions/github-script@v7
         with:
           script: |
@@ -48,48 +63,35 @@ jobs:
               return;
             }
 
-            const score = result.impactScore ?? 0;
-            const band = result.riskBand ?? 'UNKNOWN';
-            const decision = result.decision ?? 'PASS';
-            const findings = result.provenance ?? [];
+            const findings = result.findings ?? [];
+            const verdict = result.verdict ?? {};
+            const files = result.filesAnalyzed ?? 0;
 
             const highCrit = findings.filter(f => f.severity === 'HIGH' || f.severity === 'CRITICAL');
             const lowMed = findings.filter(f => f.severity === 'LOW' || f.severity === 'MEDIUM' || f.severity === 'INFO');
-            const chains = findings.filter(f => f.type === 'STAGED_KILL_CHAIN');
 
             let header = '🟢';
-            let color = 'brightgreen';
-            if (decision === 'BLOCK' || highCrit.length > 0) {
+            if (verdict.decision === 'BLOCK' || highCrit.length > 0) {
               header = '🔴';
-              color = 'red';
-            } else if (score >= 30) {
+            } else if (verdict.band === 'SUSPICIOUS') {
               header = '🟡';
-              color = 'yellow';
             }
 
-            let body = `## ${header} Sentinel PR Scan\n\n`;
-            body += `**Impact Score:** ${score.toFixed(1)}/100  \n`;
-            body += `**Risk Band:** ${band}  \n`;
-            body += `**Decision:** ${decision}  \n`;
-            body += `**Files Analyzed:** ${result.filesAnalyzed ?? 0}  \n\n`;
-
-            if (chains.length > 0) {
-              body += `### 🚨 Kill Chains Detected\n\n`;
-              for (const c of chains) {
-                body += `- **${c.type}** — ${c.description}\\n`;
-              }
-              body += '\n';
-            }
+            let body = `## ${header} Sentinel PR Scan (Local Engine)\n\n`;
+            body += `**Risk Band:** ${verdict.band ?? 'SAFE'}  \n`;
+            body += `**Decision:** ${verdict.decision ?? 'PASS'}  \n`;
+            body += `**Files Analyzed:** ${files}  \n`;
+            body += `**Total Findings:** ${findings.length}  \n\n`;
 
             if (highCrit.length > 0) {
-              body += `### ⚠️ HIGH/CRITICAL Findings (${highCrit.length})\n\n`;
+              body += `### ⚠️ HIGH/CRITICAL (${highCrit.length})\n\n`;
               for (const f of highCrit) {
-                body += `- **${f.severity}** \`${f.type}\` — ${f._file}:${f.line_number}\\n`;
-                body += `  > ${f.description}\\n`;
+                body += `- **${f.severity}** \`${f.type}\` — ${f.file}:${f.line}\n`;
+                body += `  > ${f.description}\n`;
                 if (f.snippet) {
-                  body += `  \\\`\`\`\\n${f.snippet.substring(0, 200)}\\n\\\`\`\`\\n`;
+                  body += `  \`\`\`\n${f.snippet}\n\`\`\`\n`;
                 }
-                body += '\\n';
+                body += '\n';
               }
             }
 
@@ -100,17 +102,18 @@ jobs:
                 byType[f.type] = (byType[f.type] || 0) + 1;
               }
               for (const [type, count] of Object.entries(byType)) {
-                body += `- \`${type}\`: ${count}\\n`;
+                body += `- \`${type}\`: ${count}\n`;
               }
-              body += '\\n';
+              body += '\n';
             }
 
-            if (highCrit.length === 0 && chains.length === 0) {
+            if (highCrit.length === 0) {
               body += `### ✅ No threats detected\n\n`;
             }
 
-            body += `---\\n`;
-            body += `_Scanned by [Sentinel Cloud Engine](https://sentinel-psi-nine.vercel.app) | Hash: \`${result.contentHash?.substring(0, 12) ?? 'N/A'}...\`_`;
+            body += `---\n`;
+            body += `_Scanned locally by Sentinel CLI v4 LiteScanner | `;
+            body += `Hash: \`${(result.contentHash ?? '').substring(0, 12)}\`_`;
 
             await github.rest.issues.createComment({
               ...context.repo,
@@ -118,7 +121,7 @@ jobs:
               body: body
             });
 
-            if (decision === 'BLOCK') {
+            if (verdict.decision === 'BLOCK') {
               await github.rest.checks.create({
                 ...context.repo,
                 name: 'Sentinel Security Audit',

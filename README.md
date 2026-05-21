@@ -383,7 +383,7 @@ Open an issue at https://github.com/javier20dev25/sentinel-cli/issues with the f
 
 Sentinel is a security tool; its own security is treated as critical infrastructure. Vulnerabilities in Sentinel CLI itself must be reported privately:
 
-- Email: javier20dev25@sentinel.security
+- Open a GitHub issue with the label `security` for private disclosure
 - Do NOT open a public GitHub issue for security vulnerabilities.
 - Acknowledgment within 48 hours. Fix target: 7 days for critical issues, 30 days for moderate issues.
 - Scope: CLI binary, SAST rules in `lite_scanner.ts`, Signal Vault persistence logic, Supply Chain Shield tarball extraction, Integrity Manager, and OS-level Guard injection.

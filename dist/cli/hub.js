@@ -74,6 +74,8 @@ const i18n = {
         menu_opt7: 'Classified Documents',
         menu_opt8: 'Manage Signal Vault (Memory)',
         menu_opt9: 'Exit',
+        menu_opt10: 'Support Sentinel (Donate)',
+        menu_opt11: 'Your Security — Integrity & Trust Policy',
         select_opt: 'Select option',
         invalid_sel: 'Invalid selection.',
         workspace_title: 'Workspace Discovery',
@@ -133,6 +135,8 @@ const i18n = {
         menu_opt7: 'Documentos Clasificados',
         menu_opt8: 'Gestionar Signal Vault (Memoria)',
         menu_opt9: 'Salir',
+        menu_opt10: 'Apoyar a Sentinel (Donar)',
+        menu_opt11: 'Tu Seguridad — Política de Integridad y Confianza',
         select_opt: 'Selecciona una opción',
         invalid_sel: 'Selección inválida.',
         workspace_title: 'Descubrimiento de Espacios de Trabajo',
@@ -310,7 +314,9 @@ function startInteractiveHub() {
             console.log(pc.blue('  7.') + pc.white(` 🔐 ${t('menu_opt7')}`));
             console.log(pc.blue('  8.') + pc.white(` 🧠 ${t('menu_opt8')}`));
             console.log(pc.blue('  9.') + pc.white(` 🚪 ${t('menu_opt9')}`));
-            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-9): `));
+            console.log(pc.blue(' 10.') + pc.white(` ❤️ ${t('menu_opt10')}`));
+            console.log(pc.blue(' 11.') + pc.white(` 🔒 ${t('menu_opt11')}`));
+            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-11): `));
             if (mainAction === '0') {
                 yield handlePRBot();
                 printHeader();
@@ -356,6 +362,56 @@ function startInteractiveHub() {
                     rlInstance.close();
                 }
                 process.exit(0);
+            }
+            else if (mainAction === '10') {
+                const donateUrl = 'https://sentinel-psi-nine.vercel.app/donate';
+                console.log(pc.magenta('\n❤️  SUPPORT SENTINEL DEVELOPMENT'));
+                console.log(pc.dim('   Sentinel is an independent security project.'));
+                console.log(pc.dim('   Your donations help fund ongoing research,'));
+                console.log(pc.dim('   infrastructure, and threat intelligence.'));
+                console.log(pc.cyan(`\n   🌐 ${donateUrl}`));
+                if (lang === 'es') {
+                    console.log(pc.green('\n   ¡Gracias por considerar apoyar a Sentinel!'));
+                }
+                else {
+                    console.log(pc.green('\n   Thank you for considering supporting Sentinel!'));
+                }
+                try {
+                    const startCmd = process.platform === 'win32' ? 'start' : 'open';
+                    (0, child_process_1.spawn)(startCmd, [donateUrl], { detached: true, stdio: 'ignore' });
+                }
+                catch (_) { }
+                yield askQuestion(pc.dim(`\n${t('press_enter')}`));
+                printHeader();
+            }
+            else if (mainAction === '11') {
+                console.log(pc.magenta('\n🔒 YOUR SECURITY — INTEGRITY & TRUST POLICY'));
+                console.log(pc.dim('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
+                console.log(pc.white('   Sentinel is built with tamper-detection technology.'));
+                console.log(pc.white('   If you modify Sentinel\'s source code, the Integrity'));
+                console.log(pc.white('   Manager will detect the change and flag the runtime'));
+                console.log(pc.white('   environment as SUSPECT or COMPROMISED.\n'));
+                console.log(pc.yellow('   ⚠️  WARNING:'));
+                console.log(pc.yellow('   • Never download "enhanced" or "modified" versions'));
+                console.log(pc.yellow('     of Sentinel from third-party sources.'));
+                console.log(pc.yellow('   • Modified versions may contain undetected backdoors'));
+                console.log(pc.yellow('     that bypass Sentinel\'s own security checks.'));
+                console.log(pc.yellow('   • Always verify the integrity of your installation'));
+                console.log(pc.yellow('     using: sentinel integrity\n'));
+                console.log(pc.cyan('   🔧 FOR DEVELOPERS:'));
+                console.log(pc.cyan('   • You may fork and modify Sentinel for personal use.'));
+                console.log(pc.cyan('   • Sentinel\'s team does not accept external pull'));
+                console.log(pc.cyan('     requests or feature proposals from unverified sources.'));
+                console.log(pc.cyan('   • Improvements are developed internally in'));
+                console.log(pc.cyan('     Sentinel\'s private laboratories.\n'));
+                if (lang === 'es') {
+                    console.log(pc.green('   🛡️  Tu seguridad es nuestra prioridad número uno.'));
+                }
+                else {
+                    console.log(pc.green('   🛡️  Your security is our number one priority.'));
+                }
+                yield askQuestion(pc.dim(`\n${t('press_enter')}`));
+                printHeader();
             }
             else {
                 console.log(pc.red(`    ${t('invalid_sel')}\n`));

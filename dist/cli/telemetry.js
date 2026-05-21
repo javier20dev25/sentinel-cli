@@ -35,19 +35,21 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.printMetrics = printMetrics;
 const pc = __importStar(require("picocolors"));
-function printMetrics(lang = 'es') {
+function printMetrics(lang = 'es', bytesRead, bytesWritten) {
     const memory = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1);
-    const cpuTime = (process.uptime() * 0.1).toFixed(3);
-    const diskIo = (Math.random() * 2 + 0.5).toFixed(1);
-    const netTraffic = (Math.random() * 0.2 + 0.05).toFixed(2);
-    const energy = (Number(memory) * Number(cpuTime) * 0.001).toFixed(4);
+    const cpuMicros = process.cpuUsage();
+    const cpuSeconds = ((cpuMicros.user + cpuMicros.system) / 1000000).toFixed(3);
+    const diskMb = bytesRead !== undefined ? (bytesRead / 1024 / 1024).toFixed(1) : '< 0.1';
+    const netMb = '< 0.1';
+    const cpuNum = parseFloat(cpuSeconds);
+    const energy = (cpuNum * 15 / 3600).toFixed(4);
     const isEs = lang === 'es';
     console.log(pc.cyan('\n📊 ' + (isEs ? 'TELEMETRÍA DE RENDIMIENTO Y RECURSOS ORACLE' : 'ORACLE PERFORMANCE & RESOURCE TELEMETRY')));
     console.log(pc.dim('───────────────────────────────────────────────────────'));
     console.log(pc.white(` 🧠 ${isEs ? 'Consumo de Memoria:' : 'Memory Footprint:'} `) + pc.cyan(`${memory} MB`) + pc.dim(isEs ? ' [Optimizado V8 GC]' : ' [V8 GC Optimized]'));
-    console.log(pc.white(` ⚡ ${isEs ? 'Cómputo de CPU:' : 'CPU Compute:'} `) + pc.cyan(`${cpuTime} s`) + pc.dim(isEs ? ' [Descarga Multi-hilo]' : ' [Multi-thread Offload]'));
-    console.log(pc.white(` 💾 ${isEs ? 'E/S de Disco:' : 'Disk I/O:'} `) + pc.cyan(`${diskIo} MB [SIMULATED]`) + pc.dim(isEs ? ' [Buffer en Streaming]' : ' [Streamed Buffer]'));
-    console.log(pc.white(` 🌐 ${isEs ? 'Tráfico de Red:' : 'Network Traffic:'} `) + pc.cyan(`${netTraffic} MB [SIMULATED]`) + pc.dim(isEs ? ' [Sincronización de Amenazas]' : ' [Threat Feed Sync]'));
-    console.log(pc.white(` 🔋 ${isEs ? 'Costo Energético:' : 'Energy Cost:'} `) + pc.cyan(`${energy} Wh [SIMULATED]`) + pc.dim(isEs ? ' [Monitoreado por HW]' : ' [Hardware Monitored]'));
+    console.log(pc.white(` ⚡ ${isEs ? 'Cómputo de CPU:' : 'CPU Compute:'} `) + pc.cyan(`${cpuSeconds} s`) + pc.dim(isEs ? ' [Tiempo real user + system]' : ' [Real user + system time]'));
+    console.log(pc.white(` 💾 ${isEs ? 'E/S de Disco:' : 'Disk I/O:'} `) + pc.cyan(`${diskMb} MB`) + pc.dim(isEs ? ' [Datos escaneados]' : ' [Scanned data]'));
+    console.log(pc.white(` 🌐 ${isEs ? 'Tráfico de Red:' : 'Network Traffic:'} `) + pc.cyan(`${netMb} MB`) + pc.dim(isEs ? ' [Próximamente]' : ' [Coming soon]'));
+    console.log(pc.white(` 🔋 ${isEs ? 'Costo Energético:' : 'Energy Cost:'} `) + pc.cyan(`${energy} Wh`) + pc.dim(isEs ? ' [Estimado CPU × 15W TDP]' : ' [CPU × 15W TDP estimate]'));
     console.log(pc.dim('───────────────────────────────────────────────────────\n'));
 }

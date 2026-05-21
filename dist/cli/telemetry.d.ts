@@ -1,1 +1,1 @@
-export declare function printMetrics(lang?: string): void;
+export declare function printMetrics(lang?: string, bytesRead?: number, bytesWritten?: number): void;

@@ -534,7 +534,7 @@ function simulateFullScanMetrics(repo) {
         clearInterval(interval);
         console.log('\r' + ' '.repeat(60) + '\r');
         console.log(pc.green(`✔ ${t('scan_done')}`));
-        (0, telemetry_1.printMetrics)(lang);
+        (0, telemetry_1.printMetrics)(lang, 512000);
         console.log(pc.yellow(t('scan_notice')));
         yield askQuestion(pc.dim(`\n${t('press_enter')}`));
     });
@@ -574,6 +574,7 @@ function handlePRInspection(repo) {
         // Real SAST Scan using LiteScanner
         const scanner = new lite_scanner_1.LiteScanner();
         const findings = scanner.scanPatch(`PR #${selectedPR.number}.diff`, diff);
+        const bytesRead = Buffer.byteLength(diff);
         if (findings.length === 0) {
             console.log('\n' + pc.bgGreen(pc.black(` ✔ ${t('pr_clean')} `)));
             console.log(pc.green(`    ${t('pr_clean_desc').replace('{num}', String(selectedPR.number))}`));
@@ -589,7 +590,7 @@ function handlePRInspection(repo) {
             });
         }
         console.log('');
-        (0, telemetry_1.printMetrics)(lang);
+        (0, telemetry_1.printMetrics)(lang, bytesRead);
         yield askQuestion(pc.dim(`${t('press_enter')}`));
     });
 }

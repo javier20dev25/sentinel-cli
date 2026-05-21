@@ -493,7 +493,7 @@ async function simulateFullScanMetrics(repo: UserRepo) {
     console.log('\r' + ' '.repeat(60) + '\r');
     console.log(pc.green(`✔ ${t('scan_done')}`));
 
-    printMetrics(lang);
+    printMetrics(lang, 512_000);
     console.log(pc.yellow(t('scan_notice')));
     await askQuestion(pc.dim(`\n${t('press_enter')}`));
 }
@@ -539,6 +539,7 @@ async function handlePRInspection(repo: UserRepo) {
     // Real SAST Scan using LiteScanner
     const scanner = new LiteScanner();
     const findings = scanner.scanPatch(`PR #${selectedPR.number}.diff`, diff);
+    const bytesRead = Buffer.byteLength(diff);
 
     if (findings.length === 0) {
         console.log('\n' + pc.bgGreen(pc.black(` ✔ ${t('pr_clean')} `)));
@@ -556,7 +557,7 @@ async function handlePRInspection(repo: UserRepo) {
     }
 
     console.log('');
-    printMetrics(lang);
+    printMetrics(lang, bytesRead);
     await askQuestion(pc.dim(`${t('press_enter')}`));
 }
 

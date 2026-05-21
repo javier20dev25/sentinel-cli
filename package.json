@@ -1,0 +1,56 @@
+{
+  "name": "@sentinel/cli",
+  "version": "4.0.0",
+  "description": "Sentinel Security Oracle — Unified Terminal Security Interface. Supply chain enforcement layer, SAST scanner, integrity verification, and local threat intelligence.",
+  "main": "dist/cli/main.js",
+  "bin": {
+    "sentinel": "dist/cli/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "start": "node dist/cli/main.js"
+  },
+  "keywords": [
+    "security",
+    "sast",
+    "supply-chain",
+    "scanner",
+    "cli",
+    "audit",
+    "secrets-detection",
+    "devsecops"
+  ],
+  "license": "BUSSL-1.1",
+  "author": "Javier Astaroth <javier20dev25@sentinel.security>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/javier20dev25/sentinel-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/javier20dev25/sentinel-cli/issues"
+  },
+  "homepage": "https://sentinel-psi-nine.vercel.app/cli",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.1",
+    "better-sqlite3": "^12.9.0",
+    "acorn": "^8.16.0",
+    "acorn-walk": "^8.3.5",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

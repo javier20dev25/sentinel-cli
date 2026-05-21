@@ -103,7 +103,8 @@ jobs:
                 body += `- **${f.severity}** \`${f.type}\` — [${f.file}:${f.line}](${link})\n`;
                 body += `  > ${f.description}\n`;
                 if (f.snippet) {
-                  body += `  \`\`\`\n${f.snippet}\n\`\`\`\n`;
+                  const truncated = f.snippet.length > 60 ? f.snippet.substring(0, 57) + '...' : f.snippet;
+                  body += `  \`${truncated}\`\n`;
                 }
                 body += '\n';
               }

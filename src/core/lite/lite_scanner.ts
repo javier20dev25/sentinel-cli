@@ -150,43 +150,30 @@ export class LiteScanner {
             allFindings.push(...findings);
         }
 
-        // 1. Persist signals to local Vault
+        // 1. Compute verdict from findings
+        const riskBand = allFindings.some(f => f.severity === 'CRITICAL') ? 'CRITICAL' :
+            allFindings.some(f => f.severity === 'HIGH') ? 'SUSPICIOUS' : 'SAFE';
+        const decision = riskBand === 'CRITICAL' ? 'BLOCK' : riskBand === 'SUSPICIOUS' ? 'REVIEW' : 'PASS';
+        const score = riskBand === 'CRITICAL' ? 90 : riskBand === 'SUSPICIOUS' ? 60 : 10;
+
+        // 2. Persist scan before signals (signals FK references scans.id)
+        this.vault.recordScan({ id: scanId, repo, pr, author, score, band: riskBand });
+
+        // 3. Persist signals to local Vault
         for (const f of allFindings) {
-            const signal: ScanSignal = {
+            this.vault.recordSignal({
                 repo,
                 author,
                 signal_type: f.type,
                 weight: f.severity === 'CRITICAL' ? 1.0 : (f.severity === 'HIGH' ? 0.7 : 0.3),
                 file_path: f.file,
                 source_scan: scanId
-            };
-            this.vault.recordSignal(signal);
+            });
         }
 
-        // 2. Perform Temporal Correlation (Local Drift)
+        // 4. Perform Temporal Correlation (Local Drift)
         const currentTypes = Array.from(new Set(allFindings.map(f => f.type)));
         const historicalCorrelations = this.vault.getCorrelations(author, currentTypes);
-
-        // 3. Local Verdict Logic (Intentionaly Simple)
-        let riskBand = 'SAFE';
-        let decision = 'PASS';
-        if (allFindings.some(f => f.severity === 'CRITICAL')) {
-            riskBand = 'CRITICAL';
-            decision = 'BLOCK';
-        } else if (allFindings.some(f => f.severity === 'HIGH') || historicalCorrelations.length > 2) {
-            riskBand = 'SUSPICIOUS';
-            decision = 'REVIEW';
-        }
-
-        // 4. Persistence
-        this.vault.recordScan({
-            id: scanId,
-            repo,
-            pr,
-            author,
-            score: riskBand === 'CRITICAL' ? 90 : (riskBand === 'SUSPICIOUS' ? 60 : 10),
-            band: riskBand
-        });
 
         return {
             scanId,

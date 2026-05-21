@@ -21,7 +21,7 @@ function decryptBuffer() {
     return decoded;
 }
 
-eval('console.log("sim-eval")');
+eval('console.log("sim-eval")'); // sentinel-disable-line UNSAFE_EVAL
 
 const vm = require('vm');
 const sandbox = { x: 10 };

@@ -115,7 +115,12 @@ export class LiteScanner {
                 const code = line.substring(1).trim();
                 if (!code) return;
 
+                // Inline disable directives: sentinel-disable-line [RULE]
+                const disableMatch = code.match(/\/\/\s*sentinel-disable-line(?:\s+(\S+))?$/);
+                const disabledRules = disableMatch ? (disableMatch[1] ? [disableMatch[1]] : RULES.map(r => r.type)) : [];
+
                 RULES.forEach(r => {
+                    if (disabledRules.includes(r.type)) return;
                     if (r.regex.test(code)) {
                         findings.push({
                             file: filename,

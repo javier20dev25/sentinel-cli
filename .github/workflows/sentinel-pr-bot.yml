@@ -56,6 +56,17 @@ jobs:
             const fs = require('fs');
             const result = JSON.parse(fs.readFileSync('/tmp/sentinel_result.json', 'utf8'));
 
+            const serverUrl = context.serverUrl || 'https://github.com';
+            const owner = context.repo.owner;
+            const repoName = context.repo.repo;
+            const headSha = context.payload.pull_request.head.sha;
+
+            function fileUrl(file, line) {
+              const base = `${serverUrl}/${owner}/${repoName}/blob/${headSha}`;
+              const encoded = file.startsWith('/') ? file.substring(1) : file;
+              return line ? `${base}/${encoded}#L${line}` : `${base}/${encoded}`;
+            }
+
             if (result.error) {
               await github.rest.issues.createComment({
                 ...context.repo,
@@ -88,7 +99,8 @@ jobs:
             if (highCrit.length > 0) {
               body += `### ⚠️ HIGH/CRITICAL (${highCrit.length})\n\n`;
               for (const f of highCrit) {
-                body += `- **${f.severity}** \`${f.type}\` — ${f.file}:${f.line}\n`;
+                const link = fileUrl(f.file, f.line);
+                body += `- **${f.severity}** \`${f.type}\` — [${f.file}:${f.line}](${link})\n`;
                 body += `  > ${f.description}\n`;
                 if (f.snippet) {
                   body += `  \`\`\`\n${f.snippet}\n\`\`\`\n`;
@@ -99,12 +111,9 @@ jobs:
 
             if (lowMed.length > 0) {
               body += `### ℹ️ LOW/MEDIUM (${lowMed.length})\n\n`;
-              const byType = {};
               for (const f of lowMed) {
-                byType[f.type] = (byType[f.type] || 0) + 1;
-              }
-              for (const [type, count] of Object.entries(byType)) {
-                body += `- \`${type}\`: ${count}\n`;
+                const link = fileUrl(f.file, f.line);
+                body += `- \`${f.type}\` ${f.severity} — [${f.file}:${f.line}](${link})\n`;
               }
               body += '\n';
             }
@@ -113,6 +122,9 @@ jobs:
               body += `### ✅ No threats detected\n\n`;
             }
 
+            body += `#### 💡 Inline Bypass\n`;
+            body += `Añade \`// sentinel-disable-line RULE\` al final de la línea ofensiva para ignorarla:\n\n`;
+            body += `\`\`\`js\neval('data'); // sentinel-disable-line UNSAFE_EVAL\n\`\`\`\n\n`;
             body += `---\n`;
             body += `_Scanned locally by Sentinel CLI v4 LiteScanner | `;
             body += `Hash: \`${(result.contentHash ?? '').substring(0, 12)}\`_`;

@@ -145,7 +145,7 @@ const permissionPrompt = (toolName, args) => __awaiter(void 0, void 0, void 0, f
 const SLASH_COMMANDS = [
     '/help', '/mode', '/mode plan', '/mode execute', '/mode auto',
     '/models', '/provider', '/tools', '/tools -v',
-    '/guard', '/repos',
+    '/guard', '/gh-login', '/repos',
     '/history', '/clear', '/auth', '/trust', '/trust clear',
     '/report md', '/report json',
     '/rule list', '/rule add', '/rule remove', '/rule toggle',
@@ -202,6 +202,7 @@ ${pc.bold('SLASH COMMANDS')}
   ${pc.green('/provider')}           Show active configuration
   ${pc.green('/tools')}              List ${(0, tools_1.getToolDefs)().length} tools
   ${pc.green('/guard')}              Run connection security guard
+  ${pc.green('/gh-login')}           Authenticate with GitHub via browser
   ${pc.green('/repos')} [n] [owner]  List repositories via gh
 
   ${pc.green('/history')}            Session statistics
@@ -403,6 +404,25 @@ function handleSlash(input) {
                 console.log(pc.gray('\n  Running connection security guard...'));
                 const report = (0, gh_guard_1.runGuard)();
                 console.log('\n' + (0, gh_guard_1.formatGuardReport)(report) + '\n');
+                return true;
+            }
+            case '/gh-login': {
+                console.log(pc.cyan('\n  GitHub Login'));
+                console.log(pc.gray('  Opening browser to authenticate with GitHub...\n'));
+                const guard = (0, gh_guard_1.runGuard)();
+                if (guard.passed) {
+                    const user = guard.auth.detail;
+                    console.log(pc.green(`  Already authenticated: ${user}\n`));
+                    return true;
+                }
+                const result = yield (0, gh_guard_1.ghLogin)();
+                if (result.success) {
+                    console.log(pc.green(`  Login successful: ${result.username || 'authenticated'}\n`));
+                }
+                else {
+                    console.log(pc.red(`  Login failed: ${result.message}\n`));
+                    console.log(pc.gray('  Alternative: run "gh auth login" in your terminal\n'));
+                }
                 return true;
             }
             case '/auth': {

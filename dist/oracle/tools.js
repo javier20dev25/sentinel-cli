@@ -79,7 +79,7 @@ function runGh(ghArgs) {
     }
 }
 function sanitizePath(input) {
-    return input.replace(/[^a-zA-Z0-9_\-./\\:]/g, '').trim();
+    return input.replace(/[^a-zA-Z0-9_\-./\\:]/g, '').replace(/\.\./g, '').trim();
 }
 function sanitizePkg(input) {
     const match = input.match(/^@?[a-zA-Z0-9._\-\/]+(@\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?)?$/);

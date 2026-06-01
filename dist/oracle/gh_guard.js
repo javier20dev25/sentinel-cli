@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runGuard = runGuard;
+exports.ghLogin = ghLogin;
 exports.formatGuardReport = formatGuardReport;
 const child_process_1 = require("child_process");
 function run(cmd) {
@@ -78,6 +79,59 @@ function runGuard() {
     }
     report.passed = report.machine.status === '✅' && report.gh.status === '✅' && report.auth.status === '✅';
     return report;
+}
+function ghLogin() {
+    return new Promise((resolve) => {
+        var _a, _b;
+        const ghCmd = process.platform === 'win32' ? 'gh.exe' : 'gh';
+        const child = (0, child_process_1.spawn)(ghCmd, ['auth', 'login', '-w', '-p', 'https', '--skip-ssh-key'], {
+            shell: false,
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+        let output = '';
+        let resolved = false;
+        (_a = child.stdout) === null || _a === void 0 ? void 0 : _a.on('data', (d) => {
+            const msg = d.toString();
+            output += msg;
+            if (msg.toLowerCase().includes('press enter')) {
+                child.stdin.write('\n');
+            }
+        });
+        (_b = child.stderr) === null || _b === void 0 ? void 0 : _b.on('data', (d) => {
+            const msg = d.toString();
+            output += msg;
+            if (msg.toLowerCase().includes('press enter')) {
+                child.stdin.write('\n');
+            }
+        });
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                child.kill();
+                resolve({ success: false, message: 'Authentication timed out after 60 seconds.' });
+            }
+        }, 60000);
+        child.on('close', (code) => {
+            clearTimeout(timeout);
+            if (resolved)
+                return;
+            resolved = true;
+            if (code === 0) {
+                const auth = runGuard();
+                const userLine = auth.auth.detail;
+                resolve({ success: true, username: userLine || 'Unknown' });
+            }
+            else {
+                resolve({ success: false, message: output || 'Login failed. Please run: gh auth login' });
+            }
+        });
+        child.on('error', (err) => {
+            clearTimeout(timeout);
+            if (resolved)
+                return;
+            resolved = true;
+            resolve({ success: false, message: err.message });
+        });
+    });
 }
 function formatGuardReport(report) {
     const lines = [

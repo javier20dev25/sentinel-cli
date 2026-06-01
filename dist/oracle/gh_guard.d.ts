@@ -22,4 +22,9 @@ export interface GuardReport {
     };
 }
 export declare function runGuard(): GuardReport;
+export declare function ghLogin(): Promise<{
+    success: boolean;
+    username?: string;
+    message?: string;
+}>;
 export declare function formatGuardReport(report: GuardReport): string;

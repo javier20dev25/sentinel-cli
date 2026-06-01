@@ -43,12 +43,24 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const CONFIG_DIR = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.sentinel');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+function setSecurePermissions(filePath) {
+    try {
+        if (process.platform !== 'win32') {
+            fs.chmodSync(filePath, 0o600);
+        }
+    }
+    catch (_a) {
+        // non-fatal on platforms where chmod is unavailable
+    }
+}
 function ensureConfig() {
     if (!fs.existsSync(CONFIG_DIR)) {
         fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        setSecurePermissions(CONFIG_DIR);
     }
     if (!fs.existsSync(CONFIG_FILE)) {
         fs.writeFileSync(CONFIG_FILE, JSON.stringify({ keys: {} }, null, 2), 'utf-8');
+        setSecurePermissions(CONFIG_FILE);
     }
 }
 function readConfig() {
@@ -58,6 +70,7 @@ function readConfig() {
 function writeConfig(config) {
     ensureConfig();
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+    setSecurePermissions(CONFIG_FILE);
 }
 function getApiKey(provider) {
     var _a;

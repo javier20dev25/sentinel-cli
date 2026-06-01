@@ -660,26 +660,36 @@ function handleMemoryMenu() {
                     console.log(pc.yellow('No input received.'));
                 }
                 else {
-                    // Write to temp file and ingest
-                    const tmpFile = path.join(os.tmpdir(), 'sentinel-paste-' + Date.now() + '.json');
-                    fs.writeFileSync(tmpFile, raw, 'utf8');
+                    let parsed;
                     try {
-                        JSON.parse(raw);
+                        parsed = JSON.parse(raw);
                     }
                     catch (_a) {
                         console.log(pc.red('Invalid JSON.'));
+                        yield askQuestion(pc.dim(`\n${t('press_enter')}`));
+                        return;
+                    }
+                    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                        console.log(pc.red('Expected a JSON object.'));
+                        yield askQuestion(pc.dim(`\n${t('press_enter')}`));
+                        return;
+                    }
+                    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentinel-paste-'));
+                    const tmpFile = path.join(tmpDir, 'input.json');
+                    fs.writeFileSync(tmpFile, raw, 'utf8');
+                    try {
+                        yield runCommand(['memory', '--ingest', tmpFile]);
+                    }
+                    finally {
                         try {
                             fs.unlinkSync(tmpFile);
                         }
                         catch (_) { }
-                        yield askQuestion(pc.dim(`\n${t('press_enter')}`));
-                        return;
+                        try {
+                            fs.rmdirSync(tmpDir);
+                        }
+                        catch (_) { }
                     }
-                    yield runCommand(['memory', '--ingest', tmpFile]);
-                    try {
-                        fs.unlinkSync(tmpFile);
-                    }
-                    catch (_) { }
                 }
                 yield askQuestion(pc.dim(`\n${t('press_enter')}`));
             }

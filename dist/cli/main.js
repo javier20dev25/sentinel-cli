@@ -552,7 +552,12 @@ program
         console.error(pc.red(`Error: File ${file} not found.`));
         process.exit(1);
     }
-    const key = crypto.createHash('sha256').update(process.env.SENTINEL_ENV_KEY || os.hostname()).digest();
+    const envKey = process.env.SENTINEL_ENV_KEY;
+    if (!envKey) {
+        console.error(pc.red('\nError: SENTINEL_ENV_KEY environment variable is required for encryption.\n'));
+        process.exit(1);
+    }
+    const key = crypto.createHash('sha256').update(envKey).digest();
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
     const input = fs.readFileSync(resolved, 'utf8');
@@ -573,7 +578,12 @@ program
         console.error(pc.red(`Error: File ${file} not found.`));
         process.exit(1);
     }
-    const key = crypto.createHash('sha256').update(process.env.SENTINEL_ENV_KEY || os.hostname()).digest();
+    const envKey = process.env.SENTINEL_ENV_KEY;
+    if (!envKey) {
+        console.error(pc.red('\nError: SENTINEL_ENV_KEY environment variable is required for decryption.\n'));
+        process.exit(1);
+    }
+    const key = crypto.createHash('sha256').update(envKey).digest();
     const content = fs.readFileSync(resolved, 'utf8').trim();
     const parts = content.split(':');
     if (parts.length < 2) {
@@ -648,7 +658,22 @@ program
             finally { if (e_1) throw e_1.error; }
         }
         const raw = Buffer.concat(chunks).toString('utf8');
-        const json = JSON.parse(raw);
+        if (raw.length > 10000000) {
+            console.error(pc.red('Error: Input exceeds maximum size (10 MB).'));
+            return;
+        }
+        let json;
+        try {
+            json = JSON.parse(raw);
+        }
+        catch (_k) {
+            console.error(pc.red('Error: Invalid JSON input.'));
+            return;
+        }
+        if (typeof json !== 'object' || json === null) {
+            console.error(pc.red('Error: Expected a JSON object.'));
+            return;
+        }
         const scanId = json.id
             ? memory.getVault().ingestCloudReport(json)
             : memory.ingestReportFromJson(json);
@@ -660,9 +685,9 @@ program
         if (process.stdin.isTTY) {
             try {
                 // Interactive terminal — wait for EOF
-                for (var _k = true, _l = __asyncValues(process.stdin), _m; _m = yield _l.next(), _d = _m.done, !_d; _k = true) {
-                    _f = _m.value;
-                    _k = false;
+                for (var _l = true, _m = __asyncValues(process.stdin), _o; _o = yield _m.next(), _d = _o.done, !_d; _l = true) {
+                    _f = _o.value;
+                    _l = false;
                     const chunk = _f;
                     chunks.push(chunk);
                 }
@@ -670,7 +695,7 @@ program
             catch (e_2_1) { e_2 = { error: e_2_1 }; }
             finally {
                 try {
-                    if (!_k && !_d && (_e = _l.return)) yield _e.call(_l);
+                    if (!_l && !_d && (_e = _m.return)) yield _e.call(_m);
                 }
                 finally { if (e_2) throw e_2.error; }
             }
@@ -680,7 +705,22 @@ program
             console.log(pc.yellow('No input received.'));
             return;
         }
-        const json = JSON.parse(raw);
+        if (raw.length > 10000000) {
+            console.error(pc.red('Error: Input exceeds maximum size (10 MB).'));
+            return;
+        }
+        let json;
+        try {
+            json = JSON.parse(raw);
+        }
+        catch (_p) {
+            console.error(pc.red('Error: Invalid JSON input.'));
+            return;
+        }
+        if (typeof json !== 'object' || json === null) {
+            console.error(pc.red('Error: Expected a JSON object.'));
+            return;
+        }
         const scanId = json.id
             ? memory.getVault().ingestCloudReport(json)
             : memory.ingestReportFromJson(json);
@@ -1038,4 +1078,10 @@ oracle
     .action(() => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, command_1.oracleInteractive)();
 }));
-program.parse(process.argv);
+// Default: launch Oracle interactive mode when no subcommand given
+if (!process.argv.slice(2).length) {
+    (0, command_1.oracleInteractive)().catch(console.error);
+}
+else {
+    program.parse(process.argv);
+}

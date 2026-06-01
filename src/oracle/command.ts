@@ -7,7 +7,7 @@ import { setApiKey, removeApiKey, listProviders, setConfig, getConfig } from './
 import { getToolDefs } from './tools';
 import { createProvider, ProviderName } from './providers';
 import { Message } from './providers/base';
-import { runGuard, formatGuardReport } from './gh_guard';
+import { runGuard, formatGuardReport, ghLogin } from './gh_guard';
 import {
   addRule, removeRule, toggleRule, listRules, getDefaultRules, ensureDefaultRules
 } from './rules';
@@ -99,7 +99,7 @@ const permissionPrompt: ToolPermissionCallback = async (toolName, args) => {
 const SLASH_COMMANDS = [
   '/help', '/mode', '/mode plan', '/mode execute', '/mode auto',
   '/models', '/provider', '/tools', '/tools -v',
-  '/guard', '/repos',
+  '/guard', '/gh-login', '/repos',
   '/history', '/clear', '/auth', '/trust', '/trust clear',
   '/report md', '/report json',
   '/rule list', '/rule add', '/rule remove', '/rule toggle',
@@ -158,6 +158,7 @@ ${pc.bold('SLASH COMMANDS')}
   ${pc.green('/provider')}           Show active configuration
   ${pc.green('/tools')}              List ${getToolDefs().length} tools
   ${pc.green('/guard')}              Run connection security guard
+  ${pc.green('/gh-login')}           Authenticate with GitHub via browser
   ${pc.green('/repos')} [n] [owner]  List repositories via gh
 
   ${pc.green('/history')}            Session statistics
@@ -351,6 +352,27 @@ async function handleSlash(input: string): Promise<boolean> {
       console.log(pc.gray('\n  Running connection security guard...'));
       const report = runGuard();
       console.log('\n' + formatGuardReport(report) + '\n');
+      return true;
+    }
+
+    case '/gh-login': {
+      console.log(pc.cyan('\n  GitHub Login'));
+      console.log(pc.gray('  Opening browser to authenticate with GitHub...\n'));
+
+      const guard = runGuard();
+      if (guard.passed) {
+        const user = guard.auth.detail;
+        console.log(pc.green(`  Already authenticated: ${user}\n`));
+        return true;
+      }
+
+      const result = await ghLogin();
+      if (result.success) {
+        console.log(pc.green(`  Login successful: ${result.username || 'authenticated'}\n`));
+      } else {
+        console.log(pc.red(`  Login failed: ${result.message}\n`));
+        console.log(pc.gray('  Alternative: run "gh auth login" in your terminal\n'));
+      }
       return true;
     }
 

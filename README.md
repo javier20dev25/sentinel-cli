@@ -189,6 +189,14 @@ sentinel/
 
 - Free to use, modify, and redistribute
 - Cannot be used as a competing Security Tool or Service
+
+## Legal
+
+See [LEGAL.md](./LEGAL.md) for:
+- **Privacy Policy** — what data is collected, stored, and retained
+- **Terms & Conditions** — license terms, acceptable use, disclaimers
+- **Compliance** — data retention, GDPR, security framework alignment
+- **Intellectual Property** — ownership, trademarks, third-party components
 - Changes to GPL v2.0 on Change Date (2030-05-20)
 
 ---

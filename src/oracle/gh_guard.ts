@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 
 export interface GuardReport {
   passed: boolean;
@@ -82,6 +82,62 @@ export function runGuard(): GuardReport {
 
   report.passed = report.machine.status === '✅' && report.gh.status === '✅' && report.auth.status === '✅';
   return report;
+}
+
+export function ghLogin(): Promise<{ success: boolean; username?: string; message?: string }> {
+  return new Promise((resolve) => {
+    const ghCmd = process.platform === 'win32' ? 'gh.exe' : 'gh';
+    const child = spawn(ghCmd, ['auth', 'login', '-w', '-p', 'https', '--skip-ssh-key'], {
+      shell: false,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let output = '';
+    let resolved = false;
+
+    child.stdout?.on('data', (d) => {
+      const msg = d.toString();
+      output += msg;
+      if (msg.toLowerCase().includes('press enter')) {
+        child.stdin.write('\n');
+      }
+    });
+
+    child.stderr?.on('data', (d) => {
+      const msg = d.toString();
+      output += msg;
+      if (msg.toLowerCase().includes('press enter')) {
+        child.stdin.write('\n');
+      }
+    });
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        child.kill();
+        resolve({ success: false, message: 'Authentication timed out after 60 seconds.' });
+      }
+    }, 60000);
+
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (resolved) return;
+      resolved = true;
+      if (code === 0) {
+        const auth = runGuard();
+        const userLine = auth.auth.detail;
+        resolve({ success: true, username: userLine || 'Unknown' });
+      } else {
+        resolve({ success: false, message: output || 'Login failed. Please run: gh auth login' });
+      }
+    });
+
+    child.on('error', (err) => {
+      clearTimeout(timeout);
+      if (resolved) return;
+      resolved = true;
+      resolve({ success: false, message: err.message });
+    });
+  });
 }
 
 export function formatGuardReport(report: GuardReport): string {

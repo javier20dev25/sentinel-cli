@@ -11,7 +11,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { enableGuard, disableGuard, isGuardEnabled } from './guard';
 import { checkClassifiedHook } from './classify';
 import { MemoryManager } from './intelligence/memory_manager';
@@ -22,6 +22,8 @@ import { CapabilityAnalyzer } from './intelligence/capability_analyzer';
 import { IntegrityManager } from './intelligence/integrity_manager';
 import * as pc from 'picocolors';
 import { startInteractiveHub } from './hub';
+import { oracleInteractive, oracleAsk } from '../oracle/command';
+import { setApiKey, removeApiKey, listProviders, setConfig } from '../oracle/auth';
 
 const program = new Command();
 const scanner = new LiteScanner();
@@ -120,30 +122,59 @@ program
             }
         } else {
             console.log(pc.cyan('   Scanning local workspace node_modules for capability matrix...\n'));
+            const nodeModulesPath = path.join(process.cwd(), 'node_modules');
+            let depNames: string[] = [];
+            let source = '';
+
             const pkgJsonPath = path.join(process.cwd(), 'package.json');
-            if (!fs.existsSync(pkgJsonPath)) {
-                console.error(pc.red('Error: No package.json found. Run this command from a Node.js project directory.'));
+            if (fs.existsSync(pkgJsonPath)) {
+                // Primary: enumerate from package.json
+                let pkgJson;
+                try {
+                    pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+                } catch (_e2: unknown) {
+                    console.error(pc.red('Error: Failed to parse package.json.'));
+                    return;
+                }
+                const deps = { ...pkgJson.dependencies, ...pkgJson.devDependencies };
+                depNames = Object.keys(deps).sort((a, b) => a.localeCompare(b));
+                source = 'package.json';
+            } else if (fs.existsSync(nodeModulesPath)) {
+                // Fallback: scan node_modules directory directly (including scoped @org packages)
+                console.log(pc.yellow('   No package.json found. Falling back to direct node_modules scan...\n'));
+                const entries = fs.readdirSync(nodeModulesPath);
+                entries.forEach(entry => {
+                    if (entry.startsWith('.')) return; // skip hidden dirs (.cache, .bin, etc.)
+                    const entryPath = path.join(nodeModulesPath, entry);
+                    if (!fs.statSync(entryPath).isDirectory()) return;
+
+                    if (entry.startsWith('@')) {
+                        // Scoped package: enumerate sub-dirs
+                        const scoped = fs.readdirSync(entryPath);
+                        scoped.forEach(sub => {
+                            const subPath = path.join(entryPath, sub);
+                            if (fs.statSync(subPath).isDirectory()) {
+                                depNames.push(`${entry}/${sub}`);
+                            }
+                        });
+                    } else {
+                        depNames.push(entry);
+                    }
+                });
+                depNames.sort((a, b) => a.localeCompare(b));
+                source = 'node_modules';
+            } else {
+                console.error(pc.red('Error: No package.json or node_modules found.'));
                 console.log(pc.dim('Tip: sentinel permissions <package-name> still works from anywhere.'));
                 return;
             }
 
-            let pkgJson;
-            try {
-                pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-            } catch (_e2: unknown) {
-                console.error(pc.red('Error: Failed to parse package.json.'));
-                return;
-            }
-
-            const deps = { ...pkgJson.dependencies, ...pkgJson.devDependencies };
-            const depNames = Object.keys(deps).sort((a, b) => a.localeCompare(b));
-
             if (depNames.length === 0) {
-                console.log(pc.yellow('   No dependencies found in package.json.'));
+                console.log(pc.yellow('   No dependencies found.'));
                 return;
             }
 
-            console.log(pc.cyan(`   Found ${depNames.length} dependencies in package.json. Starting recursive audit...\n`));
+            console.log(pc.cyan(`   Found ${depNames.length} dependencies (via ${source}). Starting recursive audit...\n`));
 
             let auditedCount = 0;
             let totalCapabilitiesFound = 0;
@@ -281,7 +312,8 @@ program
 
         // Try npm metadata
         try {
-            const info = JSON.parse(execSync(`npm view ${pkg} description author homepage --json 2>NUL`, { encoding: 'utf8', timeout: 10000 }));
+            const safePkg = pkg.replace(/[^a-zA-Z0-9._\-@\/]/g, '');
+            const info = JSON.parse(execFileSync('npm', ['view', safePkg, 'description', 'author', 'homepage', '--json'], { encoding: 'utf8', timeout: 10000, windowsHide: true }));
             if (info.description) console.log(pc.white(`  Desc:      ${pc.dim(String(info.description).substring(0, 100))}`));
             if (info.author?.name || info.maintainers?.[0]?.name) {
                 const author = info.author?.name || info.maintainers?.[0]?.name;
@@ -484,7 +516,12 @@ program
             console.error(pc.red(`Error: File ${file} not found.`));
             process.exit(1);
         }
-        const key = crypto.createHash('sha256').update(process.env.SENTINEL_ENV_KEY || os.hostname()).digest();
+        const envKey = process.env.SENTINEL_ENV_KEY;
+        if (!envKey) {
+          console.error(pc.red('\nError: SENTINEL_ENV_KEY environment variable is required for encryption.\n'));
+          process.exit(1);
+        }
+        const key = crypto.createHash('sha256').update(envKey).digest();
         const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
         const input = fs.readFileSync(resolved, 'utf8');
@@ -506,7 +543,12 @@ program
             console.error(pc.red(`Error: File ${file} not found.`));
             process.exit(1);
         }
-        const key = crypto.createHash('sha256').update(process.env.SENTINEL_ENV_KEY || os.hostname()).digest();
+        const envKey = process.env.SENTINEL_ENV_KEY;
+        if (!envKey) {
+          console.error(pc.red('\nError: SENTINEL_ENV_KEY environment variable is required for decryption.\n'));
+          process.exit(1);
+        }
+        const key = crypto.createHash('sha256').update(envKey).digest();
         const content = fs.readFileSync(resolved, 'utf8').trim();
         const parts = content.split(':');
         if (parts.length < 2) {
@@ -564,9 +606,21 @@ program
             const chunks: Buffer[] = [];
             for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
             const raw = Buffer.concat(chunks).toString('utf8');
-            const json = JSON.parse(raw);
-            const scanId = json.id
-                ? memory.getVault().ingestCloudReport(json)
+            if (raw.length > 10_000_000) {
+                console.error(pc.red('Error: Input exceeds maximum size (10 MB).'));
+                return;
+            }
+            let json: unknown;
+            try { json = JSON.parse(raw); } catch {
+                console.error(pc.red('Error: Invalid JSON input.'));
+                return;
+            }
+            if (typeof json !== 'object' || json === null) {
+                console.error(pc.red('Error: Expected a JSON object.'));
+                return;
+            }
+            const scanId = (json as Record<string, unknown>).id
+                ? memory.getVault().ingestCloudReport(json as any)
                 : memory.ingestReportFromJson(json);
             console.log(pc.green(`\n✔ Signals from piped JSON persisted to local Vault (scan: ${scanId}).`));
         } else if (options.paste) {
@@ -581,9 +635,21 @@ program
                 console.log(pc.yellow('No input received.'));
                 return;
             }
-            const json = JSON.parse(raw);
-            const scanId = json.id
-                ? memory.getVault().ingestCloudReport(json)
+            if (raw.length > 10_000_000) {
+                console.error(pc.red('Error: Input exceeds maximum size (10 MB).'));
+                return;
+            }
+            let json: unknown;
+            try { json = JSON.parse(raw); } catch {
+                console.error(pc.red('Error: Invalid JSON input.'));
+                return;
+            }
+            if (typeof json !== 'object' || json === null) {
+                console.error(pc.red('Error: Expected a JSON object.'));
+                return;
+            }
+            const scanId = (json as Record<string, unknown>).id
+                ? memory.getVault().ingestCloudReport(json as any)
                 : memory.ingestReportFromJson(json);
             console.log(pc.green(`\n✔ Pasted JSON persisted to local Vault (scan: ${scanId}).`));
         } else if (options.ingest) {
@@ -873,4 +939,79 @@ ${d('and contribution guidelines.')}
         console.log(guide);
     });
 
-program.parse(process.argv);
+// --- Oracle Command (CLI 2) ---
+
+const oracle = program.command('oracle')
+  .description('🧿 Oracle Core — AI-powered security assistant (CLI 2)')
+  .action(async () => {
+    await oracleInteractive();
+  });
+
+oracle
+  .command('ask')
+  .description('Ask a one-shot security question')
+  .argument('<question...>', 'Your question')
+  .action(async (question: string[]) => {
+    await oracleAsk(question.join(' '));
+  });
+
+oracle
+  .command('auth')
+  .description('Manage provider API keys');
+
+oracle.command('auth')
+  .command('set')
+  .description('Set API key for a provider')
+  .argument('<provider>', 'Provider name (gemini, claude, openai)')
+  .argument('<key>', 'API key')
+  .action((provider: string, key: string) => {
+    setApiKey(provider, key);
+    console.log(`\u2705 API key set for ${provider}`);
+  });
+
+oracle.command('auth')
+  .command('remove')
+  .description('Remove API key for a provider')
+  .argument('<provider>', 'Provider name')
+  .action((provider: string) => {
+    removeApiKey(provider);
+    console.log(`\u2705 API key removed for ${provider}`);
+  });
+
+oracle.command('auth')
+  .command('list')
+  .description('List configured providers')
+  .action(() => {
+    const providers = listProviders();
+    if (providers.length === 0) {
+      console.log('No providers configured.');
+      return;
+    }
+    console.log('Configured providers:');
+    providers.forEach(p => console.log(`  - ${p}`));
+  });
+
+oracle
+  .command('set-model')
+  .description('Set default provider and model')
+  .argument('<provider>', 'Provider name')
+  .argument('[model]', 'Model name')
+  .action((provider: string, model?: string) => {
+    setConfig(provider, model);
+    console.log(`\u2705 Default provider set to ${provider}${model ? ` (model: ${model})` : ''}`);
+  });
+
+oracle
+  .command('interactive')
+  .alias('chat')
+  .description('Start interactive oracle session')
+  .action(async () => {
+    await oracleInteractive();
+  });
+
+// Default: launch Oracle interactive mode when no subcommand given
+if (!process.argv.slice(2).length) {
+  oracleInteractive().catch(console.error);
+} else {
+  program.parse(process.argv);
+}

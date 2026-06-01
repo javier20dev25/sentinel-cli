@@ -11,22 +11,14 @@ jobs:
       contents: read
       pull-requests: write
       checks: write
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build TypeScript
-        run: npx tsc
-
+      - run: npm ci
+      - run: npx tsc
       - name: Get PR diff
         id: diff
         env:
@@ -34,7 +26,6 @@ jobs:
         run: |
           gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr_diff.txt
           echo "DIFF_SIZE=$(wc -c < /tmp/pr_diff.txt)" >> "$GITHUB_OUTPUT"
-
       - name: Run Sentinel local scan
         id: scan
         env:
@@ -45,15 +36,12 @@ jobs:
           node dist/cli/pr_scan.js /tmp/pr_diff.txt > /tmp/sentinel_result.json
           echo "FINDINGS=$(jq '.findings | length' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
           echo "DECISION=$(jq -r '.verdict.decision' /tmp/sentinel_result.json)" >> "$GITHUB_OUTPUT"
-
       - name: Post comment with results
-        id: comment
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const result = JSON.parse(fs.readFileSync('/tmp/sentinel_result.json', 'utf8'));
-
             if (result.error) {
               await github.rest.issues.createComment({
                 ...context.repo,
@@ -62,65 +50,42 @@ jobs:
               });
               return;
             }
-
             const findings = result.findings ?? [];
             const verdict = result.verdict ?? {};
             const files = result.filesAnalyzed ?? 0;
-
             const highCrit = findings.filter(f => f.severity === 'HIGH' || f.severity === 'CRITICAL');
             const lowMed = findings.filter(f => f.severity === 'LOW' || f.severity === 'MEDIUM' || f.severity === 'INFO');
-
             let header = '🟢';
-            if (verdict.decision === 'BLOCK' || highCrit.length > 0) {
-              header = '🔴';
-            } else if (verdict.band === 'SUSPICIOUS') {
-              header = '🟡';
-            }
-
-            let body = `## ${header} Sentinel PR Scan (Local Engine)\n\n`;
+            if (verdict.decision === 'BLOCK' || highCrit.length > 0) header = '🔴';
+            else if (verdict.band === 'SUSPICIOUS') header = '🟡';
+            let body = `## ${header} Sentinel PR Scan\n\n`;
             body += `**Risk Band:** ${verdict.band ?? 'SAFE'}  \n`;
             body += `**Decision:** ${verdict.decision ?? 'PASS'}  \n`;
             body += `**Files Analyzed:** ${files}  \n`;
             body += `**Total Findings:** ${findings.length}  \n\n`;
-
             if (highCrit.length > 0) {
               body += `### ⚠️ HIGH/CRITICAL (${highCrit.length})\n\n`;
               for (const f of highCrit) {
                 body += `- **${f.severity}** \`${f.type}\` — ${f.file}:${f.line}\n`;
                 body += `  > ${f.description}\n`;
-                if (f.snippet) {
-                  body += `  \`\`\`\n${f.snippet}\n\`\`\`\n`;
-                }
+                if (f.snippet) body += `  \`\`\`\n${f.snippet}\n\`\`\`\n`;
                 body += '\n';
               }
             }
-
             if (lowMed.length > 0) {
               body += `### ℹ️ LOW/MEDIUM (${lowMed.length})\n\n`;
               const byType = {};
-              for (const f of lowMed) {
-                byType[f.type] = (byType[f.type] || 0) + 1;
-              }
-              for (const [type, count] of Object.entries(byType)) {
-                body += `- \`${type}\`: ${count}\n`;
-              }
+              for (const f of lowMed) byType[f.type] = (byType[f.type] || 0) + 1;
+              for (const [type, count] of Object.entries(byType)) body += `- \`${type}\`: ${count}\n`;
               body += '\n';
             }
-
-            if (highCrit.length === 0) {
-              body += `### ✅ No threats detected\n\n`;
-            }
-
-            body += `---\n`;
-            body += `_Scanned locally by Sentinel CLI v4 LiteScanner | `;
-            body += `Hash: \`${(result.contentHash ?? '').substring(0, 12)}\`_`;
-
+            if (highCrit.length === 0) body += `### ✅ No threats detected\n\n`;
+            body += `---\n_Scanned by Sentinel CLI v4 LiteScanner | Hash: \`${(result.contentHash ?? '').substring(0, 12)}\`_`;
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: context.payload.pull_request.number,
-              body: body
+              body
             });
-
             if (verdict.decision === 'BLOCK') {
               await github.rest.checks.create({
                 ...context.repo,

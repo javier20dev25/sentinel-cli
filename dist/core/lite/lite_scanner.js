@@ -104,6 +104,7 @@ class LiteScanner {
             // AWS / cloud provider keys
             { regex: /(?:AWS|aws)_ACCESS_KEY_ID\s*[=:]\s*['\"]?AKIA[0-9A-Z]{16}['\"]?/, type: 'SECRET_AWS_KEY_ID', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Access Key ID exposed in plain text.' },
             { regex: /(?:AWS|aws)_SECRET_ACCESS_KEY\s*[=:]\s*['\"]?[A-Za-z0-9\/+=]{40}['\"]?/, type: 'SECRET_AWS_SECRET', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Secret Access Key exposed in plain text.' },
+            { regex: /(?<![0-9a-zA-Z])AKIA[0-9A-Z]{16}(?![0-9a-zA-Z])/, type: 'SECRET_AWS_KEY_ID', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Access Key ID exposed (bare AKIA pattern).' },
             // GitHub tokens
             { regex: /gh[opsu]_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z]{22,}/, type: 'SECRET_GITHUB_TOKEN', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'GitHub personal access token exposed.' },
             // Payment processor keys
@@ -112,8 +113,9 @@ class LiteScanner {
             { regex: /SG\.[A-Za-z0-9_-]{40,}/, type: 'SECRET_SENDGRID_KEY', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'SendGrid API key exposed.' },
             // Private keys
             { regex: /-----BEGIN\s+(?:RSA|DSA|EC|OPENSSH|PGP)\s+PRIVATE\s+KEY-----/, type: 'SECRET_SSH_KEY', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Private cryptographic key exposed in plain text.' },
-            // Slack tokens
+            // Slack tokens + webhooks
             { regex: /xox[abp]\-[0-9a-zA-Z]{10,}/, type: 'SECRET_SLACK_TOKEN', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Slack API token exposed.' },
+            { regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_]{8,}\/B[A-Za-z0-9_]{8,}\/[A-Za-z0-9_]{24}/, type: 'SECRET_SLACK_WEBHOOK', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Slack webhook URL exposed.' },
             // JWT secrets (quoted or unquoted)
             { regex: /(?:JWT|jwt)_?(?:SECRET|KEY|TOKEN)\s*[=:]\s*['\"]?[A-Za-z0-9_\-\.]{16,}['\"]?/, type: 'SECRET_JWT', intent: 'EXFILTRATION', severity: 'HIGH', description: 'JWT secret or signing key exposed.' },
             // Database passwords (quoted or unquoted)

@@ -72,6 +72,8 @@ const capability_analyzer_1 = require("./intelligence/capability_analyzer");
 const integrity_manager_1 = require("./intelligence/integrity_manager");
 const pc = __importStar(require("picocolors"));
 const hub_1 = require("./hub");
+const command_1 = require("../oracle/command");
+const auth_1 = require("../oracle/auth");
 const program = new commander_1.Command();
 const scanner = new lite_scanner_1.LiteScanner();
 const memory = new memory_manager_1.MemoryManager();
@@ -161,27 +163,61 @@ program
     }
     else {
         console.log(pc.cyan('   Scanning local workspace node_modules for capability matrix...\n'));
+        const nodeModulesPath = path.join(process.cwd(), 'node_modules');
+        let depNames = [];
+        let source = '';
         const pkgJsonPath = path.join(process.cwd(), 'package.json');
-        if (!fs.existsSync(pkgJsonPath)) {
-            console.error(pc.red('Error: No package.json found. Run this command from a Node.js project directory.'));
+        if (fs.existsSync(pkgJsonPath)) {
+            // Primary: enumerate from package.json
+            let pkgJson;
+            try {
+                pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+            }
+            catch (_e2) {
+                console.error(pc.red('Error: Failed to parse package.json.'));
+                return;
+            }
+            const deps = Object.assign(Object.assign({}, pkgJson.dependencies), pkgJson.devDependencies);
+            depNames = Object.keys(deps).sort((a, b) => a.localeCompare(b));
+            source = 'package.json';
+        }
+        else if (fs.existsSync(nodeModulesPath)) {
+            // Fallback: scan node_modules directory directly (including scoped @org packages)
+            console.log(pc.yellow('   No package.json found. Falling back to direct node_modules scan...\n'));
+            const entries = fs.readdirSync(nodeModulesPath);
+            entries.forEach(entry => {
+                if (entry.startsWith('.'))
+                    return; // skip hidden dirs (.cache, .bin, etc.)
+                const entryPath = path.join(nodeModulesPath, entry);
+                if (!fs.statSync(entryPath).isDirectory())
+                    return;
+                if (entry.startsWith('@')) {
+                    // Scoped package: enumerate sub-dirs
+                    const scoped = fs.readdirSync(entryPath);
+                    scoped.forEach(sub => {
+                        const subPath = path.join(entryPath, sub);
+                        if (fs.statSync(subPath).isDirectory()) {
+                            depNames.push(`${entry}/${sub}`);
+                        }
+                    });
+                }
+                else {
+                    depNames.push(entry);
+                }
+            });
+            depNames.sort((a, b) => a.localeCompare(b));
+            source = 'node_modules';
+        }
+        else {
+            console.error(pc.red('Error: No package.json or node_modules found.'));
             console.log(pc.dim('Tip: sentinel permissions <package-name> still works from anywhere.'));
             return;
         }
-        let pkgJson;
-        try {
-            pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-        }
-        catch (_e2) {
-            console.error(pc.red('Error: Failed to parse package.json.'));
-            return;
-        }
-        const deps = Object.assign(Object.assign({}, pkgJson.dependencies), pkgJson.devDependencies);
-        const depNames = Object.keys(deps).sort((a, b) => a.localeCompare(b));
         if (depNames.length === 0) {
-            console.log(pc.yellow('   No dependencies found in package.json.'));
+            console.log(pc.yellow('   No dependencies found.'));
             return;
         }
-        console.log(pc.cyan(`   Found ${depNames.length} dependencies in package.json. Starting recursive audit...\n`));
+        console.log(pc.cyan(`   Found ${depNames.length} dependencies (via ${source}). Starting recursive audit...\n`));
         let auditedCount = 0;
         let totalCapabilitiesFound = 0;
         depNames.forEach(depName => {
@@ -312,7 +348,8 @@ program
     console.log(pc.white(`  Scan:      ${pc.cyan(result.scanTimeMs + 'ms')}  ${pc.dim('Mem: ' + result.memoryMB + ' MB')}`));
     // Try npm metadata
     try {
-        const info = JSON.parse((0, child_process_1.execSync)(`npm view ${pkg} description author homepage --json 2>NUL`, { encoding: 'utf8', timeout: 10000 }));
+        const safePkg = pkg.replace(/[^a-zA-Z0-9._\-@\/]/g, '');
+        const info = JSON.parse((0, child_process_1.execFileSync)('npm', ['view', safePkg, 'description', 'author', 'homepage', '--json'], { encoding: 'utf8', timeout: 10000, windowsHide: true }));
         if (info.description)
             console.log(pc.white(`  Desc:      ${pc.dim(String(info.description).substring(0, 100))}`));
         if (((_a = info.author) === null || _a === void 0 ? void 0 : _a.name) || ((_c = (_b = info.maintainers) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.name)) {
@@ -940,4 +977,65 @@ ${d('and contribution guidelines.')}
 `;
     console.log(guide);
 });
+// --- Oracle Command (CLI 2) ---
+const oracle = program.command('oracle')
+    .description('🧿 Oracle Core — AI-powered security assistant (CLI 2)')
+    .action(() => __awaiter(void 0, void 0, void 0, function* () {
+    yield (0, command_1.oracleInteractive)();
+}));
+oracle
+    .command('ask')
+    .description('Ask a one-shot security question')
+    .argument('<question...>', 'Your question')
+    .action((question) => __awaiter(void 0, void 0, void 0, function* () {
+    yield (0, command_1.oracleAsk)(question.join(' '));
+}));
+oracle
+    .command('auth')
+    .description('Manage provider API keys');
+oracle.command('auth')
+    .command('set')
+    .description('Set API key for a provider')
+    .argument('<provider>', 'Provider name (gemini, claude, openai)')
+    .argument('<key>', 'API key')
+    .action((provider, key) => {
+    (0, auth_1.setApiKey)(provider, key);
+    console.log(`\u2705 API key set for ${provider}`);
+});
+oracle.command('auth')
+    .command('remove')
+    .description('Remove API key for a provider')
+    .argument('<provider>', 'Provider name')
+    .action((provider) => {
+    (0, auth_1.removeApiKey)(provider);
+    console.log(`\u2705 API key removed for ${provider}`);
+});
+oracle.command('auth')
+    .command('list')
+    .description('List configured providers')
+    .action(() => {
+    const providers = (0, auth_1.listProviders)();
+    if (providers.length === 0) {
+        console.log('No providers configured.');
+        return;
+    }
+    console.log('Configured providers:');
+    providers.forEach(p => console.log(`  - ${p}`));
+});
+oracle
+    .command('set-model')
+    .description('Set default provider and model')
+    .argument('<provider>', 'Provider name')
+    .argument('[model]', 'Model name')
+    .action((provider, model) => {
+    (0, auth_1.setConfig)(provider, model);
+    console.log(`\u2705 Default provider set to ${provider}${model ? ` (model: ${model})` : ''}`);
+});
+oracle
+    .command('interactive')
+    .alias('chat')
+    .description('Start interactive oracle session')
+    .action(() => __awaiter(void 0, void 0, void 0, function* () {
+    yield (0, command_1.oracleInteractive)();
+}));
 program.parse(process.argv);

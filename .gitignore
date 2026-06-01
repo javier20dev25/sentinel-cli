@@ -3,3 +3,5 @@ node_modules/
 .env*
 *.db
 *.db-journal
+dist/**/*.test.*
+dist/test-setup.*

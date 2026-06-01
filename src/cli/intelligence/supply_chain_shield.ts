@@ -10,7 +10,7 @@ import * as pc from 'picocolors';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 export interface PackageAnalysis {
     pkg: string;
@@ -33,8 +33,7 @@ export class SupplyChainShield {
      * Download a package tarball (without installing) and run SAST.
      */
     public async analyzePackage(pkgSpec: string): Promise<PackageAnalysis> {
-        const tmpDir = path.join(os.tmpdir(), 'sentinel-shield-' + Date.now());
-        fs.mkdirSync(tmpDir, { recursive: true });
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentinel-shield-'));
         const memBefore = process.memoryUsage().heapUsed / 1024 / 1024;
 
         try {
@@ -42,20 +41,11 @@ export class SupplyChainShield {
 
             const startTime = Date.now();
 
-            // Use npm pack to download tarball without installing
+            // Use npm pack to download tarball without installing — safe from shell injection
+            const safePkg = pkgSpec.replace(/[^a-zA-Z0-9._\-@\/]/g, '');
             try {
-                const npmBin = process.platform === 'win32'
-                    ? (() => {
-                        try {
-                            const result = execSync('where.exe npm', { encoding: 'utf8', timeout: 5000 });
-                            return result.toString().trim().split('\n')[0].trim();
-                        } catch (_unused: unknown) {
-                            return 'npm.cmd';
-                        }
-                      })()
-                    : (process.env.NVM_SYMLINK || 'npm');
-                execSync(`"${npmBin}" pack "${pkgSpec}" --pack-destination "${tmpDir}"`, {
-                    encoding: 'utf8', timeout: 60000, stdio: 'pipe'
+                execFileSync('npm', ['pack', safePkg, '--pack-destination', tmpDir], {
+                    encoding: 'utf8', timeout: 60000, stdio: 'pipe', windowsHide: true,
                 });
             } catch (e: unknown) {
                 const err = e as { stderr?: string; stdout?: string; message?: string };
@@ -70,13 +60,13 @@ export class SupplyChainShield {
             const stats = fs.statSync(tgzPath);
             const sizeBytes = stats.size;
 
-            // Extract the tarball
+            // Extract the tarball — safe from shell injection
             const extractDir = path.join(tmpDir, 'pkg');
             fs.mkdirSync(extractDir);
 
             try {
-                execSync(`tar -xzf "${tgzPath}" -C "${extractDir}"`, {
-                    encoding: 'utf8', timeout: 30000, stdio: 'pipe'
+                execFileSync('tar', ['-xzf', tgzPath, '-C', extractDir], {
+                    encoding: 'utf8', timeout: 30000, stdio: 'pipe', windowsHide: true,
                 });
             } catch (e: unknown) {
                 const err = e as { stderr?: string; message?: string };
@@ -197,16 +187,19 @@ export class SupplyChainShield {
         return { success: true, results };
     }
 
-    private walkDir(dir: string, results: string[]): void {
-        if (!fs.existsSync(dir)) return;
+    private walkDir(dir: string, results: string[], depth = 0): void {
+        if (!fs.existsSync(dir) || depth > 10) return;
         const list = fs.readdirSync(dir);
         for (const file of list) {
             if (file.startsWith('.') || file === 'node_modules') continue;
-            const full = path.join(dir, file);
+            const full = path.resolve(dir, file);
+            // Zip-slip protection: reject symlinks and paths outside base dir
+            if (!full.startsWith(path.resolve(dir))) continue;
             try {
+                if (fs.lstatSync(full).isSymbolicLink()) continue;
                 const stat = fs.statSync(full);
                 if (stat.isDirectory()) {
-                    this.walkDir(full, results);
+                    this.walkDir(full, results, depth + 1);
                 } else {
                     results.push(full);
                 }

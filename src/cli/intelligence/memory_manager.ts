@@ -57,8 +57,20 @@ export class MemoryManager {
      * Supports both the new Sentinel SaaS format and legacy format.
      */
     public ingestReport(reportPath: string): string {
-        const content = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-        return this.ingestReportFromJson(content);
+        const content = fs.readFileSync(reportPath, 'utf8');
+        if (content.length > 10_000_000) {
+            throw new Error('Report file exceeds maximum size (10 MB)');
+        }
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(content);
+        } catch {
+            throw new Error('Invalid JSON in report file');
+        }
+        if (typeof parsed !== 'object' || parsed === null) {
+            throw new Error('Expected a JSON object at root');
+        }
+        return this.ingestReportFromJson(parsed);
     }
 
     public getStatus(): {

@@ -28,7 +28,9 @@ export function readClassifiedDb(): ClassifiedDb {
     const file = getClassifiedDbPath();
     if (!fs.existsSync(file)) return {};
     try {
-        return JSON.parse(fs.readFileSync(file, 'utf8'));
+        let content = fs.readFileSync(file, 'utf8');
+        if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+        return JSON.parse(content);
     } catch {
         return {};
     }

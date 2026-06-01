@@ -1,6 +1,7 @@
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import * as pc from 'picocolors';
 import { spawn } from 'child_process';
 import * as path from 'path';
@@ -620,17 +621,26 @@ async function handleMemoryMenu() {
             if (!raw) {
                 console.log(pc.yellow('No input received.'));
             } else {
-                // Write to temp file and ingest
-                const tmpFile = path.join(os.tmpdir(), 'sentinel-paste-' + Date.now() + '.json');
-                fs.writeFileSync(tmpFile, raw, 'utf8');
-                try { JSON.parse(raw); } catch {
+                let parsed: unknown;
+                try { parsed = JSON.parse(raw); } catch {
                     console.log(pc.red('Invalid JSON.'));
-                    try { fs.unlinkSync(tmpFile); } catch (_) {}
                     await askQuestion(pc.dim(`\n${t('press_enter')}`));
                     return;
                 }
-                await runCommand(['memory', '--ingest', tmpFile]);
-                try { fs.unlinkSync(tmpFile); } catch (_) {}
+                if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                    console.log(pc.red('Expected a JSON object.'));
+                    await askQuestion(pc.dim(`\n${t('press_enter')}`));
+                    return;
+                }
+                const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentinel-paste-'));
+                const tmpFile = path.join(tmpDir, 'input.json');
+                fs.writeFileSync(tmpFile, raw, 'utf8');
+                try {
+                    await runCommand(['memory', '--ingest', tmpFile]);
+                } finally {
+                    try { fs.unlinkSync(tmpFile); } catch (_) {}
+                    try { fs.rmdirSync(tmpDir); } catch (_) {}
+                }
             }
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
         } else if (action === '5') {

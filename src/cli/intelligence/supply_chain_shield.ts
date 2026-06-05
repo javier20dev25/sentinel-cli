@@ -1,7 +1,8 @@
 /**
- * Sentinel Supply Chain Shield (v2.0)
+ * Sentinel Supply Chain Shield (v5.0 — A2)
  * 
  * Real package downloader + SAST scanner for supply chain threats.
+ * Integrates OSV.dev CVE lookup, typosquatting detection, trust cache.
  * Downloads tarballs from npm registry, extracts to temp, and runs LiteScanner.
  */
 
@@ -10,7 +11,10 @@ import * as pc from 'picocolors';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execFileSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
+import { OSVIntegrator, OSVResult } from './osv_integrator';
+import { TyposquatDetector, TyposquatResult } from './typosquat_detector';
+import { TrustCache, CacheResult } from './trust_cache';
 
 export interface PackageAnalysis {
     pkg: string;
@@ -20,21 +24,57 @@ export interface PackageAnalysis {
     memoryMB: number;
     sizeBytes: number;
     verdict: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS';
+    osvResult?: OSVResult;
+    typosquat?: TyposquatResult;
+    cacheResult?: CacheResult;
 }
 
 export class SupplyChainShield {
     private scanner: LiteScanner;
+    private osv: OSVIntegrator;
+    private typosquat: TyposquatDetector;
+    private trustCache: TrustCache;
 
     constructor() {
         this.scanner = new LiteScanner();
+        this.osv = new OSVIntegrator();
+        this.typosquat = new TyposquatDetector();
+        this.trustCache = new TrustCache();
     }
 
     /**
      * Download a package tarball (without installing) and run SAST.
      */
     public async analyzePackage(pkgSpec: string): Promise<PackageAnalysis> {
-        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentinel-shield-'));
         const memBefore = process.memoryUsage().heapUsed / 1024 / 1024;
+
+        // Extract name and version
+        const atIdx = pkgSpec.lastIndexOf('@');
+        const pkgName = atIdx > 0 ? pkgSpec.substring(0, atIdx) : pkgSpec;
+        const pkgVersion = atIdx > 0 ? pkgSpec.substring(atIdx + 1) : '';
+
+        // Trust cache check
+        const cacheResult = this.trustCache.get(pkgName, pkgVersion);
+        if (cacheResult.found && cacheResult.recencyBand === 'STALE') {
+            const entry = cacheResult.entry!;
+            return {
+                pkg: pkgSpec,
+                findings: [],
+                fileCount: 0,
+                scanTimeMs: 0,
+                memoryMB: 0,
+                sizeBytes: 0,
+                verdict: entry.verdict as 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS',
+                cacheResult
+            };
+        }
+
+        // Typosquatting check (before download)
+        const typosquat = this.typosquat.check(pkgName);
+
+        // OSV.dev query (before download)
+        const osvResult = await this.osv.queryPackage(pkgName, pkgVersion);
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentinel-shield-'));
 
         try {
             console.log(pc.cyan(`\n📦 Downloading ${pkgSpec} (no-install mode)...`));
@@ -44,8 +84,9 @@ export class SupplyChainShield {
             // Use npm pack to download tarball without installing — safe from shell injection
             const safePkg = pkgSpec.replace(/[^a-zA-Z0-9._\-@\/]/g, '');
             try {
-                execFileSync('npm', ['pack', safePkg, '--pack-destination', tmpDir], {
-                    encoding: 'utf8', timeout: 60000, stdio: 'pipe', windowsHide: true,
+                const tgt = tmpDir.replace(/\\/g, '/');
+                execSync(`npm pack ${safePkg} --pack-destination "${tgt}" --ignore-scripts`, {
+                    encoding: 'utf8' as const, timeout: 60000, stdio: 'pipe' as const, windowsHide: true, shell: true as any,
                 });
             } catch (e: unknown) {
                 const err = e as { stderr?: string; stdout?: string; message?: string };
@@ -100,17 +141,42 @@ export class SupplyChainShield {
                 }
             }
 
+            // Scan extra files: .gyp, .gypi, .sh, .ps1, .bat, package.json (v5.0)
+            const extraFiles = allFiles.filter(f =>
+                f.endsWith('.gyp') || f.endsWith('.gypi') ||
+                f.endsWith('.sh') || f.endsWith('.ps1') || f.endsWith('.bat') ||
+                path.basename(f) === 'package.json'
+            );
+            for (const file of extraFiles) {
+                try {
+                    const content = fs.readFileSync(file, 'utf8');
+                    const relPath = path.relative(pkgDir, file);
+                    const result = this.scanner.scanFileContent(relPath, content);
+                    result.findings.forEach(f => allFindings.push(f));
+                } catch (_skip: unknown) {}
+            }
+
             const scanTimeMs = Date.now() - startTime;
             const memAfter = process.memoryUsage().heapUsed / 1024 / 1024;
             const memoryMB = parseFloat((memAfter - memBefore).toFixed(1));
 
-            // Verdict
+            // Verdict — incorporates OSV and typosquatting
             let verdict: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS' = 'SAFE';
-            if (allFindings.some(f => f.severity === 'CRITICAL')) {
+            if (allFindings.some(f => f.severity === 'CRITICAL') ||
+                osvResult.vulnerabilities.some(v => {
+                    const maxS = OSVIntegrator.getMaxSeverity(v);
+                    return maxS && maxS.score >= 9.0;
+                })) {
                 verdict = 'MALICIOUS';
-            } else if (allFindings.some(f => f.severity === 'HIGH' || f.type.startsWith('SECRET_'))) {
+            } else if (allFindings.some(f => f.severity === 'HIGH' || f.type.startsWith('SECRET_')) ||
+                       typosquat.isSuspicious ||
+                       osvResult.vulnerabilities.length > 0) {
                 verdict = 'SUSPICIOUS';
             }
+
+            // Cache the result
+            const criticalCount = allFindings.filter(f => f.severity === 'CRITICAL').length;
+            this.trustCache.set(pkgName, pkgVersion, verdict, allFindings.length, criticalCount);
 
             // Cleanup tarball
             try { fs.unlinkSync(tgzPath); } catch (_) {}
@@ -122,7 +188,10 @@ export class SupplyChainShield {
                 scanTimeMs,
                 memoryMB: Math.max(memoryMB, 0.1),
                 sizeBytes,
-                verdict
+                verdict,
+                osvResult,
+                typosquat,
+                cacheResult
             };
 
         } finally {

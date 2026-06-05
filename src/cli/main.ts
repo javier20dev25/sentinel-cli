@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Sentinel CLI (v4.0 "Oracle Lite")
+ * Sentinel CLI (v4.0)
  * 
- * Unified Terminal Security Interface.
+ * Security Intelligence for AI Coding Agents.
  */
 
 import { Command } from 'commander';
@@ -13,15 +13,17 @@ import * as crypto from 'crypto';
 import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
 import { execSync, execFileSync } from 'child_process';
 import { enableGuard, disableGuard, isGuardEnabled } from './guard';
-import { checkClassifiedHook } from './classify';
+import { checkClassifiedHook, installSastPreCommitHook, uninstallPreCommitHook, isPreCommitHookInstalled } from './classify';
 import { MemoryManager } from './intelligence/memory_manager';
 import { SupplyChainShield } from './intelligence/supply_chain_shield';
 import { SystemAuditor } from './intelligence/system_auditor';
 import { BaselineManager } from './intelligence/baseline_manager';
 import { CapabilityAnalyzer } from './intelligence/capability_analyzer';
 import { IntegrityManager } from './intelligence/integrity_manager';
+import { OSVIntegrator } from './intelligence/osv_integrator';
 import * as pc from 'picocolors';
 import { startInteractiveHub } from './hub';
+import { LiveIndicator } from './live';
 import { oracleInteractive, oracleAsk } from '../oracle/command';
 import { setApiKey, removeApiKey, listProviders, setConfig } from '../oracle/auth';
 
@@ -44,7 +46,7 @@ async function preFlightCheck() {
 program
     .name('sentinel')
     .version('4.0.0')
-    .description('Sentinel Security Oracle — Unified Intelligence CLI');
+    .description('Sentinel Security Intelligence — SAST, supply chain, threat intel + Skills/MCP for AI agents');
 
 // --- Subcommands ---
 
@@ -79,7 +81,10 @@ program
     .option('--deep', 'Perform deep behavioral analysis')
     .action(async (options) => {
         await preFlightCheck();
+        const live = new LiveIndicator();
+        live.start(options.deep ? 'Deep behavioral analysis...' : 'System health check...', 'wave');
         await auditor.runDoctor(options.deep);
+        live.stop();
     });
 
 program
@@ -246,6 +251,61 @@ function walkDir(dir: string): string[] {
 }
 
 program
+    .command('policy')
+    .description('Configure Sentinel security policies (ci-mode, fail-closed, quarantine).')
+    .argument('<action>', 'set | get | list')
+    .argument('[key]', 'Policy key (ci-mode, fail-closed, quarantine)')
+    .argument('[value]', 'Policy value (strict, lenient, on, off)')
+    .action((action, key, value) => {
+        const policyDir = path.join(os.homedir(), '.sentinel');
+        const policyFile = path.join(policyDir, 'policy.json');
+        if (!fs.existsSync(policyDir)) fs.mkdirSync(policyDir, { recursive: true });
+
+        let policies: Record<string, string> = {};
+        try { policies = JSON.parse(fs.readFileSync(policyFile, 'utf8')); } catch {}
+
+        if (action === 'list') {
+            console.log(pc.cyan('\n📋 Sentinel Policy'));
+            if (Object.keys(policies).length === 0) {
+                console.log(pc.dim('   No custom policies set. All defaults active.'));
+            } else {
+                for (const [k, v] of Object.entries(policies)) {
+                    console.log(`  ${pc.white(k.padEnd(20))} = ${pc.cyan(v)}`);
+                }
+            }
+            console.log(pc.dim('\nAvailable: ci-mode (strict|lenient), fail-closed (on|off), quarantine (on|off)'));
+        } else if (action === 'get') {
+            const val = policies[key];
+            if (val) console.log(`${pc.white(key)} = ${pc.cyan(val)}`);
+            else console.log(pc.yellow(`  ${key} not set.`));
+        } else if (action === 'set') {
+            if (!key || !value) {
+                console.error(pc.red('Usage: sentinel policy set <key> <value>'));
+                return;
+            }
+            const validKeys = ['ci-mode', 'fail-closed', 'quarantine'];
+            if (!validKeys.includes(key)) {
+                console.error(pc.red(`Invalid policy key. Valid: ${validKeys.join(', ')}`));
+                return;
+            }
+            const validValues: Record<string, string[]> = {
+                'ci-mode': ['strict', 'lenient'],
+                'fail-closed': ['on', 'off'],
+                'quarantine': ['on', 'off']
+            };
+            if (validValues[key] && !validValues[key].includes(value)) {
+                console.error(pc.red(`Invalid value for ${key}. Valid: ${validValues[key].join(' | ')}`));
+                return;
+            }
+            policies[key] = value;
+            fs.writeFileSync(policyFile, JSON.stringify(policies, null, 2));
+            console.log(pc.green(`✔ Policy ${key} set to ${value}`));
+        } else {
+            console.error(pc.red(`Unknown action: ${action}. Use set, get, or list.`));
+        }
+    });
+
+program
     .command('baseline')
     .description('Manage system snapshots and detect behavior drift.')
     .argument('<action>', 'create | diff')
@@ -258,29 +318,68 @@ program
 
 program
     .command('scan')
-    .description('Scan local directory or file for threats.')
+    .description('Scan local directory, file, or staged git changes for threats.')
     .argument('[path]', 'Path to scan', '.')
     .option('--json', 'Output findings in JSON format')
+    .option('--staged', 'Scan only files staged in git (git diff --cached)')
     .action(async (targetPath, options) => {
         const host = await preFlightCheck();
-        const fullPath = path.resolve(targetPath);
-        if (!fs.existsSync(fullPath)) {
-            console.error(pc.red(`Error: Path ${targetPath} does not exist.`));
-            process.exit(1);
-        }
 
-        if (!options.json) console.log(pc.cyan(`\n🔍 Sentinel Lite: Analyzing ${targetPath}...`));
+        const live = new LiveIndicator();
+        live.start(options.staged ? 'Scanning staged files...' : `Scanning ${targetPath}...`, 'bars');
         
         let findings: LiteFinding[] = [];
-        if (fs.lstatSync(fullPath).isFile()) {
-            const content = fs.readFileSync(fullPath, 'utf8');
-            // Treat the whole file as an 'addition' patch for local scanning
-            const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
-            findings = scanner.scanPatch(targetPath, patch);
+
+        if (options.staged) {
+            const { getStagedFiles } = require('./classify');
+            const staged = getStagedFiles();
+            if (staged.length === 0) {
+                live.stop();
+                console.log(pc.dim('No files staged for commit.'));
+                return;
+            }
+            for (const file of staged) {
+                try {
+                    const absPath = path.resolve(file);
+                    if (!fs.existsSync(absPath)) continue;
+                    const content = fs.readFileSync(absPath, 'utf8');
+                    const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
+                    const fnds = scanner.scanPatch(file, patch);
+                    findings.push(...fnds);
+                } catch (_) {}
+            }
+        } else {
+            const fullPath = path.resolve(targetPath);
+            if (!fs.existsSync(fullPath)) {
+                console.error(pc.red(`Error: Path ${targetPath} does not exist.`));
+                process.exit(1);
+            }
+
+            if (fs.lstatSync(fullPath).isFile()) {
+                const content = fs.readFileSync(fullPath, 'utf8');
+                const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
+                findings = scanner.scanPatch(targetPath, patch);
+            } else {
+                live.update(`Scanning directory ${targetPath}...`);
+                const files = walkDir(fullPath);
+                for (const file of files) {
+                    try {
+                        const content = fs.readFileSync(file, 'utf8');
+                        const relPath = path.relative(fullPath, file);
+                        const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
+                        const fnds = scanner.scanPatch(relPath, patch);
+                        findings.push(...fnds);
+                    } catch (_) {}
+                }
+            }
         }
+
+        live.stop();
 
         if (options.json) {
             console.log(JSON.stringify({ host, findings }, null, 2));
+            const hasCritical = findings.some(f => f.severity === 'CRITICAL');
+            if (hasCritical) process.exit(1);
         } else {
             if (findings.length === 0) {
                 console.log(pc.green('✔ No threats detected locally.'));
@@ -290,6 +389,10 @@ program
                     console.log(pc.dim(`    Evidence: ${f.snippet}`));
                 });
                 console.log(pc.cyan(`\n(Heuristic pass complete. ${findings.length} threats found locally.)`));
+                const hasCritical = findings.some(f => f.severity === 'CRITICAL');
+                if (hasCritical) {
+                    process.exit(1);
+                }
             }
         }
     });
@@ -301,7 +404,10 @@ program
     .option('--details', 'Show detailed evidence for each finding')
     .option('--summary', 'Condensed output — counts only, no evidence')
     .action(async (pkg, options) => {
+        const live = new LiveIndicator();
+        live.start(`Downloading and analyzing ${pkg}...`, 'dots');
         const result = await shield.analyzePackage(pkg);
+        live.stop();
 
         // Package metadata
         console.log(pc.cyan('\n📦 Package Metadata'));
@@ -320,6 +426,32 @@ program
                 console.log(pc.white(`  Author:    ${pc.dim(author)}`));
             }
         } catch (_unused: unknown) {}
+
+        // OSV Vulnerabilities
+        if (result.osvResult && result.osvResult.vulnerabilities.length > 0) {
+            console.log(pc.red(`\n  ⚠️  Known Vulnerabilities (${result.osvResult.vulnerabilities.length}):`));
+            for (const v of result.osvResult.vulnerabilities.slice(0, 5)) {
+                const maxS = OSVIntegrator.getMaxSeverity(v);
+                const scoreStr = maxS ? ` (${maxS.type}: ${maxS.score})` : '';
+                console.log(pc.dim(`     [${v.id}] ${v.summary.substring(0, 80)}${scoreStr}`));
+            }
+            if (result.osvResult.vulnerabilities.length > 5) {
+                console.log(pc.dim(`     ... and ${result.osvResult.vulnerabilities.length - 5} more`));
+            }
+        } else {
+            console.log(pc.green(`  CVEs:      None known`));
+        }
+
+        // Typosquatting
+        if (result.typosquat && result.typosquat.isSuspicious) {
+            console.log(pc.red(`  ⚠️  Typosquatting: Possible typo of:`));
+            for (const m of result.typosquat.matches) {
+                const homoglyphStr = m.homoglyphs.length > 0 ? ` (homoglyphs: ${m.homoglyphs.join(', ')})` : '';
+                console.log(pc.dim(`     ${m.target} (distance: ${m.distance})${homoglyphStr}`));
+            }
+        } else {
+            console.log(pc.green(`  Typosquat:  Clean`));
+        }
 
         // Verdict
         const verdictColor = result.verdict === 'MALICIOUS' ? pc.bgRed(pc.white(' MALICIOUS ')) :
@@ -445,17 +577,364 @@ program
     });
 
 program
+    .command('deps-tree')
+    .description('Scan transitive dependencies (up to depth 3) for supply chain threats.')
+    .argument('[path]', 'Path to node_modules', 'node_modules')
+    .option('--depth <n>', 'Max tree depth', '3')
+    .option('--json', 'JSON output')
+    .action(async (targetPath, options) => {
+        const { DepsScanner } = require('./intelligence/deps_scanner');
+        const absPath = path.resolve(targetPath);
+        if (!fs.existsSync(absPath)) {
+            console.error(pc.red(`Error: ${targetPath} not found.`));
+            return;
+        }
+        const scanner = new DepsScanner();
+        console.log(pc.cyan(`\n🔍 Walking dependency tree from ${absPath} (depth ${options.depth})...`));
+        const nodes = scanner.walkTree(absPath, parseInt(options.depth));
+        console.log(pc.white(`   Found ${nodes.length} unique packages. Scanning...\n`));
+        const result = scanner.scanTree(nodes);
+        if (options.json) {
+            console.log(JSON.stringify(result, null, 2));
+        } else {
+            if (result.totalFindings === 0) {
+                console.log(pc.green('✔ No threats found in dependency tree.'));
+            } else {
+                console.log(pc.red(`🚨 ${result.totalFindings} finding(s) across ${result.findings.length} package(s)`));
+                for (const { node, findings } of result.findings) {
+                    console.log(pc.yellow(`\n  📦 ${node.name}@${node.version}`));
+                    for (const f of findings) {
+                        const color = f.severity === 'CRITICAL' ? pc.red : f.severity === 'HIGH' ? pc.yellow : pc.dim;
+                        console.log(`     ${color(`[${f.severity}] ${f.type}`)} ${pc.dim(f.file)}`);
+                    }
+                }
+                if (result.criticalCount > 0) process.exit(1);
+            }
+        }
+    });
+
+program
+    .command('trust-cache')
+    .description('Manage the trust cache for package analysis results.')
+    .argument('<action>', 'status | clear | prune')
+    .action((action) => {
+        const { TrustCache } = require('./intelligence/trust_cache');
+        const cache = new TrustCache();
+        if (action === 'status') {
+            const s = cache.stats();
+            console.log(pc.cyan('\n⭐ Trust Cache Status'));
+            console.log(pc.white(`  Entries: ${pc.cyan(String(s.entries))}`));
+            if (s.entries > 0) {
+                const oldest = new Date(s.oldest).toISOString();
+                const newest = new Date(s.newest).toISOString();
+                console.log(pc.white(`  Oldest:  ${pc.dim(oldest)}`));
+                console.log(pc.white(`  Newest:  ${pc.dim(newest)}`));
+            }
+        } else if (action === 'clear') {
+            cache.clear();
+            console.log(pc.yellow('✔ Trust cache cleared.'));
+        } else if (action === 'prune') {
+            const removed = cache.prune();
+            console.log(pc.green(`✔ Pruned ${removed} expired entries.`));
+        }
+    });
+
+program
+    .command('audit-deps')
+    .description('Comprehensive dependency audit: lockfile parse, OSV CVE lookup, registry reputation, provenance, npm audit.')
+    .option('--lockfile <path>', 'Path to lockfile (auto-detect: package-lock.json, yarn.lock)', '')
+    .option('--provenance', 'Check npm attestation/provenance for top-level deps')
+    .option('--quarantine', 'Auto-quarantine packages with CRITICAL findings')
+    .option('--npm-audit', 'Also run npm audit --json and show results')
+    .option('--ci', 'CI mode: fail (exit 1) if ANY finding exists, not just CRITICAL')
+    .option('--json', 'JSON output')
+    .action(async (options) => {
+        const { LockfileParser } = await import('./intelligence/lockfile_parser');
+        const { RegistryReputation } = await import('./intelligence/registry_reputation');
+        const { ProvenanceVerifier } = await import('./intelligence/provenance_verifier');
+        const { QuarantineManager } = await import('./intelligence/quarantine');
+        const { NpmAuditParser } = await import('./intelligence/npm_audit_parser');
+
+        const cwd = process.cwd();
+
+        // 1. Detect and parse lockfile
+        let lockfilePath = options.lockfile;
+        if (!lockfilePath) {
+            const candidates = ['package-lock.json', 'yarn.lock'];
+            for (const c of candidates) {
+                const testPath = path.join(cwd, c);
+                if (fs.existsSync(testPath)) { lockfilePath = testPath; break; }
+            }
+        }
+        if (!lockfilePath || !fs.existsSync(lockfilePath)) {
+            console.error(pc.red('No lockfile found. Run npm install first, or specify --lockfile.'));
+            return;
+        }
+
+        const parser = new LockfileParser();
+        const parsed = parser.parse(lockfilePath);
+        if (parsed.entries.length === 0) {
+            console.log(pc.yellow('No dependencies found in lockfile.'));
+            return;
+        }
+
+        console.log(pc.cyan(`\n📋 Audit: ${parsed.entries.length} dependencies (${parsed.format})`));
+        console.log(pc.dim(`   Lockfile: ${lockfilePath}`));
+
+        const startTime = Date.now();
+        const live = new LiveIndicator();
+        let anyFindings = false;
+        live.start('Querying OSV.dev for known vulnerabilities...', 'dots');
+
+        // 2. Batch OSV query
+        const osv = new OSVIntegrator();
+        const osvPackages = parsed.entries.map(e => ({ name: e.name, version: e.version }));
+        const osvResults = await osv.queryBatch(osvPackages);
+
+        live.update('Checking registry reputation...');
+
+        // 3. Registry reputation
+        const rep = new RegistryReputation();
+        const repResults: any[] = [];
+        for (const entry of parsed.entries.slice(0, 50)) {
+            try {
+                const s = await rep.score(entry.name);
+                repResults.push(s);
+            } catch {}
+        }
+
+        // 4. Provenance (if --provenance)
+        let provResults: any[] = [];
+        if (options.provenance) {
+            live.update('Verifying npm attestations...');
+            const prov = new ProvenanceVerifier();
+            if (prov.checkCommandAvailable()) {
+                const topLevel = parsed.entries.filter(e => !e.name.startsWith('@types/')).slice(0, 20);
+                for (const entry of topLevel) {
+                    try {
+                        const r = await prov.verify(entry.name, entry.version);
+                        provResults.push(r);
+                    } catch {}
+                }
+            }
+        }
+
+        // 5. npm audit (if --npm-audit)
+        let npmAuditResult: any = null;
+        if (options.npmAudit) {
+            live.update('Running npm audit...');
+            try {
+                const nap = new NpmAuditParser();
+                npmAuditResult = await nap.runAudit();
+            } catch {}
+        }
+
+        live.stop();
+
+        // Compile report
+        const vulnsBySeverity = new Map<string, number>();
+        let totalVulns = 0;
+        for (const r of osvResults) {
+            for (const v of r.vulnerabilities) {
+                totalVulns++;
+                const maxS = OSVIntegrator.getMaxSeverity(v);
+                const sev = maxS ? OSVIntegrator.toSentinelSeverity(maxS.score) : 'MEDIUM';
+                vulnsBySeverity.set(sev, (vulnsBySeverity.get(sev) || 0) + 1);
+            }
+        }
+
+        const suspiciousRep = repResults.filter((r: any) => r.label === 'SUSPICIOUS' || r.label === 'MALICIOUS');
+        const verifiedProv = provResults.filter(r => r.verified);
+        if (totalVulns > 0 || suspiciousRep.length > 0) anyFindings = true;
+
+        // Display results
+        console.log(pc.magenta('\n═'.repeat(60)));
+        console.log(pc.bold('📊 DEPENDENCY AUDIT REPORT'));
+        console.log(pc.magenta('═'.repeat(60)));
+
+        console.log(pc.white(`\n  Packages scanned: ${pc.cyan(String(parsed.entries.length))}`));
+        console.log(pc.white(`  Lockfile format:  ${pc.cyan(parsed.format)}`));
+
+        // OSV
+        if (totalVulns > 0) {
+            console.log(pc.red(`\n  ⚠️  Known Vulnerabilities: ${pc.bold(String(totalVulns))}`));
+            const order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+            for (const s of order) {
+                const c = vulnsBySeverity.get(s);
+                if (c) {
+                    if (s === 'CRITICAL') {
+                        console.log(`     ${pc.bgRed(pc.white(` ${s.padEnd(8)} `))} ${'■'.repeat(Math.min(c, 20))} ${c}`);
+                    } else {
+                        const color = s === 'HIGH' ? pc.red : s === 'MEDIUM' ? pc.yellow : pc.dim;
+                        console.log(`     ${color(` ${s.padEnd(8)} `)} ${'■'.repeat(Math.min(c, 20))} ${c}`);
+                    }
+                }
+            }
+            const sorted = osvResults
+                .filter(r => r.vulnerabilities.length > 0)
+                .sort((a, b) => b.vulnerabilities.length - a.vulnerabilities.length)
+                .slice(0, 5);
+            for (const r of sorted) {
+                const worst = r.vulnerabilities.slice(0, 3);
+                for (const v of worst) {
+                    const maxS = OSVIntegrator.getMaxSeverity(v);
+                    const sStr = maxS ? ` (${maxS.score})` : '';
+                    console.log(pc.dim(`     ${r.packageName}@${r.version}: [${v.id}] ${v.summary.substring(0, 70)}${sStr}`));
+                }
+            }
+        } else {
+            console.log(pc.green(`\n  CVEs: None known`));
+        }
+
+        // npm audit results
+        if (npmAuditResult) {
+            const m = npmAuditResult.metadata;
+            const hasAuditIssues = m.critical + m.high + m.medium + m.low > 0;
+            if (hasAuditIssues) {
+                anyFindings = true;
+                console.log(pc.red(`\n  📦 npm audit: ${m.totalVulnerabilities} vulnerability(ies)`));
+                if (m.critical > 0) console.log(`     ${pc.bgRed(pc.white(' CRITICAL '))} ${m.critical}`);
+                if (m.high > 0) console.log(`     ${pc.red(' HIGH     ')} ${m.high}`);
+                if (m.medium > 0) console.log(`     ${pc.yellow(' MEDIUM   ')} ${m.medium}`);
+                if (m.low > 0) console.log(`     ${pc.dim(' LOW      ')} ${m.low}`);
+            } else {
+                console.log(pc.green(`\n  📦 npm audit: clean (${m.totalDependencies} deps)`));
+            }
+        }
+
+        // Reputation
+        if (suspiciousRep.length > 0) {
+            console.log(pc.yellow(`\n  ⚠️  Suspicious Registry Signals: ${suspiciousRep.length} package(s)`));
+            for (const r of suspiciousRep.slice(0, 10)) {
+                const worst = r.factors.filter((f: any) => f.impact < 0).slice(0, 2);
+                console.log(`     ${pc.yellow(r.packageName)} ${pc.dim(`score: ${r.score}, ${worst.map((f: any) => f.name).join(', ')}`)}`);
+            }
+        } else {
+            console.log(pc.green(`\n  Registry: ${repResults.length} packages checked, all normal`));
+        }
+
+        // Provenance
+        if (options.provenance) {
+            if (verifiedProv.length > 0) {
+                console.log(pc.green(`\n  ✅ Provenance: ${verifiedProv.length} package(s) have verified attestations`));
+            } else if (provResults.length > 0) {
+                console.log(pc.yellow(`\n  ⚠️  Provenance: No verified attestations found`));
+            } else {
+                console.log(pc.dim(`\n  Provenance: npm attestation not available`));
+            }
+        }
+
+        const elapsed = Date.now() - startTime;
+        console.log(pc.dim(`\n  Audit completed in ${(elapsed / 1000).toFixed(1)}s`));
+
+        // Auto-quarantine (if --quarantine)
+        if (options.quarantine) {
+            const qm = new QuarantineManager();
+            if (qm.isEnabled()) {
+                const criticalPkgs = osvResults.filter(r =>
+                    r.vulnerabilities.some(v => {
+                        const ms = OSVIntegrator.getMaxSeverity(v);
+                        return ms && ms.score >= 9.0;
+                    })
+                );
+                for (const pkg of criticalPkgs) {
+                    try {
+                        const pkgPath = path.join(cwd, 'node_modules', pkg.packageName);
+                        if (fs.existsSync(pkgPath)) {
+                            qm.quarantinePackage(pkg.packageName, pkg.version, `Critical CVE: ${pkg.vulnerabilities[0]?.id || 'unknown'}`, 'CRITICAL');
+                            console.log(pc.red(`  🔒 Quarantined: ${pkg.packageName}@${pkg.version}`));
+                        }
+                    } catch {}
+                }
+            } else {
+                console.log(pc.yellow('  Quarantine is disabled. Enable with: sentinel policy set quarantine on'));
+            }
+        }
+
+        if (options.json) {
+            console.log(JSON.stringify({
+                packages: parsed.entries.length,
+                format: parsed.format,
+                vulnerabilities: totalVulns,
+                bySeverity: Object.fromEntries(vulnsBySeverity),
+                suspiciousPackages: suspiciousRep.length,
+                provenance: verifiedProv.length,
+                npmAudit: npmAuditResult?.metadata || null,
+                durationMs: elapsed
+            }, null, 2));
+        }
+
+        // Exit code: --ci fails on any finding, default fails only on CRITICAL
+        const shouldFail = options.ci ? anyFindings : totalVulns > 0;
+        if (shouldFail) process.exit(1);
+    });
+
+program
+    .command('sbom')
+    .description('Generate CycloneDX SBOM from lockfile.')
+    .option('--lockfile <path>', 'Path to lockfile (auto-detect: package-lock.json, yarn.lock)', '')
+    .option('--output <path>', 'Output file path (default: stdout)', '')
+    .action(async (options) => {
+        const { SbomGenerator } = await import('./intelligence/sbom_generator');
+        const cwd = process.cwd();
+
+        let lockfilePath = options.lockfile;
+        if (!lockfilePath) {
+            const candidates = ['package-lock.json', 'yarn.lock'];
+            for (const c of candidates) {
+                const testPath = path.join(cwd, c);
+                if (fs.existsSync(testPath)) { lockfilePath = testPath; break; }
+            }
+        }
+        if (!lockfilePath || !fs.existsSync(lockfilePath)) {
+            console.error(pc.red('No lockfile found. Run npm install first, or specify --lockfile.'));
+            return;
+        }
+
+        const gen = new SbomGenerator();
+        const sbom = gen.generate(lockfilePath);
+        const output = JSON.stringify(sbom, null, 2);
+
+        if (options.output) {
+            fs.writeFileSync(path.resolve(options.output), output, 'utf8');
+            console.log(pc.green(`✔ SBOM written to ${options.output}`));
+        } else {
+            console.log(output);
+        }
+    });
+
+program
     .command('install')
-    .description('Security-gated package installation.')
+    .description('Security-gated package installation. Scans then installs.')
     .argument('<manager>', 'npm | pip | yarn | etc.')
     .argument('[args...]', 'Manager arguments')
     .action(async (manager, args) => {
         const res = await shield.scanInstallation(manager, args);
-        if (res.success) {
-            console.log(pc.cyan(`\nProceeding with native installation via ${manager}...`));
-            // In a real CLI, this would spawn the native process
-        } else {
+        if (!res.success) {
             process.exit(1);
+        }
+        console.log(pc.cyan(`\nProceeding with native installation via ${manager}...`));
+        try {
+            const mgrMap: Record<string, string> = {
+                'npm': 'npm.cmd', 'yarn': 'yarn.cmd', 'pnpm': 'pnpm.cmd',
+                'pip': 'pip.exe', 'pip3': 'pip3.exe',
+                'cargo': 'cargo.exe', 'docker': 'docker.exe'
+            };
+            const exe = mgrMap[manager] || manager;
+            const installArgs = manager === 'npm' ? ['install', ...args] :
+                                manager === 'yarn' ? ['add', ...args] :
+                                manager === 'pnpm' ? ['add', ...args] :
+                                manager === 'pip' || manager === 'pip3' ? ['install', ...args] :
+                                manager === 'cargo' ? ['install', ...args] : args;
+            const cmdStr = `${exe} ${installArgs.join(' ')}`;
+            const result = execSync(cmdStr, {
+                encoding: 'utf8' as const, stdio: 'inherit' as const, windowsHide: true,
+                timeout: 300000, shell: true as any
+            });
+        } catch (e: unknown) {
+            const err = e as { status?: number; message?: string };
+            console.error(pc.red(`\n✖ Installation failed (exit ${err.status || 1}).`));
+            process.exit(err.status || 1);
         }
     });
 
@@ -503,6 +982,125 @@ program
                 console.log(pc.dim('   No trust cache found. Packages are analyzed fresh every time.'));
             }
             console.log('');
+        }
+    });
+
+// --- Pre-commit Hook Command ---
+
+program
+    .command('precommit')
+    .description('Manage Sentinel SAST pre-commit hook (install/uninstall/status)')
+    .argument('<action>', 'install | uninstall | status')
+    .argument('[repoPath]', 'Path to git repository (default: current directory)')
+    .action((action, repoPath) => {
+        const targetPath = repoPath ? path.resolve(repoPath) : process.cwd();
+        const gitDir = path.join(targetPath, '.git');
+        if (!fs.existsSync(gitDir)) {
+            console.error(pc.red(`Error: ${targetPath} is not a git repository (no .git found).`));
+            process.exit(1);
+        }
+
+        if (action === 'install') {
+            const installed = installSastPreCommitHook(targetPath);
+            if (installed) {
+                console.log(pc.green(`\n✔ Sentinel SAST pre-commit hook installed in ${targetPath}`));
+                console.log(pc.dim('   Hook runs: sentinel scan --staged + sentinel check-classified'));
+            } else {
+                console.error(pc.red('✖ Failed to install pre-commit hook.'));
+                process.exit(1);
+            }
+        } else if (action === 'uninstall') {
+            const removed = uninstallPreCommitHook(targetPath);
+            if (removed) {
+                console.log(pc.yellow(`\n🛡️  Sentinel pre-commit hook removed from ${targetPath}`));
+            } else {
+                console.log(pc.dim('No Sentinel pre-commit hook found.'));
+            }
+        } else if (action === 'status') {
+            const installed = isPreCommitHookInstalled(targetPath);
+            if (installed) {
+                console.log(pc.green(`\n✔ Sentinel pre-commit hook is ACTIVE in ${targetPath}`));
+            } else {
+                console.log(pc.yellow(`\n⚠  No Sentinel pre-commit hook in ${targetPath}`));
+                console.log(pc.dim('   Run: sentinel precommit install'));
+            }
+        }
+    });
+
+// --- Pre-push Hook Command ---
+
+program
+    .command('prepush')
+    .description('Manage Sentinel pre-push hook (install/uninstall/status)')
+    .argument('<action>', 'install | uninstall | status')
+    .argument('[repoPath]', 'Path to git repository (default: current directory)')
+    .action((action, repoPath) => {
+        const targetPath = repoPath ? path.resolve(repoPath) : process.cwd();
+        const gitDir = path.join(targetPath, '.git');
+        if (!fs.existsSync(gitDir)) {
+            console.error(pc.red(`Error: ${targetPath} is not a git repository (no .git found).`));
+            process.exit(1);
+        }
+
+        const hooksDir = path.join(gitDir, 'hooks');
+        const hookPath = path.join(hooksDir, 'pre-push');
+
+        if (action === 'install') {
+            if (!fs.existsSync(hooksDir)) {
+                fs.mkdirSync(hooksDir, { recursive: true });
+            }
+            let existing = '';
+            if (fs.existsSync(hookPath)) {
+                existing = fs.readFileSync(hookPath, 'utf8');
+                if (existing.includes('SENTINEL PRE-PUSH')) {
+                    console.log(pc.yellow('⚠  Sentinel pre-push hook already installed.'));
+                    return;
+                }
+            }
+            const hookScript = `#!/bin/sh
+# SENTINEL PRE-PUSH HOOK
+echo "[Sentinel] Running SAST scan on all files before push..."
+sentinel scan . --json > /dev/null 2>&1
+SENTINEL_EXIT=$?
+if [ $SENTINEL_EXIT -ne 0 ]; then
+  echo "[Sentinel] ❌ SAST scan found threats. Push blocked."
+  echo "[Sentinel] Run 'sentinel scan .' locally to review findings."
+  exit 1
+fi
+echo "[Sentinel] ✅ All checks passed. Push allowed."
+${existing.startsWith('#!') ? existing.split('\n').slice(1).join('\n') : existing}
+`;
+            fs.writeFileSync(hookPath, hookScript, { mode: 0o755 });
+            console.log(pc.green(`\n✔ Sentinel pre-push hook installed in ${targetPath}`));
+        } else if (action === 'uninstall') {
+            if (!fs.existsSync(hookPath)) {
+                console.log(pc.dim('No Sentinel pre-push hook found.'));
+                return;
+            }
+            const content = fs.readFileSync(hookPath, 'utf8');
+            if (!content.includes('SENTINEL PRE-PUSH')) {
+                console.log(pc.dim('No Sentinel pre-push hook found.'));
+                return;
+            }
+            const remaining = content.split('\n').filter(line => !line.includes('SENTINEL PRE-PUSH')).join('\n');
+            const cleaned = remaining.replace(/echo "\[Sentinel\].*"/g, '').replace(/sentinel scan.*/g, '').replace(/SENTINEL_EXIT.*/g, '').replace(/if.*SENTINEL.*/g, '').replace(/fi/g, '').replace(/\n{3,}/g, '\n\n').trim();
+            if (cleaned) {
+                fs.writeFileSync(hookPath, cleaned + '\n', { mode: 0o755 });
+            } else {
+                fs.unlinkSync(hookPath);
+            }
+            console.log(pc.yellow(`\n🛡️  Sentinel pre-push hook removed from ${targetPath}`));
+        } else if (action === 'status') {
+            if (fs.existsSync(hookPath)) {
+                const content = fs.readFileSync(hookPath, 'utf8');
+                if (content.includes('SENTINEL PRE-PUSH')) {
+                    console.log(pc.green(`\n✔ Sentinel pre-push hook is ACTIVE in ${targetPath}`));
+                } else {
+                    console.log(pc.yellow(`\n⚠  No Sentinel pre-push hook in ${targetPath}`));
+                }
+            } else {
+                console.log(pc.yellow(`\n⚠  No Sentinel pre-push hook in ${targetPath}`));
+            }
         }
     });
 
@@ -680,7 +1278,7 @@ program
     .action(async () => {
         // Opening animation
         const frames = ['◴', '◷', '◶', '◵'];
-        const msg = ' INITIALIZING SENTINEL ORACLE ENGINE v4.0 ';
+        const msg = ' INITIALIZING SENTINEL INTELLIGENCE ENGINE v4.0 ';
         for (let i = 0; i < 12; i++) {
             const f = frames[i % frames.length];
             const bar = '█'.repeat(Math.min(i, 10)) + '░'.repeat(Math.max(10 - i, 0));
@@ -693,7 +1291,7 @@ program
             await new Promise(r => setTimeout(r, 200));
         }
         process.stdout.write(`\r${' '.repeat(70)}\r`);
-        console.log(pc.green(pc.bold('\n⬡  SENTINEL HUB v4.0 — ORACLE ONLINE\n')));
+        console.log(pc.green(pc.bold('\n⬡  SENTINEL HUB v4.0 — INTERACTIVE MENU\n')));
         await startInteractiveHub();
     });
 
@@ -755,7 +1353,7 @@ ${d('   • Help others learn — this is a security education tool.')}
 
 ${b('5. VERSIONING & SUPPORT')}
 ${d('   • Sentinel follows Semantic Versioning (MAJOR.MINOR.PATCH).')}
-${d('   • v4.x = current stable line (Oracle Lite).')}
+   ${d('   • v4.x = current stable line (Skills/MCP).')}
 ${d('   • Breaking changes increment the MAJOR version.')}
 ${d('   • Security patches are backported to the latest minor.')}
 ${d('   • No guaranteed support for versions older than 6 months.')}
@@ -768,7 +1366,7 @@ ${d('   • npm pack downloads are cached temporarily and deleted after scan.')}
 
 ${c(b('══════════════════════════════════════════════════════════════════════'))}
 ${d('   For urgent security issues, email: javier20dev25@sentinel.security')}
-${d('   Repository: https://github.com/javier20dev25/sentinel-cloud')}
+${d('   Repository: https://github.com/javier20dev25/sentinel-cli')}
 ${d('   Report issues: https://github.com/anomalyco/opencode/issues')}
 `;
         console.log(policy);
@@ -782,140 +1380,143 @@ program
         const d = pc.dim; const b = pc.bold; const w = pc.white;
         const guide = `
 ${c(b('╔══════════════════════════════════════════════════════════════════════╗'))}
-${c(b('║            SENTINEL CLOUD — ORACLE LITE v4.0 USER GUIDE             ║'))}
+${c(b('║              SENTINEL — SECURITY INTELLIGENCE v4.0 GUIDE             ║'))}
 ${c(b('╚══════════════════════════════════════════════════════════════════════╝'))}
-${d('   Guía completa de comandos, sub-opciones, ejemplos y tests verificados.')}
+${d('   SAST scan, supply chain audit, threat intel, skills/MCP for AI agents.')}
 
-${b('1. SCAN — LiteScanner local')}
+${b('A. SKILLS SYSTEM — AI Agent Integration')}
+   ${w('$ sentinel install-skills')}
+   ${d('   Install skill files for detected AI coding agents (Claude, Cursor, etc.)')}
+   ${w('$ sentinel install-skills --list')}
+   ${d('   Show detected agents on this system')}
+   ${w('$ sentinel install-skills --all')}
+   ${d('   Install for all supported agents regardless of detection')}
+   ${w('$ sentinel install-skills --agent claude --agent cursor')}
+   ${d('   Install for specific agents only')}
+   ${d('')}
+   ${d('   Supported: claude, cursor, cline, windsurf, opencode, roo, gemini, codex')}
+   ${d('   Skills location: skills/ directory — CONSTITUTION.md + per-agent adapters')}
+
+${b('B. MCP SERVER — Model Context Protocol')}
+   ${w('$ sentinel mcp')}
+   ${d('   Start MCP server in stdio mode (connect Claude Desktop, Cursor, Cline)')}
+   ${w('$ sentinel mcp --http --port 3003')}
+   ${d('   Start MCP server in HTTP/SSE mode')}
+   ${d('')}
+   ${d('   12 tools: scan, verify-pkg, doctor, check-classified, integrity,')}
+   ${d('   memory, threat-query, threat-correlate, gh-pr-list, gh-pr-view,')}
+   ${d('   gh-pr-diff, gh-repo-list')}
+
+${b('1. SCAN — LiteScanner SAST')}
    ${w('$ sentinel scan [path] [--json]')}
-   ${d('   path: archivo o directorio a escanear (default .)')}
-   ${d('   --json: salida en JSON (para pipeline)')}
-   ${d('   Escanea JS/TS con 30 reglas SAST (inyección, XSS, eval, secretos, etc).')}
-   ${g('   Ej: sentinel scan ./src/myfile.js')}
+   ${d('   path: file or directory (default .)')}
+   ${d('   --json: JSON output for pipelines')}
+   ${d('   Scans JS/TS with 30 SAST rules (injection, XSS, eval, secrets, etc).')}
+   ${g('   ex: sentinel scan ./src/myfile.js')}
 
 ${b('2. VERIFY-PKG — Supply chain audit')}
    ${w('$ sentinel verify-pkg <package> [--details]')}
-   ${d('   package: nombre o name@version (ej: utilz, dotenv@16.4.7)')}
-   ${d('   --details: muestra evidencia completa por cada hallazgo')}
-   ${d('   Descarga tarball via npm pack (sin instalar), extrae y escanea.')}
-   ${g('   ✓ Ej: sentinel verify-pkg utilz --details')}
+   ${d('   package: name or name@version (ex: lodash, dotenv@16.4.7)')}
+   ${d('   --details: full evidence per finding')}
+   ${d('   Downloads tarball via npm pack (no install), extracts and scans.')}
+   ${g('   ✓ sentinel verify-pkg utilz --details')}
    ${d('     → SAFE | 2 findings (ENV_ACCESS, OS_CAPABILITY)')}
-   ${y('   ⚠ Ej: sentinel verify-pkg dotenv --details')}
+   ${y('   ⚠ sentinel verify-pkg dotenv --details')}
    ${d('     → SUSPICIOUS | 20 findings (ENV_ACCESS, POTENTIAL_SECRET)')}
 
-${b('3. DOCTOR — Salud del sistema')}
+${b('3. DOCTOR — System health')}
    ${w('$ sentinel doctor [--deep]')}
-   ${d('   --deep: escanea node_modules completos (25+ dependencias)')}
-   ${d('   Sin flag: solo package.json + integridad del host.')}
-   ${g('   Ej: sentinel doctor --deep')}
+   ${d('   --deep: full node_modules scan (25+ dependencies)')}
+   ${d('   Without flag: package.json + host integrity')}
+   ${g('   ex: sentinel doctor --deep')}
 
-${b('4. MEMORY — Signal Vault (base de datos local SQLite)')}
+${b('4. MEMORY — Signal Vault (local SQLite)')}
    ${w('$ sentinel memory --status [--threshold <n>]')}
-   ${d('   --status: métricas (scans, findings, signals, repos, autores)')}
-   ${d('   --threshold <n>: muestra repos que cruzan el umbral (default 5)')}
-   ${w('$ sentinel memory --ingest <archivo.json>')}
-   ${d('   --ingest: ingesta un reporte cloud desde archivo')}
+   ${d('   --status: metrics (scans, findings, signals, repos, authors)')}
+   ${d('   --threshold <n>: repos crossing threshold (default 5)')}
+   ${w('$ sentinel memory --ingest <file.json>')}
+   ${d('   --ingest: ingest a cloud report from file')}
    ${w('$ sentinel memory --stdin < pipe.json')}
-   ${d('   --stdin: modo pipe — cat report.json | sentinel memory --stdin')}
+   ${d('   --stdin: pipe mode — cat report.json | sentinel memory --stdin')}
    ${w('$ sentinel memory --paste')}
-   ${d('   --paste: pegar JSON manualmente (Ctrl+Z / Ctrl+D)')}
+   ${d('   --paste: paste JSON manually (Ctrl+Z / Ctrl+D)')}
    ${w('$ sentinel memory --wipe')}
-   ${d('   --wipe: borra todo el historial local')}
+   ${d('   --wipe: erase all local history')}
 
-${b('5. HUB — Menú interactivo completo')}
+${b('5. HUB — Interactive menu')}
    ${w('$ sentinel hub')}
-   ${d('   Animación de apertura + menú TUI con 9 opciones principales:')}
-   ${d('')}
-   ${d('   ┌─ 1. Workspace Discovery ──────────────────────────┐')}
-   ${d('   │  Lista repos GitHub (free tier: 3), seleccionas   │')}
-   ${d('   │  y entras al menú del repo:                       │')}
-   ${d('   │  1.1 Baseline Context Scan (escaneo local)        │')}
-   ${d('   │  1.2 Audit Pull Requests (SAST por diff real)     │')}
-   ${d('   │  1.3 Back                                         │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 2. System Doctor ────────────────────────────────┐')}
-   ${d('   │  Ejecuta sentinel doctor directo desde el menú    │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 3. Integrity Check ──────────────────────────────┐')}
-   ${d('   │  Verifica integridad del CLI, manifiesto y reloj  │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 4. Permissions Audit ────────────────────────────┐')}
-   ${d('   │  Escanea capacidades de todas las dependencias    │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 5. Scan Directory/File ──────────────────────────┐')}
-   ${d('   │  Pide un path y ejecuta scan local                │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 6. Guard & Configuration ────────────────────────┐')}
-   ${d('   │  6.1 Guard Status                                 │')}
-   ${d('   │  6.2 Enable Guard (intercepta npm/pip/yarn)       │')}
-   ${d('   │  6.3 Disable Guard                                │')}
-   ${d('   │  6.4 List Trust Cache (paquetes whitelisteados)   │')}
-   ${d('   │  6.5 Back                                         │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 7. Classified Documents ─────────────────────────┐')}
-   ${d('   │  Selecciona proyecto local → marca archivos como  │')}
-   ${d('   │  CLASSIFIED → instala pre-commit hook que bloquea │')}
-   ${d('   │  commits de esos archivos.                        │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 8. Signal Vault (Memory) ────────────────────────┐')}
-   ${d('   │  8.1 View Status & Thresholds                     │')}
-   ${d('   │  8.2 Ingest Cloud Report (JSON file)              │')}
-   ${d('   │  8.3 Ingest Report Directory (batch)              │')}
-   ${d('   │  8.4 Paste JSON Manually                          │')}
-   ${d('   │  8.5 Wipe Database                                │')}
-   ${d('   │  8.6 Back                                         │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
-   ${d('')}
-   ${d('   ┌─ 9. Exit ─────────────────────────────────────────┐')}
-   ${d('   │  Cierra sesión de forma segura                    │')}
-   ${d('   └───────────────────────────────────────────────────┘')}
+   ${d('   TUI menu with: Workspace Discovery, System Doctor,')}
+   ${d('   Integrity Check, Permissions Audit, Scan, Guard,')}
+    ${d('   Classified Documents, Signal Vault, GitHub PR Bot.')}
 
-${b('6. PERMISSIONS — Gobierno de capacidades')}
+${b('6. PERMISSIONS — Capability governance')}
    ${w('$ sentinel permissions [package]')}
-   ${d('   Sin argumento: escanea automático las 25 dependencias')}
-   ${d('   Con package: analiza solo un paquete específico')}
-   ${d('   Mapea: NETWORK, FILESYSTEM, PROCESS_EXEC, ENV_ACCESS,')}
+   ${d('   Without arg: auto-scan all installed dependencies')}
+   ${d('   With package: analyze one specific package')}
+   ${d('   Maps: NETWORK, FILESYSTEM, PROCESS_EXEC, ENV_ACCESS,')}
    ${d('   DYNAMIC_EXEC, DOM_MANIPULATION, CREDENTIAL_LEAK')}
 
-${b('7. GUARD — Intercepción a nivel OS')}
+${b('7. GUARD — OS-level interception')}
    ${w('$ sentinel guard <status|enable|disable>')}
-   ${d('   status:  muestra si Guard está activo')}
-   ${d('   enable:  instala aliases en PowerShell para interceptar')}
+   ${d('   status:  show if Guard is active')}
+   ${d('   enable:  install aliases in PowerShell/profile to intercept')}
    ${d('            npm, yarn, pnpm, pip, pip3, cargo, docker')}
-   ${d('   disable: remueve los aliases del profile')}
+   ${d('   disable: remove aliases from profile')}
 
-${b('8. CLASSIFIED DOCS — Prevención de fuga de secretos')}
+${b('8. CLASSIFIED DOCS — Leak prevention')}
    ${w('$ sentinel check-classified <repoPath>')}
-   ${d('   Verifica archivos staged contra la DB de clasificados')}
-   ${d('   Pre-commit hook: se instala automáticamente desde el HUB')}
-   ${d('   y encadena con hooks existentes (no los borra).')}
+   ${d('   Check staged files against classified DB')}
+   ${d('   Pre-commit hook installs from HUB, chains with existing hooks.')}
 
-${b('9. INTEGRITY — Verificación de integridad')}
+${b('9. INTEGRITY — Verification')}
    ${w('$ sentinel integrity')}
-   ${d('   Checks: hash de reglas SAST, poisoning de PATH,')}
-   ${d('   estado del vault, anomalía de reloj, manifiesto firmado')}
+   ${d('   Checks: SAST rule hash, PATH poisoning, vault state, clock anomaly, signed manifest')}
 
-${b('10. BASELINE — Detección de deriva (drift)')}
+${b('10. BASELINE — Drift detection')}
    ${w('$ sentinel baseline <create|diff> [name]')}
-   ${d('   create: guarda snapshot actual del sistema')}
-   ${d('   diff:   compara contra un snapshot previo')}
+   ${d('   create: save current system snapshot')}
+   ${d('   diff:   compare against a previous snapshot')}
 
-${b('11. INSTALL — Instalación con seguridad')}
+${b('11. INSTALL — Gated installation')}
    ${w('$ sentinel install <manager> [args...]')}
    ${d('   manager: npm | pip | yarn | etc')}
-   ${d('   args: argumentos del gestor (paquetes a instalar)')}
-   ${d('   Escanea via SupplyChainShield antes de permitir la instalación')}
+   ${d('   args: manager arguments (packages to install)')}
+   ${d('   Scans via SupplyChainShield before allowing installation')}
 
 ${b('12. ENVIRONMENT ENCRYPT')}
    ${w('$ sentinel env-encrypt <file>')}
    ${w('$ sentinel env-decrypt <file>')}
+
+${b('13. AUDIT-DEPS — Full dependency audit')}
+   ${w('$ sentinel audit-deps [--lockfile <path>] [--provenance] [--quarantine] [--npm-audit] [--ci]')}
+   ${d('   Parses package-lock.json/yarn.lock, batch OSV CVE lookup,')}
+   ${d('   registry reputation, npm provenance, npm audit integration.')}
+   ${d('   --ci: exit 1 on ANY finding (default: only CRITICAL)')}
+   ${g('   ex: sentinel audit-deps --ci --provenance')}
+
+${b('14. DEPS-TREE — Transitive dependency scan')}
+   ${w('$ sentinel deps-tree [path] --depth 3')}
+   ${d('   Walks node_modules up to depth 3, scans each package')}
+   ${d('   with LiteScanner SAST rules.')}
+   ${g('   ex: sentinel deps-tree ./node_modules --depth 2')}
+
+${b('15. SBOM — CycloneDX generation')}
+   ${w('$ sentinel sbom [--lockfile <path>] [--output <file>]')}
+   ${d('   Generates CycloneDX v1.5 SBOM from lockfile.')}
+   ${d('   Outputs JSON to stdout or file with --output.')}
+   ${g('   ex: sentinel sbom --output bom.json')}
+
+${b('16. TRUST-CACHE — Package verdict cache')}
+   ${w('$ sentinel trust-cache <status|clear|prune>')}
+   ${d('   status: show cached package analysis results')}
+   ${d('   clear:  reset the cache')}
+   ${d('   prune:  remove entries older than 7 days')}
+
+${b('Z. ORACLE AI (experimental)')}
+   ${y('   The AI-powered Oracle assistant is marked experimental.')}
+   ${y('   Primary integration is now via Skills + MCP.')}
+   ${w('$ sentinel oracle')}
+   ${d('   Interactive AI session with multi-provider support')}
 
 ${c(b('══════════════════════════════════════════════════════════════════════'))}
 ${b('TEST RESULTS  —  Verificados Mayo 2026:')}
@@ -939,6 +1540,123 @@ ${d('and contribution guidelines.')}
         console.log(guide);
     });
 
+// --- Skills Install Command ---
+
+program
+    .command('install-skills')
+    .description('Install Sentinel skill files for AI coding agents (Claude, Cursor, Cline, etc.)')
+    .argument('[agents...]', 'Specific agents to target (default: auto-detect)')
+    .option('--list', 'List detected agents and exit')
+    .option('--all', 'Install for all supported agents')
+    .action((agents, options) => {
+        const args: string[] = [];
+        if (options.list) args.push('--list');
+        if (options.all) args.push('--all');
+        if (agents && agents.length > 0) {
+            for (const a of agents) {
+                args.push('--agent', a);
+            }
+        }
+        const { installSkillsCommand } = require('./install-skills');
+        installSkillsCommand(args);
+    });
+
+// --- MCP Server Command ---
+
+program
+    .command('mcp')
+    .description('Start the MCP (Model Context Protocol) server for AI agent tool integration')
+    .option('--port <number>', 'HTTP server port', '3003')
+    .option('--http', 'Use HTTP/SSE transport instead of stdio')
+    .option('--stdio', 'Use stdio transport (default)')
+    .action((options) => {
+        const { startMcpServer } = require('../mcp/server');
+        startMcpServer({
+            port: parseInt(options.port, 10),
+            http: options.http || false,
+        });
+    });
+
+// --- PR Audit Command ---
+
+program
+    .command('pr-audit')
+    .description('Audit a single GitHub pull request')
+    .option('--repo <owner/repo>', 'Repository name (or set SENTINEL_REPO)')
+    .option('--pr <number>', 'PR number (or set SENTINEL_PR)')
+    .option('--author <login>', 'PR author (or set SENTINEL_AUTHOR)')
+    .option('--diff-file <path>', 'Read diff from file instead of fetching from GitHub')
+    .option('--comment', 'Post findings as a PR comment')
+    .option('--check-run', 'Create a GitHub Check Run with pass/fail')
+    .option('--output <path>', 'Write JSON output to file')
+    .action(async (options) => {
+        const { runPrAudit } = require('./pr-audit');
+        const repo = options.repo || process.env.SENTINEL_REPO;
+        const prNumber = parseInt(options.pr || process.env.SENTINEL_PR || '0', 10);
+        if (!repo || !prNumber) {
+            console.error('Error: --repo and --pr are required (or SENTINEL_REPO and SENTINEL_PR env vars)');
+            process.exit(1);
+        }
+        const result = await runPrAudit({
+            repo,
+            prNumber,
+            author: options.author || process.env.SENTINEL_AUTHOR || '',
+            diffFile: options.diffFile,
+            comment: options.comment || !!process.env.SENTINEL_COMMENT,
+            checkRun: options.checkRun || !!process.env.SENTINEL_CHECK_RUN,
+            outputFile: options.output || process.env.SENTINEL_OUTPUT || undefined,
+        });
+        if (result.error) {
+            console.error(result.error);
+            process.exit(1);
+        }
+        if (!options.output) {
+            console.log(JSON.stringify(result, null, 2));
+        }
+        if (result.verdict.decision === 'BLOCK') {
+            process.exit(1);
+        }
+    });
+
+// --- Workflow Commands ---
+
+const workflow = program.command('workflow')
+  .description('Multi-step security workflows (audit, scan, comment)');
+
+workflow
+  .command('pr-review')
+  .description('Audit a single PR and post results')
+  .option('--repo <owner/repo>', 'Repository name')
+  .option('--pr <number>', 'PR number')
+  .option('--comment', 'Post findings as PR comment')
+  .option('--check-run', 'Create GitHub Check Run')
+  .action(async (options) => {
+    const { prReview } = require('./workflow');
+    await prReview({
+      repo: options.repo,
+      prNumber: parseInt(options.pr, 10),
+      comment: options.comment,
+      checkRun: options.checkRun,
+    });
+  });
+
+workflow
+  .command('full-audit')
+  .description('Audit all open PRs (all repos or --repo R)')
+  .option('--repo <owner/repo>', 'Single repository to audit (overrides --owner)')
+  .option('--owner <login>', 'GitHub owner (default: authenticated user)')
+  .option('--comment', 'Post findings as PR comments')
+  .option('--check-run', 'Create GitHub Check Runs')
+  .action(async (options) => {
+    const { fullAudit } = require('./workflow');
+    await fullAudit({
+      repo: options.repo,
+      owner: options.owner,
+      comment: options.comment,
+      checkRun: options.checkRun,
+    });
+  });
+
 // --- Oracle Command (CLI 2) ---
 
 const oracle = program.command('oracle')
@@ -955,11 +1673,11 @@ oracle
     await oracleAsk(question.join(' '));
   });
 
-oracle
+const authCmd = oracle
   .command('auth')
   .description('Manage provider API keys');
 
-oracle.command('auth')
+authCmd
   .command('set')
   .description('Set API key for a provider')
   .argument('<provider>', 'Provider name (gemini, claude, openai)')
@@ -969,7 +1687,7 @@ oracle.command('auth')
     console.log(`\u2705 API key set for ${provider}`);
   });
 
-oracle.command('auth')
+authCmd
   .command('remove')
   .description('Remove API key for a provider')
   .argument('<provider>', 'Provider name')
@@ -978,7 +1696,7 @@ oracle.command('auth')
     console.log(`\u2705 API key removed for ${provider}`);
   });
 
-oracle.command('auth')
+authCmd
   .command('list')
   .description('List configured providers')
   .action(() => {
@@ -1009,9 +1727,46 @@ oracle
     await oracleInteractive();
   });
 
-// Default: launch Oracle interactive mode when no subcommand given
+// --- AI Workflows Help Section ---
+// Appended to --help so AI agents see recommended workflows immediately
+program.on('--help', () => {
+  const w = (s: string) => `  ${s}`;
+  const cmd = (c: string) => pc.cyan(c);
+  const desc = (d: string) => pc.dim(d);
+  console.log('');
+  console.log(pc.magenta(pc.bold('  🤖 AI Workflows — recommended for AI agents')));
+  console.log(pc.magenta('  ───────────────────────────────────────────'));
+  console.log(w(`${cmd('sentinel workflow full-audit --repo R')}    — ${desc('Audit ALL PRs in one repo')}`));
+  console.log(w(`${cmd('sentinel pr-audit --repo R --pr N')}        — ${desc('Audit a single PR')}`));
+  console.log(w(`${cmd('sentinel scan <path>')}                      — ${desc('SAST scan (30 rules)')}`));
+  console.log(w(`${cmd('sentinel verify-pkg <pkg> --details')}       — ${desc('Audit npm package')}`));
+  console.log(w(`${cmd('sentinel doctor --deep')}                    — ${desc('Full system health + deps')}`));
+  console.log(w(`${cmd('sentinel integrity')}                        — ${desc('Host integrity check')}`));
+  console.log(w(`${cmd('sentinel guard status')}                     — ${desc('OS package interception')}`));
+  console.log(w(`${cmd('sentinel permissions <pkg>')}                — ${desc('Capability audit')}`));
+  console.log(w(`${cmd('sentinel baseline diff')}                    — ${desc('Drift detection')}`));
+  console.log(w(`${cmd('sentinel memory --status')}                  — ${desc('Threat history vault')}`));
+  console.log(w(`${cmd('sentinel memory --findings')}                — ${desc('Query past findings')}`));
+  console.log(w(`${cmd('sentinel memory --threats')}                 — ${desc('Threat correlations')}`));
+  console.log(w(`${cmd('sentinel install npm <pkg>')}                 — ${desc('Install pkg (scan then install)')}`));
+  console.log(w(`${cmd('sentinel guard enable')}                     — ${desc('Intercept npm installs OS-wide')}`));
+  console.log(w(`${cmd('sentinel precommit install')}                — ${desc('Block commits with threats')}`));
+  console.log(w(`${cmd('sentinel prepush install')}                  — ${desc('Block pushes with threats')}`));
+  console.log(w(`${cmd('sentinel audit-deps')}                       — ${desc('Full dep audit: OSV + reputation + provenance')}`));
+  console.log(w(`${cmd('sentinel deps-tree <path>')}                 — ${desc('Walk transitive deps, depth 3')}`));
+  console.log(w(`${cmd('sentinel verify-pkg <pkg>')}                 — ${desc('Audit single npm pkg (SAST + OSV + typosquat)')}`));
+  console.log(w(`${cmd('sentinel trust-cache status')}               — ${desc('Show cached package verdicts')}`));
+  console.log(w(`${cmd('sentinel check-classified <path>')}          — ${desc('Classified data check')}`));
+  console.log(w(`${cmd('sentinel mcp')}                              — ${desc('MCP server for AI tools')}`));
+  console.log(w(`${cmd('sentinel hub')}                              — ${desc('Interactive operations menu')}`));
+  console.log('');
+  console.log(pc.magenta(pc.bold('  🛡️  Verdicts: BLOCK=DO NOT MERGE | REVIEW=Human review | PASS=Safe')));
+  console.log(pc.dim('  Report issues: https://github.com/anomalyco/opencode/issues'));
+});
+
+// Default: show help when no subcommand given
 if (!process.argv.slice(2).length) {
-  oracleInteractive().catch(console.error);
+  program.help();
 } else {
   program.parse(process.argv);
 }

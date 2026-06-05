@@ -11,7 +11,7 @@ export function printMetrics(lang: string = 'es', bytesRead?: number, bytesWritt
 
     const isEs = lang === 'es';
     
-    console.log(pc.cyan('\n📊 ' + (isEs ? 'TELEMETRÍA DE RENDIMIENTO Y RECURSOS ORACLE' : 'ORACLE PERFORMANCE & RESOURCE TELEMETRY')));
+    console.log(pc.cyan('\n📊 ' + (isEs ? 'TELEMETRÍA DE RENDIMIENTO Y RECURSOS' : 'PERFORMANCE & RESOURCE TELEMETRY')));
     console.log(pc.dim('───────────────────────────────────────────────────────'));
     console.log(pc.white(` 🧠 ${isEs ? 'Consumo de Memoria:' : 'Memory Footprint:'} `) + pc.cyan(`${memory} MB`) + pc.dim(isEs ? ' [Optimizado V8 GC]' : ' [V8 GC Optimized]'));
     console.log(pc.white(` ⚡ ${isEs ? 'Cómputo de CPU:' : 'CPU Compute:'} `) + pc.cyan(`${cpuSeconds} s`) + pc.dim(isEs ? ' [Tiempo real user + system]' : ' [Real user + system time]'));

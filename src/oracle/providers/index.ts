@@ -9,7 +9,7 @@ export { ClaudeProvider } from './claude';
 export { OpenAIProvider } from './openai';
 export { OllamaProvider } from './ollama';
 
-export type ProviderName = 'gemini' | 'claude' | 'openai' | 'ollama';
+export type ProviderName = 'gemini' | 'claude' | 'openai' | 'ollama' | 'qwen';
 
 export function createProvider(name: ProviderName, apiKey: string, model?: string): BaseProvider {
   switch (name) {
@@ -17,6 +17,7 @@ export function createProvider(name: ProviderName, apiKey: string, model?: strin
     case 'claude': return new ClaudeProvider(apiKey, model);
     case 'openai': return new OpenAIProvider(apiKey, model);
     case 'ollama': return new OllamaProvider(model);
+    case 'qwen': return new OllamaProvider(model || 'qwen3:1.5b');
     default: throw new Error(`Unknown provider: ${name}`);
   }
 }

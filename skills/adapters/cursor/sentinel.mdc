@@ -1,0 +1,69 @@
+---
+description: Sentinel Security Analysis Rules for Cursor
+globs: *
+---
+
+# Sentinel Security Skill for Cursor
+
+Refer to CONSTITUTION.md for binding rules on evidence primacy, token economy, and the Sentinel-first policy.
+
+## When to Invoke Sentinel
+
+The agent should call Sentinel tools whenever a security-relevant question arises. Sentinel's deterministic local analysis replaces expensive model-based inspection for all security scanning tasks.
+
+## FORBIDDEN
+
+- Suggest `npm install` as bypass of `sentinel install`
+- Offer workarounds when Sentinel BLOCKS
+- Commit without `sentinel precommit install`
+
+## MANDATORY
+
+- Use `sentinel install <manager> <pkg>` for all installations
+- When BLOCK: report findings, state BLOCK, let user decide
+- Run `sentinel precommit install` before first commit
+
+## Tool Reference
+
+<command>sentinel scan <path></command> SAST scan with 30 rules
+<command>sentinel verify-pkg <package> --details</command> Zero-install npm audit + OSV + typosquat
+<command>sentinel doctor [--deep]</command> Dependency health
+<command>sentinel integrity</command> Host verification
+<command>sentinel baseline create|diff</command> Snapshot management
+<command>sentinel permissions [package]</command> Capability audit
+<command>sentinel audit-deps [--ci] [--provenance] [--npm-audit]</command> Full dep audit: lockfile, OSV batch, reputation, provenance
+<command>sentinel deps-tree [path] --depth 3</command> Walk transitive deps, scan each with SAST
+<command>sentinel sbom [--output <file>]</command> CycloneDX v1.5 SBOM generation
+<command>sentinel install <manager> [args...]</command> Gated install (scan then install)
+<command>sentinel guard enable|disable|status</command> Package interception
+<command>sentinel trust-cache <status|clear|prune></command> Cached verdicts
+<command>sentinel policy set|get|list</command> Policy configuration
+<command>sentinel check-classified <path></command> Classified file gate
+<command>sentinel memory --status|--findings|--threats</command> Threat DB
+<command>sentinel precommit install|uninstall|status</command> SAST pre-commit hook
+<command>sentinel prepush install|uninstall|status</command> SAST pre-push hook
+<command>gh pr list|view|diff|comment</command> GitHub PR tools
+<command>gh repo list</command> Repository listing
+
+## Workflows
+
+### PR Security Review
+1. gh pr diff <N> | sentinel scan - to analyse changes
+2. sentinel memory --threats - for author correlation
+3. gh pr comment <N> --body-file <report> - to post findings
+
+### Package Audit
+1. sentinel verify-pkg <name> --details - analyse tarball + OSV
+2. Report ALLOW/BLOCK/REVIEW with evidence
+
+### Full Dep Audit
+1. sentinel audit-deps --ci --provenance - full report
+2. Review findings, quarantine if needed
+3. sentinel sbom --output bom.json for compliance
+
+### Install
+1. sentinel install npm <pkg> - scans on npm pack, then installs
+
+## Evidence Rule
+
+Every claim about security must cite Sentinel output. The model narrates; Sentinel detects. Never override Sentinel findings with model reasoning.

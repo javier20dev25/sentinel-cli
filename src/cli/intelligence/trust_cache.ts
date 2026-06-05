@@ -118,7 +118,7 @@ export class TrustCache {
         const now = Date.now();
         let removed = 0;
         for (const [k, v] of this.cache) {
-            if (now - v.timestamp > maxAgeMs) {
+            if (now - v.timestamp >= maxAgeMs) {
                 this.cache.delete(k);
                 removed++;
             }

@@ -1,4 +1,4 @@
-import { BaseProvider, Message, ToolCall } from './providers/base';
+import { BaseProvider, Message, ToolCall, ToolDef } from './providers/base';
 import { getToolDefs, runTool } from './tools';
 import { getConfig, getApiKey } from './auth';
 import { createProvider } from './providers';
@@ -79,7 +79,45 @@ Bad example (DO NOT do this):
   return systemPrompt;
 }
 
-const MAX_TOOL_ITERATIONS = 5;
+/** Compact system prompt for small local models (< 7B params) */
+export function buildCompactSystemPrompt(): string {
+  const essentialTools = getToolDefs().filter(t => 
+    ['scan', 'verify-pkg', 'gh-pr-list', 'gh-pr-view', 'gh-pr-diff', 'gh-pr-comment', 'gh-repo-list', 'doctor'].includes(t.name)
+  );
+  return `You are a security assistant. You audit GitHub repos and npm packages using tools.
+
+Available tools:
+${essentialTools.map(t => `- ${t.name}: ${t.description}`).join('\n')}
+
+Rules:
+1. NEVER modify code or generate patches.
+2. NEVER install packages - only audit with verify-pkg.
+3. NEVER claim something is safe without running a scan first.
+4. Always cite exact evidence from tool output.
+5. Respond in the user's language.
+
+For each threat found, report:
+- What was found (exact file:line from tool output)
+- What an attacker could do
+- How to fix it`;
+}
+
+const LOCAL_PROVIDERS = ['ollama', 'qwen'];
+
+export function isLocalProvider(provider?: BaseProvider | null): boolean {
+  if (!provider) return false;
+  return LOCAL_PROVIDERS.includes(provider.name);
+}
+
+export function getFilteredToolDefs(provider?: BaseProvider | null): ToolDef[] {
+  const allTools = getToolDefs();
+  if (!isLocalProvider(provider)) return allTools;
+  // For small local models, only expose the essential tools
+  const essentialNames = ['scan', 'verify-pkg', 'gh-pr-list', 'gh-pr-view', 'gh-pr-diff', 'gh-pr-comment', 'gh-repo-list', 'doctor'];
+  return allTools.filter(t => essentialNames.includes(t.name));
+}
+
+const MAX_TOOL_ITERATIONS = 15;
 
 export function getDefaultProvider(): BaseProvider | null {
   const config = getConfig();
@@ -87,7 +125,7 @@ export function getDefaultProvider(): BaseProvider | null {
   const model = config.model || process.env.SENTINEL_MODEL;
   if (!provider) return null;
   const key = getApiKey(provider);
-  if (!key && provider !== 'ollama') return null;
+  if (!key && provider !== 'ollama' && provider !== 'qwen') return null;
   try {
     return createProvider(provider as any, key, model);
   } catch {
@@ -122,14 +160,15 @@ export async function oracleChat(
   }
 
   ensureDefaultRules();
+  const systemPrompt = isLocalProvider(p) ? buildCompactSystemPrompt() : buildSystemPrompt();
   const messages: Message[] = history.length > 0
     ? [...history, { role: 'user', content: userInput }]
     : [
-        { role: 'system', content: buildSystemPrompt() },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userInput },
       ];
 
-  const toolDefs = getToolDefs();
+  const toolDefs = getFilteredToolDefs(p);
   let iterations = 0;
   const executedTools: { toolName: string; output: string }[] = [];
 
@@ -170,7 +209,7 @@ export async function oracleChat(
         continue;
       }
 
-      const rawResult = runTool(tc.name, tc.arguments);
+      const rawResult = await runTool(tc.name, tc.arguments);
       executedTools.push({ toolName: tc.name, output: rawResult });
 
       // Check for prompt injection in code/tool output
@@ -225,14 +264,15 @@ export async function* oracleChatStream(
   }
 
   ensureDefaultRules();
+  const systemPrompt = isLocalProvider(p) ? buildCompactSystemPrompt() : buildSystemPrompt();
   const messages: Message[] = history.length > 0
     ? [...history, { role: 'user', content: userInput }]
     : [
-        { role: 'system', content: buildSystemPrompt() },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userInput },
       ];
 
-  const toolDefs = getToolDefs();
+  const toolDefs = getFilteredToolDefs(p);
   let iterations = 0;
   const executedTools: { toolName: string; output: string }[] = [];
 
@@ -289,7 +329,7 @@ export async function* oracleChatStream(
 
       yield `\n\n${toolCard(tc.name, JSON.stringify(tc.arguments), 'running')}\n`;
 
-      const rawResult = runTool(tc.name, tc.arguments);
+      const rawResult = await runTool(tc.name, tc.arguments);
       executedTools.push({ toolName: tc.name, output: rawResult });
 
       yield `${toolCard(tc.name, JSON.stringify(tc.arguments), 'done')}\n`;

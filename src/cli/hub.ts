@@ -173,7 +173,7 @@ function printHeader() {
     logo.forEach(line => {
         console.log(pc.cyan(pc.bold(line)));
     });
-    console.log(pc.dim('                                           Oracle Engine v4.0\n'));
+    console.log(pc.dim('                                           Security Intelligence v4.0\n'));
 }
 
 async function refreshDashboard() {
@@ -428,9 +428,11 @@ async function handleConfigurationMenu() {
         console.log(pc.blue('  2.') + pc.white(` 🟢 ${t('config_opt2')}`));
         console.log(pc.blue('  3.') + pc.white(` 🔴 ${t('config_opt3')}`));
         console.log(pc.blue('  4.') + pc.white(` ⭐ ${t('config_opt4')}`));
-        console.log(pc.blue('  5.') + pc.white(` 🔙 ${t('config_opt5')}`));
+        console.log(pc.blue('  5.') + pc.white(` 🔐 ${t('config_opt5')}`));
+        console.log(pc.blue('  6.') + pc.white(` 📝 Install/Uninstall SAST Pre-Commit Hook`));
+        console.log(pc.blue('  7.') + pc.white(` 🔙 ${t('config_opt5')}`));
         
-        const action = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (1-5): `));
+        const action = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (1-7): `));
 
         console.log('');
         if (action === '1') {
@@ -446,6 +448,18 @@ async function handleConfigurationMenu() {
             await runCommand(['guard', 'trust-cache']);
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
         } else if (action === '5') {
+            const pwd = process.cwd();
+            console.log(pc.cyan(`\n? Targeting repository: ${pwd}`));
+            const choice = await askQuestion(pc.blue('  ❯ ') + pc.bold('Install (i), Uninstall (u), Status (s), or Skip (0)? '));
+            if (choice === 'i') {
+                await runCommand(['precommit', 'install']);
+            } else if (choice === 'u') {
+                await runCommand(['precommit', 'uninstall']);
+            } else if (choice === 's') {
+                await runCommand(['precommit', 'status']);
+            }
+            await askQuestion(pc.dim(`\n${t('press_enter')}`));
+        } else if (action === '6') {
             printHeader();
             break;
         } else {

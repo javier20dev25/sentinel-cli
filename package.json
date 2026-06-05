@@ -1,7 +1,7 @@
 {
   "name": "@sentinel/cli",
   "version": "4.0.0",
-  "description": "Sentinel Security Oracle — Unified Terminal Security Interface. Supply chain enforcement layer, SAST scanner, integrity verification, and local threat intelligence.",
+  "description": "Sentinel Security Intelligence — SAST, supply chain, threat intel, and Skills/MCP for AI coding agents.",
   "main": "dist/cli/main.js",
   "bin": {
     "sentinel": "dist/cli/main.js"
@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "postinstall": "node -e \"try{var m=require('./dist/cli/install-skills');m.installSkillsCommand([])}catch(e){}\""
   },
   "keywords": [
     "security",
@@ -41,6 +42,10 @@
   "files": [
     "dist/",
     "src/",
+    "skills/",
+    "docs/",
+    "install-skills.sh",
+    "install-skills.ps1",
     "README.md",
     "LICENSE"
   ],

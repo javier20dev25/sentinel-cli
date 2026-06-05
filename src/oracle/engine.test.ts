@@ -438,8 +438,8 @@ describe('oracleChat', () => {
 
   it('stops after MAX_TOOL_ITERATIONS and returns iteration limit message', async () => {
     const prov = makeProvider();
-    // Keep returning tool calls to hit the iteration limit
-    const maxIter = 6; // one more than MAX_TOOL_ITERATIONS (5)
+    // Keep returning tool calls to hit the iteration limit (MAX_TOOL_ITERATIONS = 15)
+    const maxIter = 16;
     for (let i = 0; i < maxIter; i++) {
       prov.chat.mockResolvedValueOnce({
         content: '',
@@ -606,7 +606,7 @@ describe('oracleChatStream', () => {
 
   it('iteration limit stops infinite loop in stream', async () => {
     const prov = makeProvider();
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 16; i++) {
       prov.stream.mockReturnValueOnce(makeStreamWithToolCalls([makeToolCall(`call_${i}`, 'scan', { path: '.' })]));
     }
 

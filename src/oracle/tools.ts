@@ -1,51 +1,36 @@
-import { execFileSync } from 'child_process';
-import * as path from 'path';
+import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
+import { SupplyChainShield, PackageAnalysis } from '../cli/intelligence/supply_chain_shield';
+import { SystemAuditor } from '../cli/intelligence/system_auditor';
+import { IntegrityManager } from '../cli/intelligence/integrity_manager';
+import { MemoryManager } from '../cli/intelligence/memory_manager';
+import { readClassifiedDb, checkClassifiedHook } from '../cli/classify';
+import { enableGuard, disableGuard, isGuardEnabled } from '../cli/guard';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as os from 'os';
+import { execFileSync } from 'child_process';
 import { ToolDef } from './providers/base';
 
-export interface Tool {
-  name: string;
-  description: string;
-  parameters: ToolDef['parameters'];
-  run: (args: Record<string, string>) => string;
-}
+let _ghUser: string | null = null;
 
-// Resolve sentinel binary safely — no shell interpolation
-function sentinelCmd(): { cmd: string; args: string[] } {
-  const argv1 = process.argv[1] || '';
-  if (process.argv[0].endsWith('node.exe') || process.argv[0].endsWith('node')) {
-    const script = argv1.replace(/main\.js$/, '') + 'main.js';
-    return { cmd: process.argv[0], args: [path.resolve(script)] };
-  }
-  return { cmd: 'sentinel', args: [] };
-}
-
-function runSentinel(subcmd: string, ...params: string[]): string {
-  const { cmd, args } = sentinelCmd();
+function getGhUser(): string {
+  if (_ghUser !== null) return _ghUser;
   try {
-    return execFileSync(cmd, [...args, subcmd, ...params], {
-      timeout: 60000,
-      encoding: 'utf-8',
-      maxBuffer: 10 * 1024 * 1024,
-      windowsHide: true,
+    _ghUser = execFileSync('gh', ['api', 'user', '--jq', '.login'], {
+      timeout: 10000, encoding: 'utf-8', windowsHide: true,
     }).trim();
-  } catch (e: any) {
-    return e.stdout?.trim() || e.stderr?.trim() || e.message;
+  } catch {
+    _ghUser = '';
   }
+  return _ghUser;
 }
 
-function runGh(ghArgs: string[]): string {
-  try {
-    return execFileSync('gh', ghArgs, {
-      timeout: 30000,
-      encoding: 'utf-8',
-      maxBuffer: 10 * 1024 * 1024,
-      windowsHide: true,
-    }).trim();
-  } catch (e: any) {
-    return e.stdout?.trim() || e.stderr?.trim() || e.message;
-  }
+function resolveRepo(repo: string): string {
+  if (!repo) return '';
+  if (repo.includes('/')) return repo;
+  const owner = getGhUser();
+  if (!owner) return repo;
+  return `${owner}/${repo}`;
 }
 
 function sanitizePath(input: string): string {
@@ -55,6 +40,103 @@ function sanitizePath(input: string): string {
 function sanitizePkg(input: string): string {
   const match = input.match(/^@?[a-zA-Z0-9._\-\/]+(@\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?)?$/);
   return match ? match[0] : input.replace(/[^a-zA-Z0-9._\-@\/]/g, '');
+}
+
+function runGh(ghArgs: string[]): string {
+  try {
+    return execFileSync('gh', ghArgs, {
+      timeout: 30000, encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024, windowsHide: true,
+    }).trim();
+  } catch (e: any) {
+    return e.stdout?.trim() || e.stderr?.trim() || e.message;
+  }
+}
+
+async function captureConsoleAsync(fn: () => Promise<void>): Promise<string> {
+  const chunks: string[] = [];
+  const origLog = console.log;
+  const origErr = console.error;
+  console.log = (...args: any[]) => chunks.push(args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' '));
+  console.error = (...args: any[]) => chunks.push(args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' '));
+  try { await fn(); } finally { console.log = origLog; console.error = origErr; }
+  return chunks.join('\n');
+}
+
+function walkDir(dir: string, results: string[], depth = 0): void {
+  if (!fs.existsSync(dir) || depth > 8) return;
+  const list = fs.readdirSync(dir);
+  for (const file of list) {
+    if (file.startsWith('.') || file === 'node_modules' || file === '.git') continue;
+    const full = path.resolve(dir, file);
+    if (!full.startsWith(path.resolve(dir))) continue;
+    try {
+      if (fs.lstatSync(full).isSymbolicLink()) continue;
+      const stat = fs.statSync(full);
+      if (stat.isDirectory()) {
+        walkDir(full, results, depth + 1);
+      } else if (file.endsWith('.js') || file.endsWith('.ts') || file.endsWith('.mjs') || file.endsWith('.cjs') || file.endsWith('.json')) {
+        results.push(full);
+      }
+    } catch (_) {}
+  }
+}
+
+function scanPath(target: string): string {
+  const absTarget = path.resolve(target);
+  if (!fs.existsSync(absTarget)) return `Error: path not found: ${target}`;
+
+  const scanner = new LiteScanner();
+  const allFindings: LiteFinding[] = [];
+
+  if (fs.statSync(absTarget).isDirectory()) {
+    const files: string[] = [];
+    walkDir(absTarget, files);
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(file, 'utf8');
+        const relPath = path.relative(absTarget, file);
+        const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
+        const findings = scanner.scanPatch(relPath, patch);
+        allFindings.push(...findings);
+      } catch (_) {}
+    }
+  } else {
+    try {
+      const content = fs.readFileSync(absTarget, 'utf8');
+      const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
+      const findings = scanner.scanPatch(path.basename(absTarget), patch);
+      allFindings.push(...findings);
+    } catch (e: any) {
+      return `Error reading file: ${e.message}`;
+    }
+  }
+
+  if (allFindings.length === 0) return 'No threats found.';
+
+  const groups = new Map<string, LiteFinding[]>();
+  for (const f of allFindings) {
+    const key = `${f.severity}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(f);
+  }
+
+  const lines: string[] = [];
+  for (const [severity, fnds] of groups) {
+    lines.push(`\n${severity} (${fnds.length}):`);
+    for (const f of fnds.slice(0, 10)) {
+      lines.push(`  ${f.file}:${f.line}  ${f.type}  ${f.description.substring(0, 80)}`);
+    }
+    if (fnds.length > 10) lines.push(`  ... and ${fnds.length - 10} more`);
+  }
+  return lines.join('\n');
+}
+
+export interface Tool {
+  name: string;
+  description: string;
+  parameters: ToolDef['parameters'];
+  run: (args: Record<string, string>) => string | Promise<string>;
 }
 
 export const tools: Tool[] = [
@@ -68,10 +150,7 @@ export const tools: Tool[] = [
       },
       required: [],
     },
-    run: ({ path: p }) => {
-      const safePath = p ? sanitizePath(p) : '.';
-      return runSentinel('scan', safePath, '--json');
-    },
+    run: ({ path: p }) => scanPath(p || '.'),
   },
   {
     name: 'verify-pkg',
@@ -83,10 +162,30 @@ export const tools: Tool[] = [
       },
       required: ['package'],
     },
-    run: ({ package: pkg }) => {
+    run: async ({ package: pkg }) => {
       const safePkg = sanitizePkg(pkg || '');
       if (!safePkg) return 'Error: invalid package name';
-      return runSentinel('verify-pkg', safePkg);
+      try {
+        const shield = new SupplyChainShield();
+        const result = await shield.analyzePackage(safePkg);
+        const lines = [
+          `Package: ${result.pkg}`,
+          `Size: ${(result.sizeBytes / 1024).toFixed(1)} KB`,
+          `Files analyzed: ${result.fileCount}`,
+          `Scan time: ${result.scanTimeMs}ms`,
+          `Verdict: ${result.verdict}`,
+        ];
+        if (result.findings.length > 0) {
+          lines.push(`\nFindings (${result.findings.length}):`);
+          for (const f of result.findings) {
+            lines.push(`  [${f.severity}] ${f.type} in ${f.file}:${f.line}`);
+            lines.push(`    ${f.description}`);
+          }
+        }
+        return lines.join('\n');
+      } catch (e: any) {
+        return `Error: ${e.message}`;
+      }
     },
   },
   {
@@ -96,14 +195,22 @@ export const tools: Tool[] = [
       type: 'object',
       properties: {
         path: { type: 'string', description: 'Project path to scan (default: current dir)' },
-        deep: { type: 'string', enum: ['--deep', ''], description: 'Pass --deep for full dependency tree scan' },
+        deep: { type: 'string', enum: ['--deep'], description: 'Pass --deep for full dependency tree scan' },
       },
       required: [],
     },
-    run: ({ path: p, deep }) => {
-      const safePath = p ? sanitizePath(p) : '.';
-      const args = deep === '--deep' ? ['--deep', safePath] : [safePath];
-      return runSentinel('doctor', ...args);
+    run: async ({ path: p, deep }) => {
+      const originalCwd = process.cwd();
+      if (p) {
+        const safePath = path.resolve(sanitizePath(p));
+        if (fs.existsSync(safePath)) process.chdir(safePath);
+      }
+      try {
+        const auditor = new SystemAuditor();
+        return await captureConsoleAsync(() => auditor.runDoctor(deep === '--deep'));
+      } finally {
+        if (p) process.chdir(originalCwd);
+      }
     },
   },
   {
@@ -117,8 +224,14 @@ export const tools: Tool[] = [
       required: [],
     },
     run: ({ path: p }) => {
-      const safePath = p ? sanitizePath(p) : '.';
-      return runSentinel('check-classified', safePath);
+      const checkPath = p ? path.resolve(sanitizePath(p)) : process.cwd();
+      try {
+        const exitCode = checkClassifiedHook(checkPath);
+        if (exitCode === 0) return 'All staged files cleared. No classified files detected.';
+        return 'Classification violations detected — commit blocked.';
+      } catch (e: any) {
+        return `Error: ${e.message}`;
+      }
     },
   },
   {
@@ -129,8 +242,19 @@ export const tools: Tool[] = [
       properties: {},
       required: [],
     },
-    run: () => {
-      return runSentinel('integrity');
+    run: async () => {
+      try {
+        const manager = new IntegrityManager();
+        const { level, reasons } = await manager.checkIntegrity();
+        const lines = [`Integrity Level: ${level}`];
+        if (reasons.length > 0) {
+          lines.push('Issues found:');
+          for (const r of reasons) lines.push(`  - ${r}`);
+        }
+        return lines.join('\n');
+      } catch (e: any) {
+        return `Integrity check error: ${e.message}`;
+      }
     },
   },
   {
@@ -144,13 +268,71 @@ export const tools: Tool[] = [
       },
       required: [],
     },
-    run: ({ action, query }) => {
-      const safeAction = action ? sanitizePath(action) : '';
-      const safeQuery = query ? sanitizePath(query) : '';
-      return runSentinel('memory', safeAction, safeQuery);
+    run: ({ action }) => {
+      const mem = new MemoryManager();
+      const status = mem.getStatus();
+      const lines = [
+        `Signal Vault Status:`,
+        `  Signals: ${status.signals}`,
+        `  Scans: ${status.scans}`,
+        `  Findings: ${status.findings}`,
+        `  Repos: ${status.repos}`,
+        `  Authors: ${status.authors}`,
+      ];
+      if (action === '--threats' || action === '--findings') {
+        const analysis = mem.getThresholdAnalysis(3);
+        if (analysis.length > 0) {
+          lines.push(`\nThreshold Analysis (repos with >= 3 signals):`);
+          for (const entry of analysis) {
+            lines.push(`  ${entry.repo}: ${entry.signalCount} signals, trend: ${entry.riskTrend}`);
+          }
+        }
+      }
+      return lines.join('\n');
     },
   },
-  // --- GitHub PR & Repo tools (Phase 2) ---
+  {
+    name: 'gh-audit-all',
+    description: 'List ALL open pull requests across ALL your GitHub repositories. Runs gh repo list then gh pr list on each repo. Use when user asks to review/audit all PRs or all repos.',
+    parameters: {
+      type: 'object',
+      properties: {
+        limit: { type: 'string', description: 'Max repos to scan (default: 50)' },
+      },
+      required: [],
+    },
+    run: ({ limit }) => {
+      const repoLimit = String(Math.min(Math.max(parseInt(limit) || 50, 1), 100));
+      try {
+        const reposJson = execFileSync('gh', ['repo', 'list', '--limit', repoLimit, '--json', 'name,owner'], {
+          timeout: 30000, encoding: 'utf-8', windowsHide: true,
+        }).trim();
+        const repos = JSON.parse(reposJson);
+        if (!Array.isArray(repos) || repos.length === 0) return 'No repositories found.';
+        const results: string[] = [];
+        for (const repo of repos) {
+          const fullName = `${repo.owner.login}/${repo.name}`;
+          try {
+            const prsJson = execFileSync('gh', ['pr', 'list', '--repo', fullName, '--state', 'open', '--json', 'number,title,headRefName,createdAt,state,author'], {
+              timeout: 15000, encoding: 'utf-8', windowsHide: true,
+            }).trim();
+            const prs = JSON.parse(prsJson);
+            if (Array.isArray(prs) && prs.length > 0) {
+              results.push(`\n## ${fullName} (${prs.length} PRs)`);
+              for (const pr of prs) {
+                const author = pr.author?.login || 'unknown';
+                results.push(`  #${pr.number} — ${pr.title} (${pr.headRefName}) by @${author}`);
+              }
+            }
+          } catch {}
+        }
+        if (results.length === 0) return 'No open PRs found across any repository.';
+        return `Found open PRs across ${repos.length} repos:\n${results.join('\n')}`;
+      } catch (e: any) {
+        return e.stdout?.trim() || e.stderr?.trim() || e.message;
+      }
+    },
+  },
   {
     name: 'gh-pr-list',
     description: 'List open pull requests in the current GitHub repository. Returns PR number, title, author, and status.',
@@ -165,7 +347,8 @@ export const tools: Tool[] = [
     },
     run: ({ repo, limit, state }) => {
       const args = ['pr', 'list'];
-      if (repo && /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) args.push('--repo', repo);
+      const fullRepo = resolveRepo(repo || '');
+      if (fullRepo) args.push('--repo', fullRepo);
       args.push('--limit', String(Math.min(Math.max(parseInt(limit) || 10, 1), 100)));
       args.push('--state', state === 'closed' ? 'closed' : state === 'all' ? 'all' : 'open');
       args.push('--json', 'number,title,author,headRefName,baseRefName,createdAt,state');
@@ -187,14 +370,15 @@ export const tools: Tool[] = [
       const prNum = parseInt(number);
       if (isNaN(prNum) || prNum < 1) return 'Error: invalid PR number';
       const args = ['pr', 'view', String(prNum)];
-      if (repo && /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) args.push('--repo', repo);
+      const fullRepo = resolveRepo(repo || '');
+      if (fullRepo) args.push('--repo', fullRepo);
       args.push('--json', 'title,body,author,state,mergeable,reviews,additions,deletions,files,labels,createdAt,closedAt,headRepository,baseRepository');
       return runGh(args);
     },
   },
   {
     name: 'gh-pr-diff',
-    description: 'Get the full diff of a pull request. Returns the raw diff output which can be piped directly into sentinel scan for SAST analysis.',
+    description: 'Get the full diff of a pull request. Returns the raw diff output which can be parsed by gh-full-audit for SAST analysis.',
     parameters: {
       type: 'object',
       properties: {
@@ -207,7 +391,8 @@ export const tools: Tool[] = [
       const prNum = parseInt(number);
       if (isNaN(prNum) || prNum < 1) return 'Error: invalid PR number';
       const args = ['pr', 'diff', String(prNum)];
-      if (repo && /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) args.push('--repo', repo);
+      const fullRepo = resolveRepo(repo || '');
+      if (fullRepo) args.push('--repo', fullRepo);
       try {
         return execFileSync('gh', args, {
           timeout: 30000, encoding: 'utf-8',
@@ -234,14 +419,13 @@ export const tools: Tool[] = [
       const prNum = parseInt(number);
       if (isNaN(prNum) || prNum < 1) return 'Error: invalid PR number';
       if (!body) return 'Error: comment body is required';
-
-      // Use OS temp dir with random name — safe from symlink attacks
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentinel-gh-'));
       const tempFile = path.join(tmpDir, `comment_${prNum}.md`);
       try {
         fs.writeFileSync(tempFile, body, 'utf-8');
         const args = ['pr', 'comment', String(prNum)];
-        if (repo && /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) args.push('--repo', repo);
+        const fullRepo = resolveRepo(repo || '');
+        if (fullRepo) args.push('--repo', fullRepo);
         args.push('--body-file', tempFile);
         return execFileSync('gh', args, {
           timeout: 15000, encoding: 'utf-8', windowsHide: true,
@@ -274,7 +458,6 @@ export const tools: Tool[] = [
       return runGh(args);
     },
   },
-  // --- Machine Analysis Tools (Phase 3) ---
   {
     name: 'machine-classify',
     description: 'Classify a file against the classified documents database. Detects if a file contains classified/sensitive content.',
@@ -288,7 +471,20 @@ export const tools: Tool[] = [
     run: ({ file }) => {
       const safeFile = sanitizePath(file || '');
       if (!safeFile) return 'Error: invalid file path';
-      return runSentinel('classify', safeFile);
+      const absFile = path.resolve(safeFile);
+      if (!fs.existsSync(absFile)) return 'Error: file not found';
+      const db = readClassifiedDb();
+      for (const [repoPath, files] of Object.entries(db)) {
+        const normalizedFile = path.resolve(absFile).replace(/\\/g, '/');
+        const normalizedRepo = path.resolve(repoPath).replace(/\\/g, '/');
+        if (normalizedFile.startsWith(normalizedRepo)) {
+          const relPath = path.relative(repoPath, absFile).replace(/\\/g, '/');
+          if (files.includes(relPath)) {
+            return `CLASSIFIED: ${relPath} is in the classified documents database.`;
+          }
+        }
+      }
+      return 'Not classified.';
     },
   },
   {
@@ -299,7 +495,17 @@ export const tools: Tool[] = [
       properties: {},
       required: [],
     },
-    run: () => runSentinel('integrity'),
+    run: async () => {
+      const manager = new IntegrityManager();
+      const { level, reasons } = await manager.checkIntegrity();
+      manager.report(level, reasons);
+      const lines = [`Integrity Level: ${level}`];
+      if (reasons.length > 0) {
+        lines.push('Issues found:');
+        for (const r of reasons) lines.push(`  - ${r}`);
+      }
+      return lines.join('\n');
+    },
   },
   {
     name: 'machine-memory',
@@ -312,16 +518,114 @@ export const tools: Tool[] = [
       },
       required: [],
     },
-    run: ({ action, query }) => {
-      const safeAction = action ? sanitizePath(action) : '';
-      const safeQuery = query ? sanitizePath(query) : '';
-      return runSentinel('memory', safeAction, safeQuery);
+    run: ({ action }) => {
+      const mem = new MemoryManager();
+      const status = mem.getStatus();
+      const lines = [
+        `Signals: ${status.signals}`,
+        `Scans: ${status.scans}`,
+        `Findings: ${status.findings}`,
+        `Repos: ${status.repos}`,
+        `Authors: ${status.authors}`,
+      ];
+      if (action === '--threats') {
+        const analysis = mem.getThresholdAnalysis(3);
+        if (analysis.length > 0) {
+          lines.push(`\nThreshold Analysis:`);
+          for (const entry of analysis) {
+            lines.push(`  ${entry.repo}: ${entry.signalCount} signals, ${entry.riskTrend}`);
+          }
+        }
+      }
+      return lines.join('\n');
     },
   },
-  // --- Package Download & Install Workflow ---
+  {
+    name: 'gh-full-audit',
+    description: 'Complete pipeline: list all repos → get open PRs → fetch diffs → scan with LiteScanner → compile findings with severity. One-shot security audit of all open PRs.',
+    parameters: {
+      type: 'object',
+      properties: {
+        limit: { type: 'string', description: 'Max repos to audit (default: 10)' },
+      },
+      required: [],
+    },
+    run: ({ limit }) => {
+      const startTime = Date.now();
+      const repoLimit = String(Math.min(Math.max(parseInt(limit) || 10, 1), 50));
+      let reposJson: string;
+      try {
+        reposJson = execFileSync('gh', ['repo', 'list', '--limit', repoLimit, '--json', 'name,owner'], {
+          timeout: 30000, encoding: 'utf-8', windowsHide: true,
+        }).trim();
+      } catch (e: any) {
+        return `GitHub CLI error: ${e.stderr?.trim() || e.message}`;
+      }
+      const repos = JSON.parse(reposJson);
+      if (!Array.isArray(repos) || repos.length === 0) return 'No repositories found.';
+      const scanner = new LiteScanner();
+      const report: string[] = [`# Full Security Audit (${repos.length} repos)`];
+      let totalFindings = 0;
+      let totalPRs = 0;
+      for (const repo of repos) {
+        const fullName = `${repo.owner.login}/${repo.name}`;
+        let prsJson: string;
+        try {
+          prsJson = execFileSync('gh', ['pr', 'list', '--repo', fullName, '--state', 'open', '--json', 'number,title,headRefName'], {
+            timeout: 15000, encoding: 'utf-8', windowsHide: true,
+          }).trim();
+        } catch { continue; }
+        const prs = JSON.parse(prsJson);
+        if (!Array.isArray(prs) || prs.length === 0) continue;
+        for (const pr of prs) {
+          totalPRs++;
+          let diff: string;
+          try {
+            diff = execFileSync('gh', ['pr', 'diff', String(pr.number), '--repo', fullName], {
+              timeout: 30000, encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024, windowsHide: true,
+            }).trim();
+          } catch { continue; }
+          const parts = diff.split(/(?=^diff --git )/m);
+          const files: { filename: string; patch: string }[] = [];
+          for (const part of parts) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+            const m = trimmed.match(/^diff --git a\/\S+ b\/(.+)$/m);
+            if (m) files.push({ filename: m[1].trim(), patch: trimmed });
+          }
+          if (files.length === 0) {
+            const m = diff.match(/^\+\+\+ b\/(.+)$/m);
+            if (m) files.push({ filename: m[1].trim(), patch: diff });
+          }
+          const allFindings: LiteFinding[] = [];
+          for (const file of files) {
+            const fnds = scanner.scanPatch(file.filename, file.patch);
+            allFindings.push(...fnds);
+          }
+          if (allFindings.length > 0) {
+            totalFindings += allFindings.length;
+            report.push(`\n## ${fullName} PR #${pr.number}: ${pr.title}`);
+            for (const f of allFindings) {
+              const snippet = (f.snippet || '').substring(0, 200);
+              report.push(`=== SENTINEL FINDING ===`);
+              report.push(`[${f.severity}] ${f.type} in ${f.file}:${f.line}`);
+              report.push(`Snippet: ${snippet.replace(/\n/g, '\\n')}`);
+              report.push(`Description: ${f.description}`);
+              report.push(`---`);
+            }
+          }
+        }
+      }
+      const elapsed = Date.now() - startTime;
+      report.push(`\n---`);
+      report.push(`**Summary**: ${totalPRs} PRs audited, ${totalFindings} findings.`);
+      report.push(`**Scan Time**: ${elapsed}ms`);
+      return report.join('\n');
+    },
+  },
   {
     name: 'download-verify-pkg',
-    description: 'Download an npm package to a temp directory and scan it with sentinel. Does NOT install. Reports typosquatting, secrets, malicious patterns before any installation.',
+    description: 'Download an npm package to a temp directory and scan it with Sentinel. Does NOT install. Reports typosquatting, secrets, malicious patterns before any installation.',
     parameters: {
       type: 'object',
       properties: {
@@ -329,46 +633,32 @@ export const tools: Tool[] = [
       },
       required: ['package'],
     },
-    run: ({ package: pkg }) => {
+    run: async ({ package: pkg }) => {
       const safePkg = sanitizePkg(pkg || '');
       if (!safePkg) return 'Error: invalid package name';
-
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sentinel-dl-'));
       try {
-        const packResult = execFileSync('npm', ['pack', safePkg, '--pack-destination', tmpDir], {
-          timeout: 30000,
-          encoding: 'utf-8',
-          maxBuffer: 10 * 1024 * 1024,
-          windowsHide: true,
-        }).trim();
-
-        const tarball = packResult.split('\n').pop()?.trim() || '';
-        const tarballPath = path.join(tmpDir, tarball);
-
-        if (!fs.existsSync(tarballPath)) {
-          return `Error: tarball not found. npm output: ${packResult}`;
+        const shield = new SupplyChainShield();
+        const result = await shield.analyzePackage(safePkg);
+        const lines = [
+          `Package: ${result.pkg}`,
+          `Tarball Size: ${(result.sizeBytes / 1024).toFixed(1)} KB`,
+          `Files Analyzed: ${result.fileCount}`,
+          `Scan Time: ${result.scanTimeMs}ms`,
+          `Memory: ${result.memoryMB} MB`,
+          `Verdict: ${result.verdict}`,
+        ];
+        if (result.findings.length > 0) {
+          lines.push(`\nFindings (${result.findings.length}):`);
+          for (const f of result.findings) {
+            lines.push(`  [${f.severity}] ${f.type} in ${f.file}:${f.line}`);
+            lines.push(`    ${f.description}`);
+          }
+        } else {
+          lines.push('\nNo threats detected.');
         }
-
-        const scanResult = runSentinel('verify-pkg', tarballPath);
-
-        return [
-          `Package: ${safePkg}`,
-          `Tarball: ${tarball}`,
-          `Size: ${(fs.statSync(tarballPath).size / 1024).toFixed(1)} KB`,
-          '',
-          '=== Analysis ===',
-          scanResult,
-        ].join('\n');
+        return lines.join('\n');
       } catch (e: any) {
         return `Error: ${e.message}`;
-      } finally {
-        try {
-          const files = fs.readdirSync(tmpDir);
-          for (const f of files) {
-            try { fs.unlinkSync(path.join(tmpDir, f)); } catch {}
-          }
-          try { fs.rmdirSync(tmpDir); } catch {}
-        } catch {}
       }
     },
   },
@@ -379,7 +669,7 @@ export const tools: Tool[] = [
       type: 'object',
       properties: {
         package: { type: 'string', description: 'npm package name to install' },
-        global: { type: 'string', enum: ['--global', ''], description: '--global for global install' },
+        global: { type: 'string', enum: ['--global'], description: '--global for global install' },
       },
       required: ['package'],
     },
@@ -389,10 +679,8 @@ export const tools: Tool[] = [
       try {
         const args = global === '--global' ? ['install', '--global', safePkg] : ['install', safePkg];
         return execFileSync('npm', args, {
-          timeout: 60000,
-          encoding: 'utf-8',
-          maxBuffer: 10 * 1024 * 1024,
-          windowsHide: true,
+          timeout: 60000, encoding: 'utf-8',
+          maxBuffer: 10 * 1024 * 1024, windowsHide: true,
         }).trim();
       } catch (e: any) {
         return e.stdout?.trim() || e.stderr?.trim() || e.message;
@@ -406,7 +694,7 @@ export const tools: Tool[] = [
       type: 'object',
       properties: {
         package: { type: 'string', description: 'npm package name to remove' },
-        global: { type: 'string', enum: ['--global', ''], description: '--global if globally installed' },
+        global: { type: 'string', enum: ['--global'], description: '--global if globally installed' },
       },
       required: ['package'],
     },
@@ -416,10 +704,8 @@ export const tools: Tool[] = [
       try {
         const args = global === '--global' ? ['uninstall', '--global', safePkg] : ['uninstall', safePkg];
         return execFileSync('npm', args, {
-          timeout: 30000,
-          encoding: 'utf-8',
-          maxBuffer: 10 * 1024 * 1024,
-          windowsHide: true,
+          timeout: 30000, encoding: 'utf-8',
+          maxBuffer: 10 * 1024 * 1024, windowsHide: true,
         }).trim();
       } catch (e: any) {
         return e.stdout?.trim() || e.stderr?.trim() || e.message;
@@ -436,8 +722,8 @@ export function getToolDefs(): ToolDef[] {
   }));
 }
 
-export function runTool(name: string, args: Record<string, string>): string {
+export async function runTool(name: string, args: Record<string, string>): Promise<string> {
   const tool = tools.find(t => t.name === name);
   if (!tool) return `Unknown tool: ${name}`;
-  return tool.run(args);
+  return await tool.run(args);
 }

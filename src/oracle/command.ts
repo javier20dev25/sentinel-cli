@@ -27,6 +27,7 @@ import { setAgent, getCurrentAgent, AGENTS } from './agents';
 import { detectCli1, formatCli1Report, importCli1Classified } from './cli1_bridge';
 import { exportConfig, exportConfigToFile, importConfigFromFile } from './config_migration';
 import * as pc from 'picocolors';
+import { ensureOllamaReady } from './ollama_setup';
 
 export let conversationHistory: Message[] = [];
 export let currentMode: OracleMode = 'execute';
@@ -697,8 +698,21 @@ async function handleSlash(input: string): Promise<boolean> {
 // ─── Interactive Mode ─────────────────────────────────────────
 
 export async function oracleInteractive(): Promise<void> {
+  console.warn('\n  ⚠  Oracle is EXPERIMENTAL. API may change without notice. Use at your own risk.\n');
   ensureDefaultRules();
   const ruleCount = listRules().length;
+
+  const config = getConfig();
+  const providerName = config.provider || process.env.SENTINEL_PROVIDER || '';
+  if (providerName === 'ollama' || providerName === 'qwen') {
+    spinner.start('Verifying Ollama service...', 'processing');
+    const isReady = await ensureOllamaReady(config.model);
+    spinner.stop();
+    if (!isReady) {
+      console.log(pc.red('  [!] Ollama status check failed. Exiting...'));
+      process.exit(1);
+    }
+  }
 
   const provider = getDefaultProvider();
   console.log(welcomeBanner(provider?.name, provider?.model));
@@ -800,6 +814,18 @@ export async function oracleInteractive(): Promise<void> {
 export { handleSlash, SLASH_COMMANDS };
 
 export async function oracleAsk(question: string): Promise<void> {
+  const config = getConfig();
+  const providerName = config.provider || process.env.SENTINEL_PROVIDER || '';
+  if (providerName === 'ollama' || providerName === 'qwen') {
+    spinner.start('Verifying Ollama service...', 'processing');
+    const isReady = await ensureOllamaReady(config.model);
+    spinner.stop();
+    if (!isReady) {
+      console.log(pc.red('Ollama status check failed. Exiting...'));
+      process.exit(1);
+    }
+  }
+
   const provider = getDefaultProvider();
   if (!provider) {
     console.log(pc.yellow('No provider configured.'));

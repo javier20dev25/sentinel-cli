@@ -8,9 +8,38 @@ const mockReaddirSync = vi.hoisted(() => vi.fn());
 const mockUnlinkSync = vi.hoisted(() => vi.fn());
 const mockRmdirSync = vi.hoisted(() => vi.fn());
 const mockStatSync = vi.hoisted(() => vi.fn());
+const mockLstatSync = vi.hoisted(() => vi.fn());
+const mockReadFileSync = vi.hoisted(() => vi.fn());
 const mockTmpdir = vi.hoisted(() => vi.fn(() => '/tmp'));
 const mockJoin = vi.hoisted(() => vi.fn((...args: string[]) => args.join('/')));
 const mockResolve = vi.hoisted(() => vi.fn((p: string) => p));
+
+const mockLiteScanner = vi.hoisted(() => ({
+  scanPatch: vi.fn(),
+}));
+
+const mockSupplyChainShield = vi.hoisted(() => ({
+  analyzePackage: vi.fn(),
+}));
+
+const mockSystemAuditor = vi.hoisted(() => ({
+  runDoctor: vi.fn(),
+}));
+
+const mockIntegrityManager = vi.hoisted(() => ({
+  checkIntegrity: vi.fn(),
+  report: vi.fn(),
+}));
+
+const mockMemoryManager = vi.hoisted(() => ({
+  getStatus: vi.fn(),
+  getThresholdAnalysis: vi.fn(),
+}));
+
+const mockClassify = vi.hoisted(() => ({
+  readClassifiedDb: vi.fn(),
+  checkClassifiedHook: vi.fn(),
+}));
 
 vi.mock('child_process', () => ({
   execFileSync: mockExecFileSync,
@@ -24,6 +53,8 @@ vi.mock('fs', () => ({
   unlinkSync: mockUnlinkSync,
   rmdirSync: mockRmdirSync,
   statSync: mockStatSync,
+  lstatSync: mockLstatSync,
+  readFileSync: mockReadFileSync,
 }));
 
 vi.mock('os', () => ({
@@ -33,22 +64,70 @@ vi.mock('os', () => ({
 vi.mock('path', () => ({
   join: mockJoin,
   resolve: mockResolve,
+  relative: vi.fn((_from: string, to: string) => to),
+  basename: vi.fn((p: string) => p.split('/').pop() || p.split('\\').pop() || p),
+}));
+
+vi.mock('../core/lite/lite_scanner', () => ({
+  LiteScanner: class {
+    scanPatch(...args: any[]) { return mockLiteScanner.scanPatch(...args); }
+  },
+}));
+
+vi.mock('../cli/intelligence/supply_chain_shield', () => ({
+  SupplyChainShield: class {
+    analyzePackage(...args: any[]) { return mockSupplyChainShield.analyzePackage(...args); }
+  },
+}));
+
+vi.mock('../cli/intelligence/system_auditor', () => ({
+  SystemAuditor: class {
+    runDoctor(...args: any[]) { return mockSystemAuditor.runDoctor(...args); }
+  },
+}));
+
+vi.mock('../cli/intelligence/integrity_manager', () => ({
+  IntegrityManager: class {
+    checkIntegrity() { return mockIntegrityManager.checkIntegrity(); }
+    report(...args: any[]) { return mockIntegrityManager.report(...args); }
+  },
+}));
+
+vi.mock('../cli/intelligence/memory_manager', () => ({
+  MemoryManager: class {
+    getStatus() { return mockMemoryManager.getStatus(); }
+    getThresholdAnalysis(...args: any[]) { return mockMemoryManager.getThresholdAnalysis(...args); }
+  },
+}));
+
+vi.mock('../cli/classify', () => ({
+  readClassifiedDb: mockClassify.readClassifiedDb,
+  checkClassifiedHook: mockClassify.checkClassifiedHook,
+}));
+
+vi.mock('../cli/guard', () => ({
+  enableGuard: vi.fn(),
+  disableGuard: vi.fn(),
+  isGuardEnabled: vi.fn(),
 }));
 
 import { getToolDefs, runTool, tools } from './tools';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: node process
   vi.stubGlobal('process', {
     ...process,
     argv: ['node', 'C:\\sentinel\\main.js'],
+    chdir: vi.fn(),
+    cwd: vi.fn(() => 'C:\\Users\\sleyt\\sentinel-cli'),
   });
   mockExecFileSync.mockReturnValue('ok');
   mockExistsSync.mockReturnValue(true);
   mockMkdtempSync.mockReturnValue('/tmp/sentinel-test-123');
-  mockStatSync.mockReturnValue({ size: 1024 });
+  mockStatSync.mockReturnValue({ size: 1024, isDirectory: () => false });
+  mockLstatSync.mockReturnValue({ isSymbolicLink: () => false });
   mockReaddirSync.mockReturnValue([]);
+  mockReadFileSync.mockReturnValue('console.log("hello");');
 });
 
 // ─── getToolDefs ──────────────────────────────────────────────
@@ -74,7 +153,7 @@ describe('getToolDefs', () => {
   it('tool parameters have correct property structure', () => {
     const defs = getToolDefs();
     for (const t of defs) {
-      for (const [key, prop] of Object.entries(t.parameters.properties)) {
+      for (const prop of Object.values(t.parameters.properties)) {
         expect(prop).toHaveProperty('type');
       }
     }
@@ -86,7 +165,7 @@ describe('getToolDefs', () => {
 describe('tools array', () => {
   const requiredTools = [
     'scan', 'verify-pkg', 'doctor', 'check-classified', 'integrity', 'memory',
-    'gh-pr-list', 'gh-pr-view', 'gh-pr-diff', 'gh-pr-comment', 'gh-repo-list',
+    'gh-audit-all', 'gh-pr-list', 'gh-pr-view', 'gh-pr-diff', 'gh-pr-comment', 'gh-repo-list',
     'machine-classify', 'machine-integrity', 'machine-memory',
     'download-verify-pkg', 'install-pkg', 'remove-pkg',
   ];
@@ -101,25 +180,19 @@ describe('tools array', () => {
       expect(typeof tool!.run).toBe('function');
     });
   }
-
-  it('each tool has a run function that returns a string', () => {
-    for (const t of tools) {
-      expect(typeof t.run).toBe('function');
-    }
-  });
 });
 
 // ─── runTool ──────────────────────────────────────────────────
 
 describe('runTool', () => {
-  it('returns error message for unknown tool', () => {
-    const result = runTool('nonexistent-tool', {});
+  it('returns error message for unknown tool', async () => {
+    const result = await runTool('nonexistent-tool', {});
     expect(result).toBe('Unknown tool: nonexistent-tool');
   });
 
-  it('calls the tool run function for known tools', () => {
+  it('calls the tool run function for known tools', async () => {
     const spy = vi.spyOn(tools.find(t => t.name === 'integrity')!, 'run');
-    runTool('integrity', {});
+    await runTool('integrity', {});
     expect(spy).toHaveBeenCalledWith({});
   });
 });
@@ -127,53 +200,152 @@ describe('runTool', () => {
 // ─── scan tool ────────────────────────────────────────────────
 
 describe('scan tool', () => {
-  it('executes scan with sanitized path', () => {
+  it('scans a file with LiteScanner', async () => {
+    const findings = [{
+      file: 'test.js', line: 1, column: 1, type: 'secret', severity: 'high',
+      description: 'Hardcoded secret key', pattern: '.*', context: 'x', snippet: 'x',
+    }];
+    mockLiteScanner.scanPatch.mockReturnValue(findings);
+
     const tool = tools.find(t => t.name === 'scan')!;
-    tool.run({ path: './src' });
-    expect(mockExecFileSync).toHaveBeenCalled();
-    const args = mockExecFileSync.mock.calls[0];
-    expect(args[1]).toContain('scan');
-    expect(args[1]).toContain('./src');
-    expect(args[1]).toContain('--json');
+    const result = await tool.run({ path: 'test.js' });
+
+    expect(mockReadFileSync).toHaveBeenCalledWith('test.js', 'utf8');
+    expect(result).toContain('high');
+    expect(result).toContain('Hardcoded secret key');
   });
 
-  it('uses default path "." when no path provided', () => {
+  it('uses default path "." when no path provided', async () => {
+    mockLiteScanner.scanPatch.mockReturnValue([]);
     const tool = tools.find(t => t.name === 'scan')!;
-    tool.run({});
-    expect(mockExecFileSync).toHaveBeenCalled();
-    const args = mockExecFileSync.mock.calls[0];
-    expect(args[1]).toContain('.');
+    const result = await tool.run({});
+    expect(result).toBe('No threats found.');
   });
 
-  it('sanitizes dangerous characters from path', () => {
+  it('returns error for non-existent path', async () => {
+    mockExistsSync.mockReturnValue(false);
     const tool = tools.find(t => t.name === 'scan')!;
-    tool.run({ path: 'foo; rm -rf /' });
-    expect(mockExecFileSync).toHaveBeenCalled();
-    const args = mockExecFileSync.mock.calls[0];
-    const pathArg = args[1][2];
-    expect(pathArg).toContain('foo');
-    expect(pathArg).not.toContain(';');
-    expect(pathArg).not.toContain(' ');
+    const result = await tool.run({ path: '/nonexistent' });
+    expect(result).toContain('Error');
   });
 });
 
 // ─── verify-pkg tool ──────────────────────────────────────────
 
 describe('verify-pkg tool', () => {
-  it('calls runSentinel with sanitized package name', () => {
+  it('calls SupplyChainShield.analyzePackage', async () => {
+    mockSupplyChainShield.analyzePackage.mockResolvedValue({
+      pkg: 'axios', sizeBytes: 100000, fileCount: 10, scanTimeMs: 500,
+      memoryMB: 12, verdict: 'clean', findings: [],
+    });
+
     const tool = tools.find(t => t.name === 'verify-pkg')!;
-    tool.run({ package: 'axios' });
-    expect(mockExecFileSync).toHaveBeenCalled();
-    const args = mockExecFileSync.mock.calls[0];
-    expect(args[1]).toContain('verify-pkg');
-    expect(args[1]).toContain('axios');
+    const result = await tool.run({ package: 'axios' });
+
+    expect(mockSupplyChainShield.analyzePackage).toHaveBeenCalledWith('axios');
+    expect(result).toContain('axios');
+    expect(result).toContain('clean');
   });
 
-  it('returns error for invalid package name', () => {
+  it('returns error for invalid package name', async () => {
     const tool = tools.find(t => t.name === 'verify-pkg')!;
-    // Empty package should fail sanitizePkg
-    const result = tool.run({ package: '' });
+    const result = await tool.run({ package: '' });
     expect(result).toBe('Error: invalid package name');
+  });
+
+  it('handles errors from analyzePackage', async () => {
+    mockSupplyChainShield.analyzePackage.mockRejectedValue(new Error('network error'));
+    const tool = tools.find(t => t.name === 'verify-pkg')!;
+    const result = await tool.run({ package: 'bad-pkg' });
+    expect(result).toContain('Error');
+  });
+});
+
+// ─── doctor tool ──────────────────────────────────────────────
+
+describe('doctor tool', () => {
+  it('runs SystemAuditor.doctor and captures console output', async () => {
+    mockSystemAuditor.runDoctor.mockImplementation(async () => {
+      console.log('Doctor report: system healthy');
+    });
+
+    const tool = tools.find(t => t.name === 'doctor')!;
+    const result = await tool.run({});
+
+    expect(mockSystemAuditor.runDoctor).toHaveBeenCalledWith(false);
+    expect(result).toContain('Doctor report: system healthy');
+  });
+
+  it('passes --deep flag to runDoctor', async () => {
+    mockSystemAuditor.runDoctor.mockImplementation(async () => {});
+    const tool = tools.find(t => t.name === 'doctor')!;
+    await tool.run({ deep: '--deep' });
+    expect(mockSystemAuditor.runDoctor).toHaveBeenCalledWith(true);
+  });
+
+  it('changes directory when path is provided', async () => {
+    mockSystemAuditor.runDoctor.mockImplementation(async () => {});
+    const chdirSpy = vi.spyOn(process, 'chdir');
+    const tool = tools.find(t => t.name === 'doctor')!;
+    await tool.run({ path: './some-project' });
+    expect(chdirSpy).toHaveBeenCalled();
+  });
+});
+
+// ─── check-classified tool ────────────────────────────────────
+
+describe('check-classified tool', () => {
+  it('returns success when hook exits 0', () => {
+    mockClassify.checkClassifiedHook.mockReturnValue(0);
+    const tool = tools.find(t => t.name === 'check-classified')!;
+    const result = tool.run({});
+    expect(result).toBe('All staged files cleared. No classified files detected.');
+  });
+
+  it('returns violation when hook exits non-zero', () => {
+    mockClassify.checkClassifiedHook.mockReturnValue(1);
+    const tool = tools.find(t => t.name === 'check-classified')!;
+    const result = tool.run({});
+    expect(result).toContain('commit blocked');
+  });
+});
+
+// ─── integrity tool ───────────────────────────────────────────
+
+describe('integrity tool', () => {
+  it('returns integrity level', async () => {
+    mockIntegrityManager.checkIntegrity.mockResolvedValue({ level: 'clean', reasons: [] });
+    const tool = tools.find(t => t.name === 'integrity')!;
+    const result = await tool.run({});
+    expect(result).toContain('clean');
+  });
+
+  it('lists issues when reasons present', async () => {
+    mockIntegrityManager.checkIntegrity.mockResolvedValue({ level: 'warning', reasons: ['Clock skew detected', 'Vault modified'] });
+    const tool = tools.find(t => t.name === 'integrity')!;
+    const result = await tool.run({});
+    expect(result).toContain('Clock skew detected');
+  });
+});
+
+// ─── memory tool ──────────────────────────────────────────────
+
+describe('memory tool', () => {
+  it('returns vault status', () => {
+    mockMemoryManager.getStatus.mockReturnValue({ signals: 5, scans: 3, findings: 10, repos: 2, authors: 1 });
+    const tool = tools.find(t => t.name === 'memory')!;
+    const result = tool.run({});
+    expect(result).toContain('5');
+    expect(result).toContain('3');
+  });
+
+  it('includes threshold analysis for --findings', () => {
+    mockMemoryManager.getStatus.mockReturnValue({ signals: 5, scans: 3, findings: 10, repos: 2, authors: 1 });
+    mockMemoryManager.getThresholdAnalysis.mockReturnValue([{ repo: 'test/repo', signalCount: 5, riskTrend: 'increasing' }]);
+    const tool = tools.find(t => t.name === 'memory')!;
+    const result = tool.run({ action: '--findings' });
+    expect(result).toContain('test/repo');
+    expect(mockMemoryManager.getThresholdAnalysis).toHaveBeenCalledWith(3);
   });
 });
 
@@ -186,14 +358,6 @@ describe('gh-pr-list tool', () => {
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'gh', expect.arrayContaining(['pr', 'list']), expect.any(Object),
     );
-  });
-
-  it('includes --repo flag when valid repo provided', () => {
-    const tool = tools.find(t => t.name === 'gh-pr-list')!;
-    tool.run({ repo: 'owner/repo' });
-    const call = mockExecFileSync.mock.calls.find((c: any[]) => c[0] === 'gh');
-    expect(call[1]).toContain('--repo');
-    expect(call[1]).toContain('owner/repo');
   });
 });
 
@@ -251,9 +415,8 @@ describe('gh-pr-comment tool', () => {
   });
 
   it('writes body to temp file and calls gh pr comment', () => {
-    mockExistsSync.mockReturnValue(true);
     const tool = tools.find(t => t.name === 'gh-pr-comment')!;
-    const result = tool.run({ number: '1', body: 'LGTM' });
+    tool.run({ number: '1', body: 'LGTM' });
     expect(mockWriteFileSync).toHaveBeenCalled();
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'gh', expect.arrayContaining(['pr', 'comment', '1', '--body-file']), expect.any(Object),
@@ -294,91 +457,95 @@ describe('machine-classify tool', () => {
     expect(result).toBe('Error: invalid file path');
   });
 
-  it('calls sentinel classify with sanitized file', () => {
+  it('returns Not classified when file not in database', () => {
+    mockClassify.readClassifiedDb.mockReturnValue({});
     const tool = tools.find(t => t.name === 'machine-classify')!;
-    tool.run({ file: 'secret.txt' });
-    expect(mockExecFileSync).toHaveBeenCalled();
-    const args = mockExecFileSync.mock.calls[0];
-    expect(args[1]).toContain('classify');
-    expect(args[1]).toContain('secret.txt');
+    const result = tool.run({ file: 'secret.txt' });
+    expect(result).toBe('Not classified.');
+  });
+
+  it('returns CLASSIFIED when file is in database', () => {
+    mockClassify.readClassifiedDb.mockReturnValue({
+      '': ['secret.txt'],
+    });
+    const tool = tools.find(t => t.name === 'machine-classify')!;
+    const result = tool.run({ file: 'secret.txt' });
+    expect(result).toContain('CLASSIFIED');
+  });
+
+  it('returns error when file not found', () => {
+    mockExistsSync.mockReturnValue(false);
+    const tool = tools.find(t => t.name === 'machine-classify')!;
+    const result = tool.run({ file: 'missing.txt' });
+    expect(result).toBe('Error: file not found');
   });
 });
 
 describe('machine-integrity tool', () => {
-  it('calls sentinel integrity', () => {
+  it('returns integrity level', async () => {
+    mockIntegrityManager.checkIntegrity.mockResolvedValue({ level: 'clean', reasons: [] });
     const tool = tools.find(t => t.name === 'machine-integrity')!;
-    tool.run({});
-    expect(mockExecFileSync).toHaveBeenCalled();
-    const args = mockExecFileSync.mock.calls[0];
-    expect(args[1]).toContain('integrity');
+    const result = await tool.run({});
+    expect(result).toContain('clean');
   });
 });
 
 describe('machine-memory tool', () => {
-  it('calls sentinel memory with action and query', () => {
+  it('returns vault status', () => {
+    mockMemoryManager.getStatus.mockReturnValue({ signals: 5, scans: 3, findings: 10, repos: 2, authors: 1 });
     const tool = tools.find(t => t.name === 'machine-memory')!;
-    tool.run({ action: '--findings', query: 'secret' });
-    expect(mockExecFileSync).toHaveBeenCalled();
-    const args = mockExecFileSync.mock.calls[0];
-    expect(args[1]).toContain('memory');
-    expect(args[1]).toContain('--findings');
-    expect(args[1]).toContain('secret');
+    const result = tool.run({});
+    expect(result).toContain('5');
+  });
+});
+
+// ─── gh-audit-all tool ────────────────────────────────────────
+
+describe('gh-audit-all tool', () => {
+  it('returns no repos message when no repos found', () => {
+    mockExecFileSync.mockReturnValue('[]');
+    const tool = tools.find(t => t.name === 'gh-audit-all')!;
+    const result = tool.run({});
+    expect(result).toBe('No repositories found.');
+  });
+
+  it('returns no PRs message across repos', () => {
+    mockExecFileSync
+      .mockReturnValueOnce('[{"name":"test","owner":{"login":"me"}}]')
+      .mockReturnValueOnce('[]');
+    const tool = tools.find(t => t.name === 'gh-audit-all')!;
+    const result = tool.run({ limit: '5' });
+    expect(result).toContain('No open PRs');
   });
 });
 
 // ─── download-verify-pkg tool ─────────────────────────────────
 
 describe('download-verify-pkg tool', () => {
-  it('returns error for invalid package name', () => {
+  it('returns error for invalid package name', async () => {
     const tool = tools.find(t => t.name === 'download-verify-pkg')!;
-    const result = tool.run({ package: '' });
+    const result = await tool.run({ package: '' });
     expect(result).toBe('Error: invalid package name');
   });
 
-  it('downloads and scans a package', () => {
-    mockExecFileSync
-      .mockReturnValueOnce('package-1.0.0.tgz\n')
-      .mockReturnValueOnce('No threats found');
-    mockExistsSync.mockReturnValue(true);
+  it('downloads and scans a package', async () => {
+    mockSupplyChainShield.analyzePackage.mockResolvedValue({
+      pkg: 'safe-pkg', sizeBytes: 5000, fileCount: 3, scanTimeMs: 200,
+      memoryMB: 8, verdict: 'clean', findings: [],
+    });
 
     const tool = tools.find(t => t.name === 'download-verify-pkg')!;
-    const result = tool.run({ package: 'safe-pkg' });
+    const result = await tool.run({ package: 'safe-pkg' });
 
     expect(result).toContain('safe-pkg');
-    expect(result).toContain('package-1.0.0.tgz');
-    expect(result).toContain('Analysis');
+    expect(result).toContain('Verdict');
+    expect(result).toContain('No threats');
   });
 
-  it('handles pack failure', () => {
-    mockExecFileSync
-      .mockReturnValueOnce('')
-      .mockReturnValueOnce('');
-    mockExistsSync.mockReturnValue(false);
-
+  it('handles errors from analyzePackage', async () => {
+    mockSupplyChainShield.analyzePackage.mockRejectedValue(new Error('download failed'));
     const tool = tools.find(t => t.name === 'download-verify-pkg')!;
-    const result = tool.run({ package: 'safe-pkg' });
-
-    expect(result).toContain('tarball not found');
-  });
-
-  it('handles pack failure', () => {
-    mockExecFileSync
-      .mockReturnValueOnce(Buffer.from(''))
-      .mockReturnValueOnce(Buffer.from(''));
-    mockExistsSync.mockReturnValue(false);
-
-    const tool = tools.find(t => t.name === 'download-verify-pkg')!;
-    const result = tool.run({ package: 'safe-pkg' });
-
-    expect(result).toContain('tarball not found');
-  });
-
-  it('handles execution errors', () => {
-    mockExecFileSync.mockImplementation(() => { throw new Error('network error'); });
-
-    const tool = tools.find(t => t.name === 'download-verify-pkg')!;
-    const result = tool.run({ package: 'safe-pkg' });
-
+    const result = await tool.run({ package: 'bad-pkg' });
     expect(result).toContain('Error');
   });
 });
@@ -424,42 +591,9 @@ describe('remove-pkg tool', () => {
   });
 });
 
-// ─── sentinelCmd resolution ──────────────────────────────────
-
-describe('sentinelCmd resolution (via scan tool)', () => {
-  it('resolves script path when running from node', () => {
-    vi.stubGlobal('process', {
-      ...process,
-      argv: ['node', '/app/dist/main.js'],
-    });
-
-    const tool = tools.find(t => t.name === 'scan')!;
-    tool.run({ path: '.' });
-
-    const call = mockExecFileSync.mock.calls[0];
-    expect(call[0]).toBe('node');
-    expect(call[1][0]).toContain('main.js');
-    expect(call[1][1]).toBe('scan');
-    vi.unstubAllGlobals();
-  });
-});
-
 // ─── error handling ───────────────────────────────────────────
 
 describe('error handling', () => {
-  it('runSentinel returns error message on failure', () => {
-    mockExecFileSync.mockImplementation(() => {
-      const err: any = new Error('Command failed');
-      err.stdout = 'node error';
-      err.stderr = '';
-      throw err;
-    });
-
-    const tool = tools.find(t => t.name === 'scan')!;
-    const result = tool.run({ path: '.' });
-    expect(result).toBe('node error');
-  });
-
   it('runGh returns error message on gh failure', () => {
     mockExecFileSync.mockImplementation(() => {
       const err: any = new Error('gh error');
@@ -471,5 +605,14 @@ describe('error handling', () => {
     const tool = tools.find(t => t.name === 'gh-pr-list')!;
     const result = tool.run({});
     expect(result).toBe('gh not logged in');
+  });
+
+  it('scan tool handles file read error', async () => {
+    mockReadFileSync.mockImplementation(() => { throw new Error('permission denied'); });
+    mockStatSync.mockReturnValue({ isDirectory: () => false });
+
+    const tool = tools.find(t => t.name === 'scan')!;
+    const result = await tool.run({ path: '/restricted' });
+    expect(result).toContain('Error');
   });
 });

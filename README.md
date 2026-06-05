@@ -1,143 +1,146 @@
-# Sentinel CLI — Security Signal Orchestrator
+# Sentinel — Security Intelligence for AI Coding Agents
 
-## Abstract
+> SAST Scanner · Supply Chain Shield · Skills System · MCP Server · AI Oracle (experimental)
 
-Deterministic static analysis engine and supply chain security scanner for
-JavaScript, TypeScript, Python, and Go codebases. Operates without network
-access. Zero false positives by design.
+Sentinel provides a security intelligence layer that any AI coding agent can use: deterministic local analysis (SAST, package audit, threat intelligence) exposed as installable skills for Claude, Cursor, Cline, Windsurf, OpenCode, Roo, Gemini, and Codex.
 
-## Table of Contents
+## The Problem
 
-1. [Architecture](#architecture)
-2. [Scanner Modules](#scanner-modules)
-3. [Algorithmic Approach](#algorithmic-approach)
-4. [CLI Reference](#cli-reference)
-5. [Programmatic API](#programmatic-api)
-6. [Data Formats](#data-formats)
-7. [License](#license)
+AI coding agents don't know what's safe. They parse lockfiles with model reasoning (expensive, unreliable), guess at threat patterns, and produce plausible-sounding but wrong security answers. Every token spent on security analysis is wasted — Sentinel does it deterministically, locally, at zero token cost.
+
+## The Solution
+
+Two integration surfaces:
+
+**Skills** — Agent-specific instruction files that teach agents to call Sentinel tools for all security-relevant tasks. One canonical specification (CONSTITUTION.md + GENERIC.md) adapted for every major coding agent platform.
+
+**MCP Server** — Model Context Protocol server (`sentinel mcp`) that exposes all Sentinel tools (scan, verify-pkg, doctor, integrity, memory, GitHub PR tools) as standard MCP tool calls. Connect Claude Desktop, Cursor, Cline, or any MCP-compatible agent.
+
+## Quick Start
+
+```bash
+# Install globally
+npm install -g @sentinel/cli
+
+# Install skills for detected agents
+sentinel install-skills
+
+# Start MCP server (stdio mode, for AI agent connection)
+sentinel mcp
+
+# Quick scan
+sentinel scan ./src
+```
+
+## Skills System
+
+Install skills for your AI coding agent:
+
+```bash
+sentinel install-skills           # auto-detect agents
+sentinel install-skills --list    # show detected agents
+sentinel install-skills --all     # install for all platforms
+sentinel install-skills --agent claude --agent cursor
+```
+
+Each skill teaches the agent:
+- **Sentinel primacy** — call `sentinel scan` before reading code with the model (0 tokens vs. expensive model analysis)
+- **Evidence attachment** — every security claim must include verbatim Sentinel output
+- **Trust hierarchy** — Sentinel evidence (Tier 1) overrides model reasoning (Tier 4)
+- **Workflows** — PR review, package audit, host integrity, full audit pipelines
+
+See [docs/SKILLS.md](./docs/SKILLS.md), [docs/TRUST_MODEL.md](./docs/TRUST_MODEL.md), and [skills/](./skills/) for details.
+
+## MCP Server
+
+```bash
+sentinel mcp                      # stdio mode (default, for MCP clients)
+sentinel mcp --http --port 3003   # HTTP/SSE mode for web clients
+```
+
+Exposes 12 tools: scan, verify-pkg, doctor, check-classified, integrity, memory, threat-query, threat-correlate, gh-pr-list, gh-pr-view, gh-pr-diff, gh-repo-list.
+
+Connect from any MCP-compatible agent (Claude Desktop, Cursor, Cline, etc.).
+
+## Core CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `sentinel scan <path>` | SAST scan with 30 rules |
+| `sentinel verify-pkg <package>` | Audit npm package (zero-install) |
+| `sentinel doctor [--deep]` | System health check |
+| `sentinel integrity` | Verify host integrity |
+| `sentinel baseline create\|diff` | System snapshot and drift detection |
+| `sentinel permissions [package]` | Capability audit |
+| `sentinel check-classified <path>` | Check files against classified DB |
+| `sentinel memory --status` | Query local threat intelligence |
+| `sentinel guard enable\|disable\|status` | Package interception guard |
+| `sentinel hub` | Interactive operations menu |
+| `sentinel install-skills` | Install skills for AI coding agents |
+| `sentinel mcp` | Start MCP server for agent integration |
+
+## Sentinels Core
+
+- **LiteScanner** — 30 SAST rules: secrets, eval, network, env access, command injection, SQLi, prototype pollution, crypto misuse
+- **Supply Chain Shield** — npm package audit without installing (typosquatting, embedded secrets, malicious patterns)
+- **System Doctor** — dependency vulnerability scan, behavioral analysis
+- **Integrity Manager** — chain-of-trust integrity verification (hash, PATH, vault, clock, manifest)
+- **Signal Vault** — local SQLite threat intelligence, author correlation, pattern matching
+- **Baseline Manager** — system snapshots and drift detection
 
 ## Architecture
 
-Input normalization transforms files into a uniform representation before analysis. The pipeline proceeds as a linear sequence of stages: normalization, lexical analysis, pattern matching, signal aggregation, and kill chain construction. Each stage operates on the output of the previous stage with no feedback loops.
-
-### Pipeline Stages
-
-1. **Input Normalization** — file type detection via extension and magic bytes, encoding detection (UTF-8, UTF-16, Latin-1), line ending normalization to LF
-2. **Lexical Analysis** — tokenization for JS/TS/Python/Go using language-specific lexers; regex-based fallback for all other languages produces a token stream of identifiers, literals, and operators
-3. **Pattern Matching** — LiteScanner (30 regex rules, O(n) per rule) and DeepScan (AST visitor, O(n) traversal) run in parallel over the token stream
-4. **Signal Aggregation** — deduplication by (file, line, type) tuple; severity scoring via weighted heuristic: criticality * confidence * context
-5. **Kill Chain Builder** — cross-signal correlation by TTP category (MITRE ATT&CK), produces a directed acyclic graph of linked signals representing an attack narrative
-
-## Scanner Modules
-
-### LiteScanner
-
-30 regex patterns organized by threat category. Each pattern is compiled once and cached. Scanning is O(n) per pattern with early termination on high-confidence match. Categories:
-
-- Secrets: API keys, tokens, private keys, connection strings
-- Injections: SQL, shell, path traversal, template injection
-- File Access: reads, writes, deletions outside sandbox
-- Network Sinks: outbound HTTP, DNS, socket connections
-- Shell Execution: exec, spawn, eval, child_process
-- Crypto Misuse: weak algorithms, hardcoded IVs, ECB mode
-
-### DeepScan
-
-AST-level analysis for fully supported languages (JavaScript, TypeScript, Python, Go). Implements the visitor pattern traversing CST/AST produced by tree-sitter or acorn/meriyah tokenizers. Taint tracing performs source-to-sink propagation via a control flow graph approximation. Taint sources are user input, environment variables, file contents. Taint sinks are network calls, shell execution, file writes.
-
-### Secret Detection
-
-27 pattern families covering AWS keys, GitHub tokens, OpenAI keys, Slack tokens, Google service accounts, generic JWTs, and custom patterns. Entropy scoring functions as a secondary signal: Shannon entropy over a character window, threshold > 4.5 bits per character. Base64 decoding is attempted on candidate strings, followed by pattern matching on the decoded payload to catch encoded secrets.
-
-### Supply Chain Verification
-
-Dependency manifest parsing for package.json, requirements.txt, go.mod, and Cargo.toml. Package name typosquatting is detected via weighted Levenshtein distance with a threshold of edit distance < 3. Registry URL override detection flags non-canonical registry endpoints. Postinstall script capability mapping categorizes script behaviors into allowed, suspicious, and blocked operations.
-
-### Integrity Chain
-
-SHA-256 hash chain verification constructs a Merkle-like tree of file hashes. The root hash is signed and verified against a known-good manifest. Any file modification produces a non-matching hash that propagates to an invalid root signature.
-
-## Algorithmic Approach
-
-All analysis is deterministic. Given identical input, the engine produces identical output regardless of environment, time, or execution context. There is no probabilistic inference, no model inference, and no non-deterministic branching.
-
-Core algorithms:
-
-- **Pattern Matching**: Aho-Corasick-inspired multi-pattern matching for LiteScanner, modified to support capture groups and configurable context windows for before/after match inspection
-- **AST Traversal**: Recursive descent with visitor pattern; O(n) time complexity and O(d) space complexity where d is maximum AST depth
-- **Levenshtein Distance**: Wagner-Fischer algorithm implemented with O(min(m,n)) space; bounded by max edit distance < 3 for typosquatting detection, enabling early termination
-- **Entropy Calculation**: Shannon entropy H(X) = -&Sigma; P(x_i) log_2 P(x_i) computed over sliding character windows; threshold > 4.5 bits/character for high-entropy classification
-- **SHA-256**: FIPS 180-4 compliant implementation used for integrity verification; operates on 512-bit message blocks with 64 rounds of compression
-
-## CLI Reference
-
-### Commands
-
-| Command | Arguments | Description |
-|---------|-----------|-------------|
-| `scan [path]` | `--json`, `--fail-on-critical`, `--output` | Run all scanners on target path |
-| `verify-pkg <name>` | `--registry` | Verify package integrity before install |
-| `pr-scan <diff-file>` | `--json`, `--base-ref` | Scans a unified diff for introduced threats |
-| `integrity-check` | `--root-hash` | Verify file system integrity chain |
-| `secrets scan [path]` | `--entropy-only` | Run secret detector only |
-
-### Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | No threats detected |
-| 1 | Low/medium severity findings |
-| 2 | High/critical severity findings (or `--fail-on-critical` triggered) |
-
-## Programmatic API
-
-```typescript
-import { scanPath, scanDiff } from '@sentinel/cli';
-
-const results = await scanPath('./src', { 
-  scanners: ['litescanner', 'deepscan', 'secrets'],
-  failOnCritical: true 
-});
-// Returns: { findings: Finding[], verdict: Verdict, filesAnalyzed: number }
+```
+sentinel/
+├── skills/               # Canonical skill specifications
+│   ├── CONSTITUTION.md   # Binding rules (all agents)
+│   ├── GENERIC.md        # Universal adapter-agnostic skill
+│   └── adapters/          # Per-platform skill files
+│       ├── claude/       # CLAUDE.md
+│       ├── cursor/       # sentinel.mdc
+│       ├── cline/        # CLINE.md
+│       ├── windsurf/     # .windsurfrules
+│       ├── opencode/     # SKILL.md
+│       ├── roo/          # ROO.md
+│       ├── gemini/       # GEMINI.md
+│       └── codex/        # CODEX.md
+├── docs/
+│   ├── SKILLS.md         # Skills system documentation
+│   └── TRUST_MODEL.md    # Evidence trust hierarchy
+├── src/
+│   ├── cli/              # CLI commands + intelligence modules
+│   │   ├── main.ts       # Commander entry point
+│   │   ├── install-skills.ts  # Skills installer
+│   │   └── intelligence/ # Signal vault, integrity, baselines
+│   ├── mcp/              # Standalone MCP server (extracted from Oracle)
+│   │   └── server.ts     # 12-tool MCP protocol server
+│   ├── oracle/           # AI Oracle (experimental)
+│   ├── core/lite/        # LiteScanner SAST engine
+│   ├── install-skills.sh # Unix standalone installer
+│   └── install-skills.ps1 # Windows standalone installer
 ```
 
-See `src/types.ts` for complete type definitions.
+## Oracle AI (Experimental)
 
-## Data Formats
+Sentinel includes an experimental AI-powered security assistant (CLI 2) with multi-provider support (Gemini, Claude, OpenAI, Ollama). This component is marked experimental and not the primary product focus.
 
-### JSON Output Schema
-
-```typescript
-interface ScanOutput {
-  version: string;
-  scanTime: string; // ISO 8601
-  filesAnalyzed: number;
-  findings: Finding[];
-  verdict: {
-    band: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS';
-    decision: 'PASS' | 'BLOCK';
-  };
-  killChain?: KillChainLink[];
-}
-
-interface Finding {
-  file: string;
-  line: number;
-  column: number;
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  type: string;
-  description: string;
-  snippet?: string;
-  ttp?: string; // MITRE ATT&CK ID
-}
+```bash
+sentinel oracle                 # Interactive session
+sentinel oracle ask "..."       # One-shot query
 ```
 
-### SARIF Output
+See `sentinel guide` for full command reference, including the Oracle's slash commands, agents (Blue/Red/Auditor), and providers.
 
-Compatible with GitHub SARIF upload. See `schemas/sarif-schema.json`.
+## Requirements
+
+- **Node.js** >= 18.0.0
+- **npm** >= 9
+- **gh** CLI (for GitHub PR tools — optional)
 
 ## License
 
-Business Source License 1.1 — see `LICENSE` for terms.
-Change Date: 2030-05-20
-Change License: GNU General Public License v2.0
+**Business Source License 1.1** — see [LICENSE](./LICENSE).
+
+---
+
+*Built for developers who take security seriously.*

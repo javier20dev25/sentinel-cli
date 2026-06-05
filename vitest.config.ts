@@ -9,7 +9,7 @@ export default defineConfig({
     testTimeout: 15000,
     coverage: {
       provider: 'v8',
-      include: ['src/core/lite/**', 'src/oracle/**', 'src/cli/intelligence/**'],
+      include: ['src/core/lite/**', 'src/oracle/**', 'src/cli/**'],
       reporter: ['text', 'lcov'],
     },
   },

@@ -1,0 +1,66 @@
+# Sentinel Security Skill for Windsurf
+
+CONSTITUTION.md rules apply.
+
+## Sentinel-First
+
+Prefer Sentinel CLI for all security analysis tasks. Local deterministic execution costs zero tokens. The model must not spend tokens on analysis that Sentinel can do.
+
+## FORBIDDEN
+
+- Suggest `npm install` as bypass of `sentinel install`
+- Offer workarounds when Sentinel BLOCKS
+- Commit without `sentinel precommit install`
+
+## MANDATORY
+
+- Use `sentinel install <manager> <pkg>` for all installations
+- When BLOCK: report findings, state BLOCK, let user decide
+- Run `sentinel precommit install` before first commit
+
+## Commands
+
+### SAST and Analysis
+sentinel scan <path> - 30-rule SAST scan
+sentinel verify-pkg <package> --details - zero-install npm audit + OSV + typosquat
+sentinel doctor [--deep] - dependency health
+sentinel integrity - host integrity
+sentinel baseline create|diff - snapshot management
+sentinel permissions [package] - capability audit
+sentinel audit-deps [--ci] [--provenance] [--npm-audit] - Full dep audit: lockfile, OSV batch, reputation, provenance
+sentinel deps-tree [path] --depth 3 - transitive dep walk + SAST
+sentinel sbom [--lockfile <path>] [--output <file>] - CycloneDX v1.5 SBOM
+
+### Package Security
+sentinel install <manager> [args...] - gated install (scan then install)
+sentinel guard enable|disable|status - package interception
+sentinel trust-cache <status|clear|prune> - cached verdicts
+
+### Policy
+sentinel policy set|get|list - ci-mode, fail-closed, quarantine
+
+### Pre-Commit / Pre-Push
+sentinel precommit install|uninstall|status - SAST pre-commit hook
+sentinel prepush install|uninstall|status - SAST pre-push hook
+
+### Classified Documents
+sentinel check-classified <path> - classified file check
+
+### Threat Intelligence
+sentinel memory --status|--findings|--threats - threat intelligence
+
+### GitHub
+gh-pr-list|view|diff|comment - GitHub PR operations
+gh-repo-list - repository listing
+
+## Workflows
+
+PR review: get diff -> scan -> correlate -> comment
+Package check: verify-pkg --details -> verdict
+Full audit: list repos -> list PRs -> scan diffs -> comment per PR
+Dep audit: audit-deps --ci -> review -> quarantine
+Install: sentinel install npm <pkg>
+
+## Evidence
+
+Always include verbatim tool output in findings. Sentinel evidence outranks model reasoning.

@@ -23,6 +23,42 @@ export interface LiteFinding {
 export class LiteScanner {
     private vault: SignalVault;
 
+    private static readonly RULES = [
+        { regex: /\beval\s*\(|\bnew\s+Function\s*\(|globalThis\[\s*['"]ev['"]\s*\+\s*['"]al['"]\s*\]/, type: 'UNSAFE_EVAL',          intent: 'MALICIOUS', severity: 'CRITICAL', description: 'Obfuscated or dynamic code execution detected.' },
+        { regex: /require\s*\(['"]child_process['"]\)|(?<!\.)\bspawn\b|(?<!\.)\bexec\b|(?<!\.)\bexecSync\b/, type: 'OS_CAPABILITY', intent: 'SUSPICIOUS', severity: 'MEDIUM', description: 'OS process spawning capability introduced.' },
+        { regex: /\bfetch\s*\(|https?\.request|axios\.|got\.|curl|wget/,                  type: 'NETWORK_ACTIVITY',     intent: 'NEUTRAL',    severity: 'LOW',    description: 'Outbound network communication detected.' },
+        { regex: /process\.env\.[A-Z_]{4,}|secrets\.|private_key/,                      type: 'ENV_ACCESS',           intent: 'SUSPICIOUS', severity: 'MEDIUM', description: 'Access to system environment variables or secrets.' },
+        { regex: /Buffer\.from\s*\(.*['"]base64['"]\)/,                                 type: 'POTENTIAL_SECRET',     intent: 'MALICIOUS',  severity: 'HIGH',   description: 'Base64 decoding detected (potential obfuscation).' },
+        { regex: /innerHTML\s*=|outerHTML\s*=/,                                         type: 'DOM_INJECTION',        intent: 'VULNERABILITY', severity: 'HIGH',   description: 'Unsafe DOM manipulation detected (XSS risk).' },
+        { regex: /vm\.runInContext|vm\.runInNewContext/,                                type: 'SANDBOX_ESCAPE',       intent: 'SUSPICIOUS', severity: 'HIGH',   description: 'Code execution in VM context detected.' },
+        // --- SECRET DETECTION RULES (v2.0) ---
+        { regex: /(?:AWS|aws)_ACCESS_KEY_ID\s*[=:]\s*['\"]?AKIA[0-9A-Z]{16}['\"]?/,                type: 'SECRET_AWS_KEY_ID',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Access Key ID exposed in plain text.' },
+        { regex: /(?:AWS|aws)_SECRET_ACCESS_KEY\s*[=:]\s*['\"]?[A-Za-z0-9\/+=]{40}['\"]?/,         type: 'SECRET_AWS_SECRET',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Secret Access Key exposed in plain text.' },
+        { regex: /(?<![0-9a-zA-Z])AKIA[0-9A-Z]{16}(?![0-9a-zA-Z])/,                              type: 'SECRET_AWS_KEY_ID',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Access Key ID exposed (bare AKIA pattern).' },
+        { regex: /gh[opsu]_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z]{22,}/, type: 'SECRET_GITHUB_TOKEN', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'GitHub personal access token exposed.' },
+        { regex: /sk_live_[0-9a-zA-Z]{24,}|pk_live_[0-9a-zA-Z]{24,}/,                  type: 'SECRET_STRIPE_KEY',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Stripe live API key exposed.' },
+        { regex: /SG\.[A-Za-z0-9_-]{40,}/,                                                type: 'SECRET_SENDGRID_KEY',  intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'SendGrid API key exposed.' },
+        { regex: /-----BEGIN\s+(?:RSA|DSA|EC|OPENSSH|PGP)\s+PRIVATE\s+KEY-----/,        type: 'SECRET_SSH_KEY',       intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Private cryptographic key exposed in plain text.' },
+        { regex: /xox[abp]\-[0-9a-zA-Z]{10,}/,                                          type: 'SECRET_SLACK_TOKEN',   intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Slack API token exposed.' },
+        { regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_]{8,}\/B[A-Za-z0-9_]{8,}\/[A-Za-z0-9_]{24}/, type: 'SECRET_SLACK_WEBHOOK', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Slack webhook URL exposed.' },
+        { regex: /(?:JWT|jwt)_?(?:SECRET|KEY|TOKEN)\s*[=:]\s*['\"]?[A-Za-z0-9_\-\.]{16,}['\"]?/, type: 'SECRET_JWT', intent: 'EXFILTRATION', severity: 'HIGH', description: 'JWT secret or signing key exposed.' },
+        { regex: /(?:DB_|db_)?(?:PASSWORD|PASS|PWD)\s*[=:]\s*['\"]?[A-Za-z0-9!@#$%^&*()_+\-]{8,}['\"]?/, type: 'SECRET_DB_PASSWORD', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Database password exposed in configuration.' },
+        { regex: /(?:ENCRYPTION|encryption)_?(?:KEY|key|SECRET|secret)\s*[=:]\s*['\"]?[A-Za-z0-9\/+=\-:]{8,}['\"]?/, type: 'SECRET_ENCRYPTION_KEY', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Encryption key exposed in plain text.' },
+        { regex: /(?:api|API|apikey|API_KEY|api_key)\s*[=:]\s*['\"]?[A-Za-z0-9_\-]{16,}['\"]?/, type: 'SECRET_API_KEY', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Generic API key or token exposed.' },
+        { regex: /(?:https?:\/\/)?[a-zA-Z0-9_-]+\.(?:onion|tor)\b/,                      type: 'DARKNET_ADDRESS',     intent: 'SUSPICIOUS', severity: 'HIGH', description: '.onion darknet address referenced in code.' },
+        { regex: /(?:password|passwd|pwd|contraseña)\s*[=:]\s*['\"]?[A-Za-z0-9!@#$%^&*()_+\-]{6,}['\"]?/i, type: 'SECRET_HARDCODED_PASSWORD', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Hardcoded password detected in source.' },
+        { regex: /(?:token|Token|TOKEN)\s*[=:]\s*['\"]?[A-Za-z0-9_\-\.]{16,}['\"]?/,       type: 'SECRET_HARDCODED_TOKEN', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Hardcoded authentication token detected.' },
+        // --- GYP BUILD COMMAND SUBSTITUTION (v5.0) ---
+        { regex: /'<(?:!@?|@)\(|"<(?:!@?|@)\(/, type: 'GYP_COMMAND_SUBSTITUTION', intent: 'MALICIOUS', severity: 'CRITICAL', description: 'GYP build file with command substitution — potential remote code execution.' },
+        { regex: /GYP_CMD_|gyp_exec|binding\.gyp.*curl|binding\.gyp.*wget|binding\.gyp.*fetch/, type: 'GYP_DOWNLOADER', intent: 'MALICIOUS', severity: 'CRITICAL', description: 'GYP build file downloading external payload via command substitution.' },
+        // --- LIFECYCLE SCRIPT ANALYSIS (v5.0) ---
+        { regex: /"(?:preinstall|postinstall|prepare)"\s*:\s*"[^"]*\b(?:curl|wget)\b[^"]*"/, type: 'LIFECYCLE_CURL_BASH', intent: 'MALICIOUS', severity: 'CRITICAL', description: 'Lifecycle script with curl/wget download — classic supply chain attack vector.' },
+        { regex: /"(?:preinstall|postinstall|prepare)"\s*:\s*"[^"]*(?:\bbash\b|\bsh\b|powershell|\.ps1|\bpython\b|\bnode\b|\beval\b)[^"]*"/, type: 'LIFECYCLE_CURL_BASH', intent: 'MALICIOUS', severity: 'CRITICAL', description: 'Lifecycle script invoking shell — potential supply chain attack vector.' },
+        { regex: /"(?:preinstall|postinstall|prepare)"\s*:\s*"[^"]*(?:base64|decode|fromCharCode|chmod \+x|mknod)[^"]*"/, type: 'LIFECYCLE_OBFUSCATED', intent: 'MALICIOUS', severity: 'CRITICAL', description: 'Obfuscated lifecycle script — encoded payload execution.' },
+        // --- OBFUSCATION DETECTION (v5.0) ---
+        { regex: /(?:\\x[0-9a-fA-F]{2}){10,}|(?:\\u[0-9a-fA-F]{4}){5,}|eval\([\s\S]{0,100}decode|Function\([\s\S]{0,100}decode/, type: 'OBFUSCATED_PAYLOAD', intent: 'MALICIOUS', severity: 'HIGH', description: 'Highly obfuscated JavaScript — encoded strings in eval or Function constructor.' },
+    ];
+
     constructor() {
         this.vault = new SignalVault();
     }
@@ -63,46 +99,22 @@ export class LiteScanner {
                 snippet: `File: ${baseName}`
             });
         }
-
-        const RULES = [
-            { regex: /\beval\s*\(|\bnew\s+Function\s*\(|globalThis\[\s*['"]ev['"]\s*\+\s*['"]al['"]\s*\]/, type: 'UNSAFE_EVAL',          intent: 'MALICIOUS', severity: 'CRITICAL', description: 'Obfuscated or dynamic code execution detected.' },
-            { regex: /require\s*\(['"]child_process['"]\)|(?<!\.)\bspawn\b|(?<!\.)\bexec\b|(?<!\.)\bexecSync\b/, type: 'OS_CAPABILITY', intent: 'SUSPICIOUS', severity: 'MEDIUM', description: 'OS process spawning capability introduced.' },
-            { regex: /\bfetch\s*\(|https?\.request|axios\.|got\.|curl|wget/,                  type: 'NETWORK_ACTIVITY',     intent: 'NEUTRAL',    severity: 'LOW',    description: 'Outbound network communication detected.' },
-            { regex: /process\.env\.[A-Z_]{4,}|secrets\.|private_key/,                      type: 'ENV_ACCESS',           intent: 'SUSPICIOUS', severity: 'MEDIUM', description: 'Access to system environment variables or secrets.' },
-            { regex: /Buffer\.from\s*\(.*['"]base64['"]\)/,                                 type: 'POTENTIAL_SECRET',     intent: 'MALICIOUS',  severity: 'HIGH',   description: 'Base64 decoding detected (potential obfuscation).' },
-            { regex: /innerHTML\s*=|outerHTML\s*=/,                                         type: 'DOM_INJECTION',        intent: 'VULNERABILITY', severity: 'HIGH',   description: 'Unsafe DOM manipulation detected (XSS risk).' },
-            { regex: /vm\.runInContext|vm\.runInNewContext/,                                type: 'SANDBOX_ESCAPE',       intent: 'SUSPICIOUS', severity: 'HIGH',   description: 'Code execution in VM context detected.' },
-            // --- SECRET DETECTION RULES (v2.0) ---
-            // AWS / cloud provider keys
-            { regex: /(?:AWS|aws)_ACCESS_KEY_ID\s*[=:]\s*['\"]?AKIA[0-9A-Z]{16}['\"]?/,                type: 'SECRET_AWS_KEY_ID',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Access Key ID exposed in plain text.' },
-            { regex: /(?:AWS|aws)_SECRET_ACCESS_KEY\s*[=:]\s*['\"]?[A-Za-z0-9\/+=]{40}['\"]?/,         type: 'SECRET_AWS_SECRET',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Secret Access Key exposed in plain text.' },
-            { regex: /(?<![0-9a-zA-Z])AKIA[0-9A-Z]{16}(?![0-9a-zA-Z])/,                              type: 'SECRET_AWS_KEY_ID',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'AWS Access Key ID exposed (bare AKIA pattern).' },
-            // GitHub tokens
-            { regex: /gh[opsu]_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z]{22,}/, type: 'SECRET_GITHUB_TOKEN', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'GitHub personal access token exposed.' },
-            // Payment processor keys
-            { regex: /sk_live_[0-9a-zA-Z]{24,}|pk_live_[0-9a-zA-Z]{24,}/,                  type: 'SECRET_STRIPE_KEY',    intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Stripe live API key exposed.' },
-            // Email service keys
-            { regex: /SG\.[A-Za-z0-9_-]{40,}/,                                                type: 'SECRET_SENDGRID_KEY',  intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'SendGrid API key exposed.' },
-            // Private keys
-            { regex: /-----BEGIN\s+(?:RSA|DSA|EC|OPENSSH|PGP)\s+PRIVATE\s+KEY-----/,        type: 'SECRET_SSH_KEY',       intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Private cryptographic key exposed in plain text.' },
-            // Slack tokens + webhooks
-            { regex: /xox[abp]\-[0-9a-zA-Z]{10,}/,                                          type: 'SECRET_SLACK_TOKEN',   intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Slack API token exposed.' },
-            { regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_]{8,}\/B[A-Za-z0-9_]{8,}\/[A-Za-z0-9_]{24}/, type: 'SECRET_SLACK_WEBHOOK', intent: 'EXFILTRATION', severity: 'CRITICAL', description: 'Slack webhook URL exposed.' },
-            // JWT secrets (quoted or unquoted)
-            { regex: /(?:JWT|jwt)_?(?:SECRET|KEY|TOKEN)\s*[=:]\s*['\"]?[A-Za-z0-9_\-\.]{16,}['\"]?/, type: 'SECRET_JWT', intent: 'EXFILTRATION', severity: 'HIGH', description: 'JWT secret or signing key exposed.' },
-            // Database passwords (quoted or unquoted)
-            { regex: /(?:DB_|db_)?(?:PASSWORD|PASS|PWD)\s*[=:]\s*['\"]?[A-Za-z0-9!@#$%^&*()_+\-]{8,}['\"]?/, type: 'SECRET_DB_PASSWORD', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Database password exposed in configuration.' },
-            // Encryption keys (quoted or unquoted)
-            { regex: /(?:ENCRYPTION|encryption)_?(?:KEY|key|SECRET|secret)\s*[=:]\s*['\"]?[A-Za-z0-9\/+=\-:]{8,}['\"]?/, type: 'SECRET_ENCRYPTION_KEY', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Encryption key exposed in plain text.' },
-            // Generic API keys (quoted or unquoted)
-            { regex: /(?:api|API|apikey|API_KEY|api_key)\s*[=:]\s*['\"]?[A-Za-z0-9_\-]{16,}['\"]?/, type: 'SECRET_API_KEY', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Generic API key or token exposed.' },
-            // Darknet addresses
-            { regex: /(?:https?:\/\/)?[a-zA-Z0-9_-]+\.(?:onion|tor)\b/,                      type: 'DARKNET_ADDRESS',     intent: 'SUSPICIOUS', severity: 'HIGH', description: '.onion darknet address referenced in code.' },
-            // Hardcoded passwords (any assignment with value containing password-like patterns)
-            { regex: /(?:password|passwd|pwd|contraseña)\s*[=:]\s*['\"]?[A-Za-z0-9!@#$%^&*()_+\-]{6,}['\"]?/i, type: 'SECRET_HARDCODED_PASSWORD', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Hardcoded password detected in source.' },
-            // Hardcoded tokens (quoted or unquoted keyword token)
-            { regex: /(?:token|Token|TOKEN)\s*[=:]\s*['\"]?[A-Za-z0-9_\-\.]{16,}['\"]?/,       type: 'SECRET_HARDCODED_TOKEN', intent: 'EXFILTRATION', severity: 'HIGH', description: 'Hardcoded authentication token detected.' },
-        ];
+        if (lowerName === 'binding.gyp' || lowerName === 'binding.gypi') {
+            findings.push({
+                file: filename, line: 0, type: 'BINDING_GYP',
+                intent: 'MALICIOUS', severity: 'HIGH',
+                description: 'GYP build file detected — potential arbitrary command execution via <command> substitutions.',
+                snippet: `File: ${baseName}`
+            });
+        }
+        if (lowerName === 'node-gyp-build.js' || lowerName === 'node-gyp.js' || (lowerName.endsWith('.gyp') && lowerName !== 'binding.gyp')) {
+            findings.push({
+                file: filename, line: 0, type: 'NODE_GYP_CAPABILITY',
+                intent: 'SUSPICIOUS', severity: 'MEDIUM',
+                description: 'node-gyp build integration detected — can execute arbitrary C/C++ code at install time.',
+                snippet: `File: ${baseName}`
+            });
+        }
 
         lines.forEach(line => {
             if (line.startsWith('@@')) {
@@ -117,7 +129,7 @@ export class LiteScanner {
                 const code = line.substring(1).trim();
                 if (!code) return;
 
-                RULES.forEach(r => {
+                LiteScanner.RULES.forEach(r => {
                     if (r.regex.test(code)) {
                         findings.push({
                             file: filename,
@@ -140,6 +152,89 @@ export class LiteScanner {
     }
 
     /**
+     * Full file content scan (not diff-based).
+     * Scans all lines, calculates entropy, flags size anomalies.
+     */
+    public scanFileContent(filename: string, content: string): { findings: LiteFinding[]; entropyScore: number; sizeAnomaly: boolean } {
+        const findings: LiteFinding[] = [];
+        const baseName = filename.split(/[/\\]/).pop() || filename;
+        const lowerName = baseName.toLowerCase();
+
+        // Reuse filename-based detection
+        if (lowerName === '.env' || lowerName.startsWith('.env.') || lowerName === '.env.example') {
+            findings.push({ file: filename, line: 0, type: 'SECRET_ENV_FILE', intent: 'EXFILTRATION', severity: 'HIGH', description: '.env configuration file detected.', snippet: `File: ${baseName}` });
+        }
+        if (lowerName === 'binding.gyp' || lowerName === 'binding.gypi') {
+            findings.push({ file: filename, line: 0, type: 'BINDING_GYP', intent: 'MALICIOUS', severity: 'HIGH', description: 'GYP build file detected.', snippet: `File: ${baseName}` });
+        }
+        if (lowerName.endsWith('.gyp')) {
+            findings.push({ file: filename, line: 0, type: 'NODE_GYP_CAPABILITY', intent: 'SUSPICIOUS', severity: 'MEDIUM', description: 'GYP build file detected.', snippet: `File: ${baseName}` });
+        }
+
+        // Truncate long lines to prevent regex backtracking on oversized content
+        const scanLines = content.split('\n').map(l => l.length > 10000 ? l.substring(0, 10000) : l);
+        scanLines.forEach((line, i) => {
+            LiteScanner.RULES.forEach(r => {
+                if (r.regex.test(line)) {
+                    findings.push({
+                        file: filename, line: i + 1, type: r.type,
+                        intent: r.intent, severity: r.severity,
+                        description: r.description,
+                        snippet: line.substring(0, 150)
+                    });
+                }
+            });
+        });
+
+        // Entropy calculation (JS/TS only — shell scripts naturally have high entropy)
+        const entropyScore = this.calculateEntropy(content);
+        const isJsLike = filename.endsWith('.js') || filename.endsWith('.ts') || filename.endsWith('.mjs') || filename.endsWith('.cjs');
+        if (isJsLike && entropyScore > 6.0) {
+            findings.push({
+                file: filename, line: 0, type: 'HIGH_ENTROPY',
+                intent: 'MALICIOUS', severity: 'HIGH',
+                description: `Abnormally high entropy (${entropyScore.toFixed(2)}) — obfuscated or encrypted payload.`,
+                snippet: ''
+            });
+        }
+
+        // Size anomaly
+        const sizeAnomaly = content.length > 500000;
+        if (sizeAnomaly) {
+            findings.push({
+                file: filename, line: 0, type: 'SIZE_ANOMALY',
+                intent: 'SUSPICIOUS', severity: 'MEDIUM',
+                description: `Abnormally large file (${(content.length / 1024).toFixed(0)} KB) — potential packed payload.`,
+                snippet: ''
+            });
+        }
+
+        return { findings, entropyScore, sizeAnomaly };
+    }
+
+    /**
+     * Shannon entropy calculation for a string.
+     * Values > 5.5 suggest obfuscated/encrypted content.
+     */
+    private calculateEntropy(content: string): number {
+        const len = content.length;
+        if (len === 0) return 0;
+        const freq: Record<number, number> = {};
+        const sample = content.substring(0, 100000);
+        const sampleLen = sample.length;
+        for (let i = 0; i < sampleLen; i++) {
+            const byte = sample.charCodeAt(i);
+            freq[byte] = (freq[byte] || 0) + 1;
+        }
+        let entropy = 0;
+        for (const count of Object.values(freq)) {
+            const p = count / sampleLen;
+            if (p > 0) entropy -= p * Math.log2(p);
+        }
+        return entropy;
+    }
+
+    /**
      * Orchestrates the local scan, persists signals to the Vault,
      * and performs basic temporal correlation.
      */
@@ -152,7 +247,19 @@ export class LiteScanner {
             allFindings.push(...findings);
         }
 
-        // 1. Persist signals to local Vault
+        // 1. Persist scan metadata first (signals have FK to scans)
+        this.vault.recordScan({
+            id: scanId,
+            repo,
+            pr,
+            author,
+            score: allFindings.some(f => f.severity === 'CRITICAL') ? 90 :
+                   allFindings.some(f => f.severity === 'HIGH') ? 60 : 10,
+            band: allFindings.some(f => f.severity === 'CRITICAL') ? 'CRITICAL' :
+                  allFindings.some(f => f.severity === 'HIGH') ? 'SUSPICIOUS' : 'SAFE',
+        });
+
+        // 2. Persist signals to local Vault
         for (const f of allFindings) {
             const signal: ScanSignal = {
                 repo,
@@ -165,11 +272,11 @@ export class LiteScanner {
             this.vault.recordSignal(signal);
         }
 
-        // 2. Perform Temporal Correlation (Local Drift)
+        // 3. Perform Temporal Correlation (Local Drift)
         const currentTypes = Array.from(new Set(allFindings.map(f => f.type)));
         const historicalCorrelations = this.vault.getCorrelations(author, currentTypes);
 
-        // 3. Local Verdict Logic (Intentionaly Simple)
+        // 4. Local Verdict Logic
         let riskBand = 'SAFE';
         let decision = 'PASS';
         if (allFindings.some(f => f.severity === 'CRITICAL')) {
@@ -179,16 +286,6 @@ export class LiteScanner {
             riskBand = 'SUSPICIOUS';
             decision = 'REVIEW';
         }
-
-        // 4. Persistence
-        this.vault.recordScan({
-            id: scanId,
-            repo,
-            pr,
-            author,
-            score: riskBand === 'CRITICAL' ? 90 : (riskBand === 'SUSPICIOUS' ? 60 : 10),
-            band: riskBand
-        });
 
         return {
             scanId,

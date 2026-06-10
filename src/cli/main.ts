@@ -24,8 +24,6 @@ import { OSVIntegrator } from './intelligence/osv_integrator';
 import * as pc from 'picocolors';
 import { startInteractiveHub } from './hub';
 import { LiveIndicator } from './live';
-import { oracleInteractive, oracleAsk } from '../oracle/command';
-import { setApiKey, removeApiKey, listProviders, setConfig } from '../oracle/auth';
 
 const program = new Command();
 const scanner = new LiteScanner();
@@ -1512,12 +1510,6 @@ ${b('16. TRUST-CACHE — Package verdict cache')}
    ${d('   clear:  reset the cache')}
    ${d('   prune:  remove entries older than 7 days')}
 
-${b('Z. ORACLE AI (experimental)')}
-   ${y('   The AI-powered Oracle assistant is marked experimental.')}
-   ${y('   Primary integration is now via Skills + MCP.')}
-   ${w('$ sentinel oracle')}
-   ${d('   Interactive AI session with multi-provider support')}
-
 ${c(b('══════════════════════════════════════════════════════════════════════'))}
 ${b('TEST RESULTS  —  Verificados Mayo 2026:')}
 ${g('  ✔')} ${d('verify-pkg utilz --details       → SAFE       | 2 findings con evidencia')}
@@ -1655,76 +1647,6 @@ workflow
       comment: options.comment,
       checkRun: options.checkRun,
     });
-  });
-
-// --- Oracle Command (CLI 2) ---
-
-const oracle = program.command('oracle')
-  .description('🧿 Oracle Core — AI-powered security assistant (CLI 2)')
-  .action(async () => {
-    await oracleInteractive();
-  });
-
-oracle
-  .command('ask')
-  .description('Ask a one-shot security question')
-  .argument('<question...>', 'Your question')
-  .action(async (question: string[]) => {
-    await oracleAsk(question.join(' '));
-  });
-
-const authCmd = oracle
-  .command('auth')
-  .description('Manage provider API keys');
-
-authCmd
-  .command('set')
-  .description('Set API key for a provider')
-  .argument('<provider>', 'Provider name (gemini, claude, openai)')
-  .argument('<key>', 'API key')
-  .action((provider: string, key: string) => {
-    setApiKey(provider, key);
-    console.log(`\u2705 API key set for ${provider}`);
-  });
-
-authCmd
-  .command('remove')
-  .description('Remove API key for a provider')
-  .argument('<provider>', 'Provider name')
-  .action((provider: string) => {
-    removeApiKey(provider);
-    console.log(`\u2705 API key removed for ${provider}`);
-  });
-
-authCmd
-  .command('list')
-  .description('List configured providers')
-  .action(() => {
-    const providers = listProviders();
-    if (providers.length === 0) {
-      console.log('No providers configured.');
-      return;
-    }
-    console.log('Configured providers:');
-    providers.forEach(p => console.log(`  - ${p}`));
-  });
-
-oracle
-  .command('set-model')
-  .description('Set default provider and model')
-  .argument('<provider>', 'Provider name')
-  .argument('[model]', 'Model name')
-  .action((provider: string, model?: string) => {
-    setConfig(provider, model);
-    console.log(`\u2705 Default provider set to ${provider}${model ? ` (model: ${model})` : ''}`);
-  });
-
-oracle
-  .command('interactive')
-  .alias('chat')
-  .description('Start interactive oracle session')
-  .action(async () => {
-    await oracleInteractive();
   });
 
 // --- AI Workflows Help Section ---

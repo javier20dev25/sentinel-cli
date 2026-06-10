@@ -88,18 +88,18 @@
   .terminal-row {
     display: flex;
     align-items: center;
-    gap: 14px;
-    background: #080a0c;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 12px 18px;
-    margin-bottom: 14px;
+    gap: 12px;
+    background: #050505;
+    border: 1px solid #333;
+    padding: 10px 16px;
+    margin-bottom: 12px;
     user-select: all;
     cursor: text;
+    font-family: 'Liberation Mono', 'Courier New', 'Cascadia Code', monospace;
   }
-  .terminal-row .prompt { color: var(--accent); font-size: 13px; }
-  .terminal-row .code { color: #e8eaed; font-size: 14px; letter-spacing: 0.2px; }
-  .terminal-row .label { color: var(--text-dim); font-size: 11px; margin-left: auto; white-space: nowrap; }
+  .terminal-row .prompt { color: #33ff00; font-size: 13px; font-weight: bold; }
+  .terminal-row .code { color: #e0e0e0; font-size: 13px; }
+  .terminal-row .label { color: #686868; font-size: 11px; margin-left: auto; white-space: nowrap; }
 
   .banner-actions {
     display: flex;
@@ -277,6 +277,12 @@
 <body>
 <div class="layout">
 
+<!-- Oracle Banner -->
+<div style="background:var(--surface);border:1px solid #ff7a00;padding:12px 20px;margin-bottom:32px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+  <span style="color:#ff7a00;font-size:12px;"><strong>Sentinel Oracle</strong> -- physically isolated merge authorization. QR + WebAuthn three-device trust model.</span>
+  <a href="oracle.html" style="padding:5px 12px;border:1px solid #ff7a00;font-family:var(--font);font-size:11px;text-decoration:none;background:#1a0a00;color:#ff7a00;white-space:nowrap;border-radius:3px;">Read more</a>
+</div>
+
 <!-- Banner -->
 <div class="banner">
   <div class="banner-top">
@@ -284,7 +290,7 @@
       <div class="banner-title"><span>Sentinel</span> Behavioral Enforcement Framework</div>
       <div class="banner-badges">
         <span class="banner-badge green">v4.0.0</span>
-        <span class="banner-badge blue">442 tests</span>
+        <span class="banner-badge blue">205 tests</span>
         <span class="banner-badge">0 errors</span>
         <span class="banner-badge amber">8 agents</span>
         <span class="banner-badge purple">8 skills</span>
@@ -292,7 +298,7 @@
     </div>
     <div class="banner-actions">
       <a href="https://github.com/javier20dev25/sentinel-cli" class="btn primary">Repository</a>
-      <a href="https://github.com/javier20dev25/sentinel-cli/releases" class="btn">Releases</a>
+      <a href="oracle.html" class="btn" style="border-color:#ff7a00;color:#ff7a00;">Oracle</a>
     </div>
   </div>
 
@@ -304,7 +310,7 @@
 
   <div class="stats-row">
     <span class="stat"><status-dot class="green"></status-dot>Build: <strong>0 errors</strong></span>
-    <span class="stat"><status-dot class="green"></status-dot>Tests: <strong>442 passing</strong></span>
+    <span class="stat"><status-dot class="green"></status-dot>Tests: <strong>205 passing</strong></span>
     <span class="stat"><status-dot class="green"></status-dot>License: <strong>BUSSL-1.1</strong></span>
     <span class="stat"><status-dot class="purple"></status-dot>Skills: <strong>8 agent platforms</strong></span>
   </div>
@@ -619,9 +625,9 @@
       <p style="font-size:11px">scan, verify-pkg, doctor, integrity, permissions, audit-deps, deps-tree, sbom, trust-cache, policy, install, guard, precommit, prepush, memory, check-classified, baseline</p>
     </div>
     <div class="card">
-      <div class="stat">442</div>
+      <div class="stat">205</div>
       <h3>Tests Passing</h3>
-      <p style="font-size:11px">15 test files, 0 TypeScript compilation errors, 0 test failures. Includes 25 A2 supply chain tests + 327 A1 SAST tests</p>
+      <p style="font-size:11px">10 test suites, 0 TypeScript compilation errors, 0 test failures. Vitest runner with dynamic imports.</p>
     </div>
     <div class="card">
       <div class="stat">8</div>
@@ -634,7 +640,7 @@
 <hr class="hr">
 
 <footer>
-  <p>Sentinel Behavioral Enforcement Framework — <a href="https://github.com/javier20dev25/sentinel-cli">github.com/javier20dev25/sentinel-cli</a></p>
+  <p>Sentinel Behavioral Enforcement Framework — <a href="https://github.com/javier20dev25/sentinel-cli">sentinel-cli</a> &middot; <a href="oracle.html">sentinel-oracle</a></p>
   <p style="margin-top:8px">Business Source License 1.1 — Change Date: 2030-05-20 — Converts to GPL v2.0</p>
   <p style="margin-top:8px;font-size:11px">
     <a href="https://github.com/javier20dev25/sentinel-cli/blob/master/LEGAL.md" style="color:var(--text-dim);">Privacy</a>

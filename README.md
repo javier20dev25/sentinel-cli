@@ -1,6 +1,6 @@
 # Sentinel — Security Intelligence for AI Coding Agents
 
-> SAST Scanner · Supply Chain Shield · Skills System · MCP Server · AI Oracle (experimental)
+> SAST Scanner · Supply Chain Shield · Skills System · MCP Server · Sentinel Oracle
 
 Sentinel provides a security intelligence layer that any AI coding agent can use: deterministic local analysis (SAST, package audit, threat intelligence) exposed as installable skills for Claude, Cursor, Cline, Windsurf, OpenCode, Roo, Gemini, and Codex.
 
@@ -58,7 +58,7 @@ sentinel mcp                      # stdio mode (default, for MCP clients)
 sentinel mcp --http --port 3003   # HTTP/SSE mode for web clients
 ```
 
-Exposes 12 tools: scan, verify-pkg, doctor, check-classified, integrity, memory, threat-query, threat-correlate, gh-pr-list, gh-pr-view, gh-pr-diff, gh-repo-list.
+Exposes 17 tools: scan, verify-pkg, doctor, integrity, memory, threat-query, threat-correlate, audit-deps, deps-tree, trust-cache, sbom, policy, check-classified, gh-pr-list, gh-pr-view, gh-pr-diff, gh-repo-list.
 
 Connect from any MCP-compatible agent (Claude Desktop, Cursor, Cline, etc.).
 
@@ -77,7 +77,7 @@ Connect from any MCP-compatible agent (Claude Desktop, Cursor, Cline, etc.).
 | `sentinel guard enable\|disable\|status` | Package interception guard |
 | `sentinel hub` | Interactive operations menu |
 | `sentinel install-skills` | Install skills for AI coding agents |
-| `sentinel mcp` | Start MCP server for agent integration |
+| `sentinel mcp` | Start MCP server (17 tools) for agent integration |
 
 ## Sentinels Core
 
@@ -113,23 +113,23 @@ sentinel/
 │   │   ├── install-skills.ts  # Skills installer
 │   │   └── intelligence/ # Signal vault, integrity, baselines
 │   ├── mcp/              # Standalone MCP server (extracted from Oracle)
-│   │   └── server.ts     # 12-tool MCP protocol server
-│   ├── oracle/           # AI Oracle (experimental)
+│   │   └── server.ts     # 17-tool MCP protocol server
 │   ├── core/lite/        # LiteScanner SAST engine
 │   ├── install-skills.sh # Unix standalone installer
 │   └── install-skills.ps1 # Windows standalone installer
 ```
 
-## Oracle AI (Experimental)
+## Sentinel Oracle
 
-Sentinel includes an experimental AI-powered security assistant (CLI 2) with multi-provider support (Gemini, Claude, OpenAI, Ollama). This component is marked experimental and not the primary product focus.
+Sentinel Oracle is a physically isolated merge authorization server. It runs on a separate device (Raspberry Pi, NUC, mini PC) and enforces multi-factor approval before any pull request is merged — implementing Merge Authority Isolation.
 
-```bash
-sentinel oracle                 # Interactive session
-sentinel oracle ask "..."       # One-shot query
-```
+See [sentinel-oracle](https://github.com/javier20dev25/sentinel-oracle) for the dedicated repository with full architecture documentation, setup guides, and device management.
 
-See `sentinel guide` for full command reference, including the Oracle's slash commands, agents (Blue/Red/Auditor), and providers.
+Key features:
+- **Physical isolation** — Oracle runs on a separate device, no cloud dependency
+- **Three-device trust model** — workstation (untrusted), oracle server (trusted), phone (identity)
+- **QR + WebAuthn** — phone-based biometric confirmation for merge approval
+- **Emergency lockdown** — global kill switch for all pending merges
 
 ## Requirements
 

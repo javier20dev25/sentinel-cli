@@ -203,13 +203,13 @@ export class IntegrityChain {
     }
 
     private hashLink(data: ChainLinkInput): string {
-        return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
-    }
-
-    private hashObject(data: Record<string, unknown>): string {
         const sorted: Record<string, unknown> = {};
         Object.keys(data).sort().forEach(k => { sorted[k] = data[k]; });
         return crypto.createHash('sha256').update(JSON.stringify(sorted)).digest('hex');
+    }
+
+    private hashObject(data: Record<string, unknown>): string {
+        return this.hashLink(data as ChainLinkInput);
     }
 
     public formatDuration(totalSeconds: number): string {

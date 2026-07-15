@@ -150,11 +150,8 @@ export function runInstall(targetAgents?: string[]): {
   if (selected.length === 0) {
     const detected = agents.filter((a) => a.detect()).map((a) => a.name);
     if (detected.length === 0) {
-      results.push({
-        agent: '*',
-        installed: [],
-        errors: ['No supported agents detected on this system. Install an agent first, or specify one with --agent.'],
-      });
+      console.log('[!] No supported AI coding agents detected. Run with --all or --agent <name> to install skills manually.');
+      return { results };
     } else {
       for (const agent of agents) {
         if (agent.detect()) {
@@ -247,6 +244,11 @@ Skill files are copied from skills/ to each agent's config directory:
 
   const allOk = results.every((r) => r.errors.length === 0);
   if (!allOk) {
-    process.exitCode = 1;
+    const onlyNoAgent = results.length > 0 && results.every((r) =>
+      r.errors.length === 1 && r.errors[0].includes('No supported agents detected')
+    );
+    if (!onlyNoAgent) {
+      process.exitCode = 1;
+    }
   }
 }

@@ -31,9 +31,8 @@ const i18n: Record<string, Record<string, string>> = {
         menu_opt6: 'Sentinel Guard & Configuration (NPM Intercept)',
         menu_opt7: 'Classified Documents',
         menu_opt8: 'Manage Signal Vault (Memory)',
-        menu_opt9: 'Exit',
-        menu_opt10: 'Support Sentinel (Donate)',
-        menu_opt11: 'Your Security — Integrity & Trust Policy',
+        menu_opt9: 'Your Security — Integrity & Trust Policy',
+        menu_opt10: 'Exit',
         select_opt: 'Select option',
         invalid_sel: 'Invalid selection.',
         workspace_title: 'Workspace Discovery',
@@ -92,9 +91,8 @@ const i18n: Record<string, Record<string, string>> = {
         menu_opt6: 'Sentinel Guard y Configuración (Interceptar NPM)',
         menu_opt7: 'Documentos Clasificados',
         menu_opt8: 'Gestionar Signal Vault (Memoria)',
-        menu_opt9: 'Salir',
-        menu_opt10: 'Apoyar a Sentinel (Donar)',
-        menu_opt11: 'Tu Seguridad — Política de Integridad y Confianza',
+        menu_opt9: 'Tu Seguridad — Política de Integridad y Confianza',
+        menu_opt10: 'Salir',
         select_opt: 'Selecciona una opción',
         invalid_sel: 'Selección inválida.',
         workspace_title: 'Descubrimiento de Espacios de Trabajo',
@@ -284,11 +282,10 @@ export async function startInteractiveHub() {
         console.log(pc.blue('  6.') + pc.white(` ⚙️  ${t('menu_opt6')}`));
         console.log(pc.blue('  7.') + pc.white(` 🔐 ${t('menu_opt7')}`));
         console.log(pc.blue('  8.') + pc.white(` 🧠 ${t('menu_opt8')}`));
-        console.log(pc.blue('  9.') + pc.white(` 🚪 ${t('menu_opt9')}`));
-        console.log(pc.blue(' 10.') + pc.white(` ❤️ ${t('menu_opt10')}`));
-        console.log(pc.blue(' 11.') + pc.white(` 🔒 ${t('menu_opt11')}`));
+        console.log(pc.blue('  9.') + pc.white(` 🔒 ${t('menu_opt9')}`));
+        console.log(pc.blue(' 10.') + pc.white(` 🚪 ${t('menu_opt10')}`));
 
-        const mainAction = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-11): `));
+        const mainAction = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-10): `));
 
         if (mainAction === '0') {
             await handlePRBot();
@@ -321,30 +318,6 @@ export async function startInteractiveHub() {
             await handleMemoryMenu();
             printHeader();
         } else if (mainAction === '9') {
-            console.log(pc.cyan(`\n${t('session_end')}\n`));
-            if (rlInstance) {
-                rlInstance.close();
-            }
-            process.exit(0);
-        } else if (mainAction === '10') {
-            const donateUrl = 'https://sentinel-psi-nine.vercel.app/donate';
-            console.log(pc.magenta('\n❤️  SUPPORT SENTINEL DEVELOPMENT'));
-            console.log(pc.dim('   Sentinel is an independent security project.'));
-            console.log(pc.dim('   Your donations help fund ongoing research,'));
-            console.log(pc.dim('   infrastructure, and threat intelligence.'));
-            console.log(pc.cyan(`\n   🌐 ${donateUrl}`));
-            if (lang === 'es') {
-                console.log(pc.green('\n   ¡Gracias por considerar apoyar a Sentinel!'));
-            } else {
-                console.log(pc.green('\n   Thank you for considering supporting Sentinel!'));
-            }
-            try {
-                const startCmd = process.platform === 'win32' ? 'start' : 'open';
-                spawn(startCmd, [donateUrl], { detached: true, stdio: 'ignore' });
-            } catch (_) {}
-            await askQuestion(pc.dim(`\n${t('press_enter')}`));
-            printHeader();
-        } else if (mainAction === '11') {
             console.log(pc.magenta('\n🔒 YOUR SECURITY — INTEGRITY & TRUST POLICY'));
             console.log(pc.dim('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
             console.log(pc.white('   Sentinel is built with tamper-detection technology.'));
@@ -371,6 +344,12 @@ export async function startInteractiveHub() {
             }
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
             printHeader();
+        } else if (mainAction === '10') {
+            console.log(pc.cyan(`\n${t('session_end')}\n`));
+            if (rlInstance) {
+                rlInstance.close();
+            }
+            process.exit(0);
         } else {
             console.log(pc.red(`    ${t('invalid_sel')}\n`));
         }

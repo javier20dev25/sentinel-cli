@@ -82,10 +82,11 @@ describe('install-skills', () => {
   describe('runInstall', () => {
     it('returns empty results when no agents targeted and none detected', () => {
       mockExistsSync.mockReturnValue(false);
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const { results } = installSkills.runInstall([]);
-      expect(results.length).toBe(1);
-      expect(results[0].agent).toBe('*');
-      expect(results[0].errors[0]).toContain('No supported agents');
+      expect(results.length).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith('[!] No supported AI coding agents detected. Run with --all or --agent <name> to install skills manually.');
+      logSpy.mockRestore();
     });
 
     it('installs to detected agent dirs when no target specified', () => {

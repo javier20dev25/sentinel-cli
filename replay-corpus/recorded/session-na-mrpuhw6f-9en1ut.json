@@ -1,0 +1,239 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "na-mrpuhw6f-9en1ut",
+    "recordedAt": "2026-07-18T04:06:06.459Z",
+    "durationMs": 44460,
+    "platform": "win32",
+    "sentinelVersion": "1.0.0",
+    "tags": [],
+    "profile": {
+      "id": "cursor-edit",
+      "category": "ia",
+      "tool": "cursor",
+      "action": "edit",
+      "expectedRisk": "MEDIUM",
+      "description": "Cursor AI editing code",
+      "tags": [
+        "cursor",
+        "ai",
+        "edit"
+      ]
+    },
+    "environment": {
+      "os": "win32",
+      "osVersion": "10.0.26200",
+      "cpu": "AMD Ryzen 3 7320U with Radeon Graphics         ",
+      "memoryGb": 7.2,
+      "nodeVersion": "v24.13.1",
+      "gitVersion": "git version 2.53.0.windows.1",
+      "editor": "unknown",
+      "sentinelVersion": "1.0.0",
+      "policyVersion": "1.0.0",
+      "corpusVersion": "1.0.0",
+      "recordedAt": "2026-07-18T04:06:52.184Z"
+    }
+  },
+  "private": {
+    "hostname": "DESKTOP-KI5APP4",
+    "username": "sleyt",
+    "workingDirectory": "C:\\Users\\sleyt\\sentinel-cli"
+  },
+  "events": [
+    {
+      "type": "process",
+      "data": {
+        "pid": 8512,
+        "name": "powershell.exe",
+        "commandLine": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.EXE -NoLogo -NoProfile -NonInteractive -Command \"cd C:\\Users\\sleyt\\sentinel-cli; $sentinelDir = \\\"C:\\Users\\sleyt\\sentinel-cli\\\"; @\\\"\n# Re-record IA profiles and grep-secrets with proper work commands\n# Write work scripts to temp files\n\n# cursor-edit: simulate AI editing\nSet-Content -Path \\\"$env:TEMP\\work-cursor-edit.ps1\\\" -Value @'\nSet-Location $args[0]\nnode -e \\\"console.log('AI editing session: reading files and making changes')\\\"\nGet-ChildItem src\\*.ts -Recurse | Select-Object -First 10\nWrite-Output \\\"CURSOR_EDIT_DONE\\\"\n'@\n\nStart-Process -NoNewWindow node -ArgumentList \\\"scripts/record-session.js cursor-edit 14 '$env:TEMP\\work-cursor-edit.ps1 C:\\Users\\sleyt\\sentinel-cli'\\\"\nStart-Sleep 16\n\n# cursor-refactor: simulate AI refactoring\nSet-Content -Path \\\"$env:TEMP\\work-cursor-refactor.ps1\\\" -Value @'\nSet-Location $args[0]\nnode -e \\\"const fs = require('fs'); const files = fs.readdirSync('.').filter(f => f.endsWith('.ts')); console.log('Files:', files.length)\\\"\nWrite-Output \\\"CURSOR_REFACTOR_DONE\\\"\n'@\n\nStart-Process -NoNewWindow node -ArgumentList \\\"scripts/record-session.js cursor-refactor 14 '$env:TEMP\\work-cursor-refactor.ps1 C:\\Users\\sleyt\\sentinel-cli'\\\"\nStart-Sleep 16\n\n# copilot-chat\nSet-Content -Path \\\"$env:TEMP\\work-copilot-chat.ps1\\\" -Value @'\nSet-Location $args[0]\nnode -e \\\"console.log('Analyzing code structure...')\\\"\nGet-ChildItem src\\core\\network\\*.ts | Get-Content -TotalCount 100\nWrite-Output \\\"COPILOT_CHAT_DONE\\\"\n'@\n\nStart-Process -NoNewWindow node -ArgumentList \\\"scripts/record-session.js copilot-chat 14 '$env:TEMP\\work-copilot-chat.ps1 C:\\Users\\sleyt\\sentinel-cli'\\\"\nStart-Sleep 16\n\n# claude-code\nSet-Content -Path \\\"$env:TEMP\\work-claude-code.ps1\\\" -Value @'\nSet-Location $args[0]\nnode -e \\\"console.log('Claude Code CLI analysis')\\\"\nGet-ChildItem src -Recurse -Filter *.ts | Select-Object -First 20\nWrite-Output \\\"CLAUDE_CODE_DONE\\\"\n'@\n\nStart-Process -NoNewWindow node -ArgumentList \\\"scripts/record-session.js claude-code 14 '$env:TEMP\\work-claude-code.ps1 C:\\Users\\sleyt\\sentinel-cli'\\\"\nStart-Sleep 16\n\n# grep-secrets\nSet-Content -Path \\\"$env:TEMP\\work-grep-secrets.ps1\\\" -Value @'\nSet-Location $args[0]\nGet-ChildItem -Recurse -Filter *.ts src | Select-String -Pattern \\\"(password|secret|api_key|token|credential|private_key)\\\" | Select-Object -First 20\nWrite-Output \\\"GREP_DONE\\\"\n'@\n\nStart-Process -NoNewWindow node -ArgumentList \\\"scripts/record-session.js grep-secrets 14 '$env:TEMP\\work-grep-secrets.ps1 C:\\Users\\sleyt\\sentinel-cli'\\\"\nStart-Sleep 16\n\nWrite-Output \\\"All recordings started\\\"\n\\\"@ | powershell -NoProfile -NonInteractive - 2>&1\"",
+        "parentPid": 15180,
+        "timestamp": "2026-07-18T04:06:10.470Z",
+        "riskIndicators": [
+          "AI agent process: powershell.exe"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10076,
+        "name": "node.exe",
+        "commandLine": "\"C:\\Program Files\\nodejs\\node.exe\" scripts/record-session.js cursor-edit 14 'C:\\Users\\sleyt\\AppData\\Local\\Temp\\work-cursor-edit.ps1 C:\\Users\\sleyt\\sentinel-cli' ",
+        "parentPid": 22008,
+        "timestamp": "2026-07-18T04:06:10.470Z",
+        "riskIndicators": [
+          "AI agent process: node.exe"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 23716,
+        "name": "node.exe",
+        "commandLine": "node dist/cli/main.js network record 14 --profile cursor-edit",
+        "parentPid": 10076,
+        "timestamp": "2026-07-18T04:06:10.470Z",
+        "riskIndicators": [
+          "AI agent process: node.exe"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6728,
+        "name": "node.exe",
+        "commandLine": "\"C:\\Program Files\\nodejs\\node.exe\" scripts/record-session.js cursor-refactor 14 'C:\\Users\\sleyt\\AppData\\Local\\Temp\\work-cursor-refactor.ps1 C:\\Users\\sleyt\\sentinel-cli' ",
+        "parentPid": 22008,
+        "timestamp": "2026-07-18T04:06:35.243Z",
+        "riskIndicators": [
+          "AI agent process: node.exe"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2956,
+        "name": "node.exe",
+        "commandLine": "node dist/cli/main.js network record 14 --profile cursor-refactor",
+        "parentPid": 6728,
+        "timestamp": "2026-07-18T04:06:35.243Z",
+        "riskIndicators": [
+          "AI agent process: node.exe"
+        ]
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 2156,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" -c diff.autoRefreshIndex=false diff --shortstat HEAD",
+        "action": "diff",
+        "timestamp": "2026-07-18T04:06:30.960Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 15580,
+        "processName": "git.exe",
+        "commandLine": "git.exe -c diff.autoRefreshIndex=false diff --shortstat HEAD",
+        "action": "diff",
+        "timestamp": "2026-07-18T04:06:30.960Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 16888,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T04:06:30.961Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 23548,
+        "processName": "git.exe",
+        "commandLine": "git.exe symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T04:06:30.961Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 12312,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T04:06:30.961Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 22764,
+        "processName": "git.exe",
+        "commandLine": "git.exe symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T04:06:30.961Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 13168,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T04:06:30.961Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 13492,
+        "processName": "git.exe",
+        "commandLine": "git.exe rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T04:06:30.961Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 13136,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T04:06:45.509Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 15792,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" -c diff.autoRefreshIndex=false diff --shortstat HEAD",
+        "action": "diff",
+        "timestamp": "2026-07-18T04:06:45.509Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 22556,
+        "processName": "git.exe",
+        "commandLine": "git.exe symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T04:06:45.509Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 18308,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T04:06:45.509Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 13212,
+        "processName": "git.exe",
+        "commandLine": "git.exe rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T04:06:45.509Z"
+      }
+    }
+  ]
+}

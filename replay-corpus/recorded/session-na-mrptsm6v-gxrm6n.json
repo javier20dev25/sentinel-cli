@@ -1,0 +1,173 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "na-mrptsm6v-gxrm6n",
+    "recordedAt": "2026-07-18T03:46:24.872Z",
+    "durationMs": 46702,
+    "platform": "win32",
+    "sentinelVersion": "1.0.0",
+    "tags": [],
+    "profile": {
+      "id": "npm-test",
+      "category": "benign",
+      "tool": "npm",
+      "action": "test",
+      "expectedRisk": "LOW",
+      "description": "Run npm test",
+      "tags": [
+        "npm",
+        "test"
+      ]
+    },
+    "environment": {
+      "os": "win32",
+      "osVersion": "10.0.26200",
+      "cpu": "AMD Ryzen 3 7320U with Radeon Graphics         ",
+      "memoryGb": 7.2,
+      "nodeVersion": "v24.13.1",
+      "gitVersion": "git version 2.53.0.windows.1",
+      "editor": "unknown",
+      "sentinelVersion": "1.0.0",
+      "policyVersion": "1.0.0",
+      "corpusVersion": "1.0.0",
+      "recordedAt": "2026-07-18T03:47:11.895Z"
+    }
+  },
+  "private": {
+    "hostname": "DESKTOP-KI5APP4",
+    "username": "sleyt",
+    "workingDirectory": "C:\\Users\\sleyt\\sentinel-cli"
+  },
+  "events": [
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 13616,
+        "processName": "git.exe",
+        "commandLine": "",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:45.377Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 23532,
+        "processName": "git.exe",
+        "commandLine": "",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:45.377Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 7824,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:45.377Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 7512,
+        "processName": "git.exe",
+        "commandLine": "git.exe symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:45.378Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 5216,
+        "processName": "git.exe",
+        "commandLine": "",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:45.378Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 11076,
+        "processName": "git.exe",
+        "commandLine": "",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:45.378Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 22740,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:57.918Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 12128,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" -c diff.autoRefreshIndex=false diff --shortstat HEAD",
+        "action": "diff",
+        "timestamp": "2026-07-18T03:46:57.918Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 15332,
+        "processName": "git.exe",
+        "commandLine": "git.exe symbolic-ref --short HEAD",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:57.918Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 24292,
+        "processName": "git.exe",
+        "commandLine": "git.exe -c diff.autoRefreshIndex=false diff --shortstat HEAD",
+        "action": "diff",
+        "timestamp": "2026-07-18T03:46:57.918Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 18412,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T03:46:57.918Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 11124,
+        "processName": "git.exe",
+        "commandLine": "",
+        "action": "other",
+        "timestamp": "2026-07-18T03:46:57.918Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 204,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T03:46:57.918Z"
+      }
+    }
+  ]
+}

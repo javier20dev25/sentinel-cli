@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-07-16T08:51:32.163Z",
+  "totalSessions": 200,
+  "profiles": [
+    "benign_edit_and_install",
+    "benign_reading_docs",
+    "suspicious_env_gather",
+    "ai_embedding_extraction",
+    "git_bundle_exfil",
+    "prep_command_recon",
+    "full_exfiltration_chain",
+    "canary_trigger_exfil",
+    "benign_npm_workflow",
+    "mixed_suspicious_git"
+  ],
+  "distribution": {
+    "LOW": 60,
+    "MEDIUM": 60,
+    "HIGH": 40,
+    "CRITICAL": 40
+  }
+}

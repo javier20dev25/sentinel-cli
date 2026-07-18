@@ -1,0 +1,143 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9sape-613h0u",
+    "recordedAt": "2026-07-16T08:46:32.018Z",
+    "durationMs": 4834,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-78",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "benign",
+      "npm",
+      "LOW",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "process",
+      "data": {
+        "pid": 2026,
+        "name": "code.exe",
+        "commandLine": "code --new-window C:/project-78",
+        "timestamp": "2026-07-16T08:46:32.527Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/index.ts",
+        "processName": "code.exe",
+        "pid": 2000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.302Z",
+        "bytesRead": 1451
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3001,
+        "name": "npm.cmd",
+        "commandLine": "npm install express typescript --save",
+        "timestamp": "2026-07-16T08:46:33.514Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sape-g9p2vk",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:34.881Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "104.16.0.1",
+        "destPort": 443,
+        "hostname": "registry.npmjs.org",
+        "sni": "registry.npmjs.org",
+        "bytesSent": 691,
+        "bytesReceived": 6428,
+        "durationMs": 155,
+        "method": "GET",
+        "path": "/express"
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sape-9a5330",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:34.881Z",
+        "protocol": "DNS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "8.8.8.8",
+        "destPort": 53,
+        "hostname": "",
+        "bytesSent": 64,
+        "bytesReceived": 128,
+        "durationMs": 22,
+        "dnsQuery": "registry.npmjs.org",
+        "dnsResponse": [
+          "104.16.0.1"
+        ]
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git log --oneline -5",
+        "action": "log",
+        "timestamp": "2026-07-16T08:46:34.994Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git diff --stat",
+        "action": "other",
+        "timestamp": "2026-07-16T08:46:35.105Z"
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9001,
+        "name": "git",
+        "commandLine": "git push origin main",
+        "timestamp": "2026-07-16T08:46:35.533Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sape-5szvmd",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:35.673Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "140.82.112.4",
+        "destPort": 443,
+        "hostname": "github.com",
+        "sni": "github.com",
+        "bytesSent": 1730,
+        "bytesReceived": 1488,
+        "durationMs": 1407,
+        "method": "GET",
+        "path": "/user/project"
+      }
+    }
+  ]
+}

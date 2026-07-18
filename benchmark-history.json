@@ -1,0 +1,49 @@
+[
+  {
+    "engineVersion": "1.0.0",
+    "timestamp": "2026-07-18T04:42:37.979Z",
+    "calibrated": {
+      "passed": 39,
+      "total": 39,
+      "passRate": 100
+    },
+    "blind": [
+      {
+        "name": "Blind #1",
+        "passed": 10,
+        "total": 15,
+        "passRate": 66.7
+      },
+      {
+        "name": "Blind #2",
+        "passed": 11,
+        "total": 14,
+        "passRate": 78.6
+      },
+      {
+        "name": "Blind #3",
+        "passed": 13,
+        "total": 14,
+        "passRate": 92.9
+      }
+    ],
+    "replay": {
+      "accuracy": 1,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "fpr": 0,
+      "fnr": 0,
+      "tp": 1,
+      "fp": 0,
+      "tn": 25,
+      "fn": 0,
+      "latencyAvgMs": 0.8,
+      "latencyP50Ms": 1,
+      "latencyP95Ms": 2,
+      "latencyP99Ms": 4,
+      "latencyMaxMs": 4,
+      "latencyStdDevMs": 0.8
+    }
+  }
+]

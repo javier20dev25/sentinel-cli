@@ -1,0 +1,439 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9samp-gov6vo",
+    "recordedAt": "2026-07-16T08:46:31.920Z",
+    "durationMs": 4044,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-6",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "malicious",
+      "exfil",
+      "chain",
+      "CRITICAL",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "process",
+      "data": {
+        "pid": 8000,
+        "name": "find.exe",
+        "commandLine": "find . -type f -name \"*.env\"",
+        "timestamp": "2026-07-16T08:46:32.192Z",
+        "riskIndicators": [
+          "recon"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8001,
+        "name": "grep.exe",
+        "commandLine": "grep -r \"sk-\" --include=\"*.env\" --include=\"*.json\" .",
+        "timestamp": "2026-07-16T08:46:32.339Z",
+        "riskIndicators": [
+          "recon"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8002,
+        "name": "git",
+        "commandLine": "git remote -v",
+        "timestamp": "2026-07-16T08:46:32.299Z",
+        "riskIndicators": [
+          "recon"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8003,
+        "name": "tar.exe",
+        "commandLine": "tar -czf /tmp/project.tar.gz src/ config/ .env",
+        "timestamp": "2026-07-16T08:46:32.522Z",
+        "riskIndicators": [
+          "archive"
+        ]
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/index.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5494
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/app.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5181
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/api/route.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 3253
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/db/schema.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 2532
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/utils/auth.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 4228
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/components/Header.tsx",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 3800
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/components/Footer.tsx",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5516
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/pages/index.tsx",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5619
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/lib/db.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 3437
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/lib/api.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 3504
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/middleware.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5592
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/config/env.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 4748
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/package.json",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 2149
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/tsconfig.json",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 3558
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/next.config.js",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 2082
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/tailwind.config.ts",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5872
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/prisma/schema.prisma",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5434
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/docker-compose.yml",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 5207
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/Dockerfile",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 2102
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/README.md",
+        "processName": "node.exe",
+        "pid": 6000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.594Z",
+        "bytesRead": 4476
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9samo-3hgv5a",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:32.736Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "104.20.0.1",
+        "destPort": 443,
+        "hostname": "api.openai.com",
+        "sni": "api.openai.com",
+        "bytesSent": 23293,
+        "bytesReceived": 2432,
+        "durationMs": 1386,
+        "method": "POST",
+        "path": "/v1/embeddings"
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9samo-3vg631",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:32.736Z",
+        "protocol": "DNS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49101,
+        "destAddr": "8.8.8.8",
+        "destPort": 53,
+        "bytesSent": 64,
+        "bytesReceived": 128,
+        "durationMs": 18,
+        "dnsQuery": "api.openai.com",
+        "dnsResponse": [
+          "104.20.0.1"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7000,
+        "name": "git",
+        "commandLine": "git bundle create /tmp/repo.bundle --all",
+        "timestamp": "2026-07-16T08:46:33.404Z",
+        "riskIndicators": [
+          "git_export"
+        ]
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 7000,
+        "processName": "git",
+        "commandLine": "git bundle create /tmp/repo.bundle --all",
+        "action": "bundle",
+        "timestamp": "2026-07-16T08:46:33.666Z",
+        "repository": "C:/project"
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "/tmp/repo.bundle",
+        "processName": "curl.exe",
+        "pid": 7001,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.805Z",
+        "bytesRead": 58088
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9samo-f1a177",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:34.096Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "192.0.2.1",
+        "destPort": 443,
+        "hostname": "exfil.malicious-server.com",
+        "sni": "exfil.malicious-server.com",
+        "bytesSent": 124613,
+        "bytesReceived": 128,
+        "durationMs": 3396,
+        "method": "POST",
+        "path": "/upload"
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7002,
+        "name": "rm",
+        "commandLine": "rm -f /tmp/repo.bundle",
+        "timestamp": "2026-07-16T08:46:34.223Z",
+        "riskIndicators": [
+          "cleanup"
+        ]
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.sentinel/canaries/api_keys_internal.json",
+        "processName": "node.exe",
+        "pid": 10000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:34.361Z",
+        "bytesRead": 1024
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.sentinel/canaries/aws_credentials_prod.json",
+        "processName": "node.exe",
+        "pid": 10000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:34.422Z",
+        "bytesRead": 2048
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9samp-4nxl4l",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:34.716Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "104.20.0.143",
+        "destPort": 443,
+        "hostname": "pastebin.com",
+        "sni": "pastebin.com",
+        "bytesSent": 12116,
+        "bytesReceived": 256,
+        "durationMs": 1662,
+        "method": "POST",
+        "path": "/api/api_post.php",
+        "bodyPreview": "SENTINEL_CANARY_TOKEN_5ot09m2s"
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "recordedAt": "2026-07-18T04:43:23.245Z",
+  "sentinelVersion": "1.0.0",
+  "recordingProtocol": "v1",
+  "profiles": {
+    "total": 31,
+    "captured": 26,
+    "unavailable": 5,
+    "effectiveTotal": 26,
+    "effectiveCoveragePct": 100
+  },
+  "environment": {
+    "docker": false,
+    "go": false,
+    "terraform": false
+  },
+  "byCategory": {
+    "benign": {
+      "total": 16,
+      "captured": 11,
+      "unavailable": 5
+    },
+    "ia": {
+      "total": 4,
+      "captured": 4,
+      "unavailable": 0
+    },
+    "suspicious": {
+      "total": 5,
+      "captured": 5,
+      "unavailable": 0
+    },
+    "malicious": {
+      "total": 6,
+      "captured": 6,
+      "unavailable": 0
+    }
+  }
+}

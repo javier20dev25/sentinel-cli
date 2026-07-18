@@ -1,0 +1,164 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9saq3-fyikov",
+    "recordedAt": "2026-07-16T08:46:32.043Z",
+    "durationMs": 5326,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-100",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "benign",
+      "npm",
+      "editor",
+      "LOW",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "process",
+      "data": {
+        "pid": 2001,
+        "name": "code.exe",
+        "commandLine": "code --new-window C:/project-100",
+        "timestamp": "2026-07-16T08:46:32.491Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/index.ts",
+        "processName": "code.exe",
+        "pid": 2000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.108Z",
+        "bytesRead": 1382
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3041,
+        "name": "npm.cmd",
+        "commandLine": "npm install express typescript --save",
+        "timestamp": "2026-07-16T08:46:33.229Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9saq3-7lbq3m",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:33.729Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49022,
+        "destAddr": "104.16.0.1",
+        "destPort": 443,
+        "hostname": "registry.npmjs.org",
+        "sni": "registry.npmjs.org",
+        "bytesSent": 315,
+        "bytesReceived": 12193,
+        "durationMs": 192,
+        "method": "GET",
+        "path": "/express"
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9saq3-qnike6",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:33.729Z",
+        "protocol": "DNS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49064,
+        "destAddr": "8.8.8.8",
+        "destPort": 53,
+        "hostname": "",
+        "bytesSent": 64,
+        "bytesReceived": 128,
+        "durationMs": 30,
+        "dnsQuery": "registry.npmjs.org",
+        "dnsResponse": [
+          "104.16.0.1"
+        ]
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 4017,
+        "processName": "git",
+        "commandLine": "git status --porcelain",
+        "action": "other",
+        "timestamp": "2026-07-16T08:46:34.349Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git log --oneline -5",
+        "action": "log",
+        "timestamp": "2026-07-16T08:46:34.733Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9000,
+        "processName": "git",
+        "commandLine": "git diff --stat",
+        "action": "other",
+        "timestamp": "2026-07-16T08:46:34.834Z"
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9001,
+        "name": "git",
+        "commandLine": "git push origin main",
+        "timestamp": "2026-07-16T08:46:35.402Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9saq3-pe3hcr",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:35.709Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49013,
+        "destAddr": "140.82.112.4",
+        "destPort": 443,
+        "hostname": "github.com",
+        "sni": "github.com",
+        "bytesSent": 1674,
+        "bytesReceived": 690,
+        "durationMs": 742,
+        "method": "GET",
+        "path": "/user/project"
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1001,
+        "name": "node.exe",
+        "commandLine": "node --version",
+        "timestamp": "2026-07-16T08:46:35.921Z",
+        "riskIndicators": []
+      }
+    }
+  ]
+}

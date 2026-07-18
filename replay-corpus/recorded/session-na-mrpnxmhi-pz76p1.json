@@ -1,0 +1,64 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "na-mrpnxmhi-pz76p1",
+    "recordedAt": "2026-07-18T01:02:38.763Z",
+    "durationMs": 28779,
+    "platform": "win32",
+    "sentinelVersion": "1.0.0",
+    "tags": [],
+    "profile": {
+      "id": "git-push",
+      "category": "benign",
+      "tool": "git",
+      "action": "other",
+      "expectedRisk": "LOW",
+      "description": "Push to remote",
+      "tags": [
+        "git",
+        "push",
+        "network"
+      ]
+    },
+    "environment": {
+      "os": "win32",
+      "osVersion": "10.0.26200",
+      "cpu": "AMD Ryzen 3 7320U with Radeon Graphics         ",
+      "memoryGb": 7.2,
+      "nodeVersion": "v24.13.1",
+      "gitVersion": "git version 2.53.0.windows.1",
+      "editor": "unknown",
+      "sentinelVersion": "1.0.0",
+      "policyVersion": "1.0.0",
+      "corpusVersion": "1.0.0",
+      "recordedAt": "2026-07-18T01:03:07.688Z"
+    }
+  },
+  "private": {
+    "hostname": "DESKTOP-KI5APP4",
+    "username": "sleyt",
+    "workingDirectory": "C:\\Users\\sleyt\\sentinel-cli"
+  },
+  "events": [
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 10564,
+        "processName": "git.exe",
+        "commandLine": "\"C:\\Program Files\\Git\\cmd\\git.exe\" rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T01:02:57.878Z"
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 17632,
+        "processName": "git.exe",
+        "commandLine": "git.exe rev-parse --short HEAD",
+        "action": "rev-parse",
+        "timestamp": "2026-07-18T01:02:57.878Z"
+      }
+    }
+  ]
+}

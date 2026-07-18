@@ -1,0 +1,62 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "gen-na-mrn9sasg-9r87og",
+    "recordedAt": "2026-07-16T08:46:32.128Z",
+    "durationMs": 2680,
+    "platform": "win32",
+    "hostname": "generator",
+    "username": "eval",
+    "workingDirectory": "C:/project-171",
+    "sentinelVersion": "1.0.0",
+    "tags": [
+      "benign",
+      "editor",
+      "LOW",
+      "generated"
+    ]
+  },
+  "events": [
+    {
+      "type": "process",
+      "data": {
+        "pid": 2001,
+        "name": "code.exe",
+        "commandLine": "code --new-window C:/project-171",
+        "timestamp": "2026-07-16T08:46:32.785Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "file_access",
+      "data": {
+        "filePath": "C:/project/src/index.ts",
+        "processName": "code.exe",
+        "pid": 2000,
+        "operation": "read",
+        "timestamp": "2026-07-16T08:46:33.718Z",
+        "bytesRead": 671
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrn9sasg-psmixg",
+        "sessionId": "",
+        "timestamp": "2026-07-16T08:46:33.718Z",
+        "protocol": "TLS",
+        "sourceAddr": "192.168.1.100",
+        "sourcePort": 49010,
+        "destAddr": "151.101.1.140",
+        "destPort": 443,
+        "hostname": "docs.npmjs.com",
+        "sni": "docs.npmjs.com",
+        "bytesSent": 512,
+        "bytesReceived": 16384,
+        "durationMs": 500,
+        "method": "GET",
+        "path": "/cli/v10/commands/npm-install"
+      }
+    }
+  ]
+}

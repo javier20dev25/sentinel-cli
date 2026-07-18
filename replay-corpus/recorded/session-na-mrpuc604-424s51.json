@@ -1,0 +1,54 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "na-mrpuc604-424s51",
+    "recordedAt": "2026-07-18T04:01:40.962Z",
+    "durationMs": 42753,
+    "platform": "win32",
+    "sentinelVersion": "1.0.0",
+    "tags": [],
+    "profile": {
+      "id": "read-ssh",
+      "category": "suspicious",
+      "tool": "cat",
+      "action": "read",
+      "expectedRisk": "HIGH",
+      "description": "Read SSH private keys",
+      "tags": [
+        "ssh",
+        "read",
+        "secrets"
+      ]
+    },
+    "environment": {
+      "os": "win32",
+      "osVersion": "10.0.26200",
+      "cpu": "AMD Ryzen 3 7320U with Radeon Graphics         ",
+      "memoryGb": 7.2,
+      "nodeVersion": "v24.13.1",
+      "gitVersion": "git version 2.53.0.windows.1",
+      "editor": "unknown",
+      "sentinelVersion": "1.0.0",
+      "policyVersion": "1.0.0",
+      "corpusVersion": "1.0.0",
+      "recordedAt": "2026-07-18T04:02:25.124Z"
+    }
+  },
+  "private": {
+    "hostname": "DESKTOP-KI5APP4",
+    "username": "sleyt",
+    "workingDirectory": "C:\\Users\\sleyt\\sentinel-cli"
+  },
+  "events": [
+    {
+      "type": "git_command",
+      "data": {
+        "pid": 9712,
+        "processName": "git.exe",
+        "commandLine": "git  --version",
+        "action": "other",
+        "timestamp": "2026-07-18T04:02:07.913Z"
+      }
+    }
+  ]
+}

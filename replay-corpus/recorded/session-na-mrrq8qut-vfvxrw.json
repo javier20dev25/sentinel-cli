@@ -1,0 +1,3725 @@
+{
+  "format": "sentinel-session-v1",
+  "metadata": {
+    "id": "na-mrrq8qut-vfvxrw",
+    "recordedAt": "2026-07-19T11:42:48.385Z",
+    "durationMs": 29620,
+    "platform": "win32",
+    "sentinelVersion": "1.0.0",
+    "tags": [],
+    "profile": {
+      "id": "exfil-git-bundle",
+      "category": "malicious",
+      "tool": "git",
+      "action": "bundle",
+      "expectedRisk": "CRITICAL",
+      "description": "Git bundle + upload of entire repo",
+      "tags": [
+        "exfil",
+        "git",
+        "bundle"
+      ]
+    },
+    "environment": {
+      "os": "win32",
+      "osVersion": "10.0.26200",
+      "cpu": "AMD Ryzen 3 7320U with Radeon Graphics         ",
+      "memoryGb": 7.2,
+      "nodeVersion": "v24.13.1",
+      "gitVersion": "git version 2.53.0.windows.1",
+      "editor": "unknown",
+      "sentinelVersion": "1.0.0",
+      "policyVersion": "1.0.0",
+      "corpusVersion": "1.0.0",
+      "recordedAt": "2026-07-19T11:43:18.111Z"
+    }
+  },
+  "private": {
+    "hostname": "DESKTOP-KI5APP4",
+    "username": "sleyt",
+    "workingDirectory": "C:\\Users\\sleyt\\sentinel-cli"
+  },
+  "events": [
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-vs873h",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 49410,
+        "destAddr": "172.172.255.216",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-vrawy9",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 50387,
+        "destAddr": "172.217.204.188",
+        "destPort": 5228,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-voemc9",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 52196,
+        "destAddr": "35.186.224.31",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-3gicf1",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 52197,
+        "destAddr": "35.186.224.24",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-vgq2kc",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 52308,
+        "destAddr": "104.18.39.21",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-bqvl8x",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 52314,
+        "destAddr": "13.223.19.204",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-s0sdms",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 52322,
+        "destAddr": "172.65.90.20",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-0c1hx3",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 53291,
+        "destAddr": "35.186.224.36",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-caap8d",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 53821,
+        "destAddr": "34.117.41.85",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-mp9umf",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 54309,
+        "destAddr": "172.172.255.218",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-vg8y9t",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 54385,
+        "destAddr": "104.18.32.47",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-ervd9p",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 54643,
+        "destAddr": "140.82.112.25",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-6jcx5e",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 55189,
+        "destAddr": "35.186.224.31",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-c0faau",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 55196,
+        "destAddr": "150.171.110.194",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-yt2hr8",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 55197,
+        "destAddr": "52.247.34.21",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-n0l3yw",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 55198,
+        "destAddr": "35.186.224.24",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-ov305b",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 55419,
+        "destAddr": "199.165.136.100",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-4d7k0a",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 55425,
+        "destAddr": "192.200.0.106",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-dn94n2",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 55799,
+        "destAddr": "20.44.8.229",
+        "destPort": 8883,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-qru1ex",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 56157,
+        "destAddr": "35.186.224.31",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-x44czx",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 56158,
+        "destAddr": "34.117.41.85",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-90ys88",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 58164,
+        "destAddr": "104.154.127.247",
+        "destPort": 4070,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-5unvu2",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 59717,
+        "destAddr": "35.186.224.36",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-tlhv0g",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 60310,
+        "destAddr": "172.64.148.235",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-1nxie1",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 61079,
+        "destAddr": "192.73.243.135",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-3fwr9v",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 64504,
+        "destAddr": "35.186.224.24",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "flow",
+      "data": {
+        "id": "na-mrrq86ju-l860ib",
+        "sessionId": "recorder",
+        "timestamp": "2026-07-19T11:42:51.690Z",
+        "protocol": "TCP",
+        "sourceAddr": "10.161.37.83",
+        "sourcePort": 65325,
+        "destAddr": "54.224.94.179",
+        "destPort": 443,
+        "bytesSent": 0,
+        "bytesReceived": 0,
+        "durationMs": 0
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4,
+        "name": "System",
+        "commandLine": "",
+        "parentPid": 0,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 140,
+        "name": "Secure System",
+        "commandLine": "",
+        "parentPid": 4,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 184,
+        "name": "Registry",
+        "commandLine": "",
+        "parentPid": 4,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 696,
+        "name": "smss.exe",
+        "commandLine": "",
+        "parentPid": 4,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1092,
+        "name": "csrss.exe",
+        "commandLine": "",
+        "parentPid": 912,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1256,
+        "name": "wininit.exe",
+        "commandLine": "",
+        "parentPid": 912,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1264,
+        "name": "csrss.exe",
+        "commandLine": "",
+        "parentPid": 1248,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1360,
+        "name": "winlogon.exe",
+        "commandLine": "",
+        "parentPid": 1248,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1388,
+        "name": "services.exe",
+        "commandLine": "",
+        "parentPid": 1256,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1428,
+        "name": "LsaIso.exe",
+        "commandLine": "",
+        "parentPid": 1256,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1436,
+        "name": "lsass.exe",
+        "commandLine": "",
+        "parentPid": 1256,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1572,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.698Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1584,
+        "name": "WUDFHost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1608,
+        "name": "fontdrvhost.exe",
+        "commandLine": "",
+        "parentPid": 1256,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1612,
+        "name": "fontdrvhost.exe",
+        "commandLine": "",
+        "parentPid": 1360,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1744,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1808,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1884,
+        "name": "dwm.exe",
+        "commandLine": "",
+        "parentPid": 1360,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2040,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1068,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 916,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1096,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2132,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2140,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2148,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2292,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2304,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2324,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2376,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2388,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2448,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2456,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2640,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2784,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3056,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2512,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3100,
+        "name": "amdfendrsr.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3132,
+        "name": "atiesrxx.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3312,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3320,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3324,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3336,
+        "name": "atieclxx.exe",
+        "commandLine": "",
+        "parentPid": 3132,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3412,
+        "name": "Memory Compression",
+        "commandLine": "",
+        "parentPid": 4,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3476,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3500,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3508,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3640,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3692,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3712,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3836,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3932,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4072,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3276,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4172,
+        "name": "spoolsv.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4216,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4292,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4392,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4400,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4412,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4420,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4456,
+        "name": "OfficeClickToRun.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4468,
+        "name": "MpDefenderCoreService.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4484,
+        "name": "servicehost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4516,
+        "name": "RtkAudUService64.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4524,
+        "name": "RtkBtManServ.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4584,
+        "name": "mc-fw-host.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4636,
+        "name": "MsMpEng.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4676,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4696,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4724,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4784,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4792,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4908,
+        "name": "WavesAudioService.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4920,
+        "name": "WavesSysSvc64.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4240,
+        "name": "Dell.TechHub.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5740,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5184,
+        "name": "tailscaled.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6396,
+        "name": "uihost.exe",
+        "commandLine": "\"C:\\Program Files\\McAfee\\WebAdvisor\\UIHost.exe\" ",
+        "parentPid": 4484,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6964,
+        "name": "tailscaled.exe",
+        "commandLine": "",
+        "parentPid": 5184,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7564,
+        "name": "mc-fw-host.exe",
+        "commandLine": "",
+        "parentPid": 4584,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7692,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7736,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7876,
+        "name": "sihost.exe",
+        "commandLine": "sihost.exe",
+        "parentPid": 2640,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7944,
+        "name": "svchost.exe",
+        "commandLine": "C:\\Windows\\system32\\svchost.exe -k UnistackSvcGroup -s CDPUserSvc",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8064,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8156,
+        "name": "svchost.exe",
+        "commandLine": "C:\\Windows\\system32\\svchost.exe -k LocalSystemNetworkRestricted -p -s webthreatdefusersvc",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4408,
+        "name": "svchost.exe",
+        "commandLine": "C:\\Windows\\system32\\svchost.exe -k UnistackSvcGroup -s WpnUserService",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8200,
+        "name": "taskhostw.exe",
+        "commandLine": "taskhostw.exe {222A245B-E637-4AE9-A93F-A59CA119A75E}",
+        "parentPid": 2292,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8728,
+        "name": "RtkAudUService64.exe",
+        "commandLine": "",
+        "parentPid": 4516,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8780,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9036,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9084,
+        "name": "explorer.exe",
+        "commandLine": "C:\\Windows\\Explorer.EXE",
+        "parentPid": 8744,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5756,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6008,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8516,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9004,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9648,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9752,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9884,
+        "name": "CrossDeviceResume.exe",
+        "commandLine": "\"C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\CrossDeviceResume.exe\" /tileid MicrosoftWindows.Client.CBS_cw5n1h2txyewy!CrossDeviceResumeApp",
+        "parentPid": 7876,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9908,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10016,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8948,
+        "name": "NgcIso.exe",
+        "commandLine": "",
+        "parentPid": 10016,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10252,
+        "name": "svchost.exe",
+        "commandLine": "C:\\Windows\\system32\\svchost.exe -k ClipboardSvcGroup -p -s cbdhsvc",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10260,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10592,
+        "name": "AggregatorHost.exe",
+        "commandLine": "",
+        "parentPid": 4420,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10756,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11004,
+        "name": "StartMenuExperienceHost.exe",
+        "commandLine": "\"C:\\Windows\\SystemApps\\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\\StartMenuExperienceHost.exe\" -ServerName:FullTrustApp.AppXykjsye98af63ez2annt9djke8trg8stn.mca",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11016,
+        "name": "SearchHost.exe",
+        "commandLine": "\"C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\SearchHost.exe\" -ServerName:CortanaUI.AppXstmwaab17q5s3y22tp6apqz7a45vwv65.mca",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2776,
+        "name": "RuntimeBroker.exe",
+        "commandLine": "C:\\Windows\\System32\\RuntimeBroker.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8100,
+        "name": "svchost.exe",
+        "commandLine": "C:\\Windows\\system32\\svchost.exe -k UdkSvcGroup -s UdkUserSvc",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11384,
+        "name": "Dell.TechHub.DataManager.SubAgent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11468,
+        "name": "Dell.TechHub.Diagnostics.SubAgent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11524,
+        "name": "Dell.UCA.Manager.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11532,
+        "name": "Dell.UCA.Systray.exe",
+        "commandLine": "\"C:\\Program Files\\Dell\\MyDell\\Console\\Dell.UCA.Systray.exe\"",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11552,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 11384,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11576,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 11468,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11640,
+        "name": "CrossDeviceService.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\MicrosoftWindows.CrossDevice_1.26052.99.0_x64__cw5n1h2txyewy\\CrossDeviceService.exe\" -RegisterProcessAsComServer -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11744,
+        "name": "Dell.TechHub.Instrumentation.SubAgent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11768,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 11524,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11920,
+        "name": "Dell.TechHub.Analytics.SubAgent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11968,
+        "name": "DellOptimizer.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12004,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 11744,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12028,
+        "name": "Dell.CoreServices.Client.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12036,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 11920,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12108,
+        "name": "SearchIndexer.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12268,
+        "name": "Widgets.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\MicrosoftWindows.Client.WebExperience_526.17301.40.0_x64__cw5n1h2txyewy\\Dashboard\\Widgets.exe\" -ServerName:Microsoft.Windows.DashboardServer",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.699Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12300,
+        "name": "Dell.Optimizer.DthProxy.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12680,
+        "name": "Dell.Update.SubAgent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12796,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 12300,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13064,
+        "name": "TitanCoreSubAgent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13104,
+        "name": "Dell.Remediation.Agent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13128,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 12680,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13224,
+        "name": "WidgetService.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\Microsoft.WidgetsPlatformRuntime_1.6.19.0_x64__8wekyb3d8bbwe\\WidgetService\\WidgetService.exe\" -RegisterProcessAsComServer -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13240,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 13064,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13248,
+        "name": "Dell.Customer.Connect.SubAgent.exe",
+        "commandLine": "",
+        "parentPid": 4240,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12496,
+        "name": "conhost.exe",
+        "commandLine": "",
+        "parentPid": 13248,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11944,
+        "name": "msedgewebview2.exe",
+        "commandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\150.0.4078.83\\msedgewebview2.exe\" --embedded-browser-webview=1 --webview-exe-name=SearchHost.exe --webview-exe-version=2605.27010.300.0 --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView\" --noerrdialogs --disable-features=msSmartScreenProtection --edge-webview-enable-mojo-ipcz --enable-features=msEdgeFluentOverlayScrollbar --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; Cortana 1.18.9.23723; 10.0.0.0.26200.8875) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26200 IsWebView2/True (WebView2Version 150.0.4078.65)\" --lang=es-ES --mojo-named-platform-channel-pipe=11016.13236.11966804339690160472 /pfhostedapp:04767edd6834bc8bdd136e35873efca090350748",
+        "parentPid": 11016,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12980,
+        "name": "msedgewebview2.exe",
+        "commandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\150.0.4078.83\\msedgewebview2.exe\" --type=crashpad-handler --user-data-dir=C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView /prefetch:4 /pfhostedapp:04767edd6834bc8bdd136e35873efca090350748 --monitor-self-annotation=ptype=crashpad-handler --database=C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView\\Crashpad --metrics-dir=C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView --annotation=IsOfficialBuild=1 --annotation=channel= --annotation=chromium-version=150.0.7871.129 \"--annotation=exe=C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\150.0.4078.83\\msedgewebview2.exe\" --annotation=plat=Win64 \"--annotation=prod=Edge WebView2\" --annotation=ver=150.0.4078.83 --initial-client-data=0x16c,0x170,0x174,0x12c,0x17c,0x7ff8b965dcf0,0x7ff8b965dcfc,0x7ff8b965dd08",
+        "parentPid": 11944,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13132,
+        "name": "ctfmon.exe",
+        "commandLine": "",
+        "parentPid": 3692,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13648,
+        "name": "msedgewebview2.exe",
+        "commandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\150.0.4078.83\\msedgewebview2.exe\" --type=gpu-process --noerrdialogs --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; Cortana 1.18.9.23723; 10.0.0.0.26200.8875) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26200 IsWebView2/True (WebView2Version 150.0.4078.65)\" --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView\" --webview-exe-name=SearchHost.exe --webview-exe-version=2605.27010.300.0 --embedded-browser-webview=1 --gpu-preferences=UAAAAAAAAADgAAAEAAAAAAAAAAAAAGAAOAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --always-read-main-dll --metrics-shmem-handle=1952,i,2059951080180561753,15927949289602774953,262144 --field-trial-handle=2052,i,2605982733354637020,3774679770761209064,262144 --enable-features=msEdgeFluentOverlayScrollbar --disable-features=msSmartScreenProtection --variations-seed-version --pseudonymization-salt-handle=2056,i,4653745671157516559,16223685625986396783,4 --trace-process-track-uuid=3190708988185955192 --mojo-platform-channel-handle=1932 /prefetch:2 /pfhostedapp:04767edd6834bc8bdd136e35873efca090350748",
+        "parentPid": 11944,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13716,
+        "name": "msedgewebview2.exe",
+        "commandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\150.0.4078.83\\msedgewebview2.exe\" --type=utility --utility-sub-type=network.mojom.NetworkService --lang=es --service-sandbox-type=none --noerrdialogs --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; Cortana 1.18.9.23723; 10.0.0.0.26200.8875) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26200 IsWebView2/True (WebView2Version 150.0.4078.65)\" --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView\" --webview-exe-name=SearchHost.exe --webview-exe-version=2605.27010.300.0 --embedded-browser-webview=1 --always-read-main-dll --metrics-shmem-handle=2212,i,17035752976315151026,9707683257425026818,524288 --field-trial-handle=2052,i,2605982733354637020,3774679770761209064,262144 --enable-features=msEdgeFluentOverlayScrollbar --disable-features=msSmartScreenProtection --variations-seed-version --pseudonymization-salt-handle=2056,i,4653745671157516559,16223685625986396783,4 --trace-process-track-uuid=3190708989122997041 --mojo-platform-channel-handle=2248 /prefetch:11 /pfhostedapp:04767edd6834bc8bdd136e35873efca090350748",
+        "parentPid": 11944,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13764,
+        "name": "LockApp.exe",
+        "commandLine": "\"C:\\Windows\\SystemApps\\Microsoft.LockApp_cw5n1h2txyewy\\LockApp.exe\" -ServerName:WindowsDefaultLockScreen.AppX7y4nbzq37zn4ks9k7amqjywdat7d3j2z.mca",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13828,
+        "name": "msedgewebview2.exe",
+        "commandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\150.0.4078.83\\msedgewebview2.exe\" --type=utility --utility-sub-type=storage.mojom.StorageService --lang=es --service-sandbox-type=service --noerrdialogs --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; Cortana 1.18.9.23723; 10.0.0.0.26200.8875) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26200 IsWebView2/True (WebView2Version 150.0.4078.65)\" --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView\" --webview-exe-name=SearchHost.exe --webview-exe-version=2605.27010.300.0 --embedded-browser-webview=1 --always-read-main-dll --metrics-shmem-handle=2476,i,7940974393647296498,10245212359225021061,524288 --field-trial-handle=2052,i,2605982733354637020,3774679770761209064,262144 --enable-features=msEdgeFluentOverlayScrollbar --disable-features=msSmartScreenProtection --variations-seed-version --pseudonymization-salt-handle=2056,i,4653745671157516559,16223685625986396783,4 --trace-process-track-uuid=3190708990060038890 --mojo-platform-channel-handle=3820 /prefetch:13 /pfhostedapp:04767edd6834bc8bdd136e35873efca090350748",
+        "parentPid": 11944,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13840,
+        "name": "msedgewebview2.exe",
+        "commandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\150.0.4078.83\\msedgewebview2.exe\" --type=renderer --noerrdialogs --user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; Cortana 1.18.9.23723; 10.0.0.0.26200.8875) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.26200 IsWebView2/True (WebView2Version 150.0.4078.65)\" --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\LocalState\\EBWebView\" --webview-exe-name=SearchHost.exe --webview-exe-version=2605.27010.300.0 --embedded-browser-webview=1 --video-capture-use-gpu-memory-buffer --lang=es --device-scale-factor=1 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --js-flags=\"--expose-gc --ms-user-locale=es_NI\" --time-ticks-at-unix-epoch=-1784454485950837 --launch-time-ticks=33760481 --always-read-main-dll --metrics-shmem-handle=3532,i,1033468312551125221,2301317417548768648,2097152 --field-trial-handle=2052,i,2605982733354637020,3774679770761209064,262144 --enable-features=msEdgeFluentOverlayScrollbar --disable-features=msSmartScreenProtection --variations-seed-version --pseudonymization-salt-handle=2056,i,4653745671157516559,16223685625986396783,4 --trace-process-track-uuid=3190708990997080739 --mojo-platform-channel-handle=3868 /pfhostedapp:04767edd6834bc8bdd136e35873efca090350748 /prefetch:1",
+        "parentPid": 11944,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14204,
+        "name": "RuntimeBroker.exe",
+        "commandLine": "C:\\Windows\\System32\\RuntimeBroker.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14680,
+        "name": "TextInputHost.exe",
+        "commandLine": "\"C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\TextInputHost.exe\" -ServerName:InputApp.AppXk0k6mrh4r2q0ct33a9wgbez0x7v9cz5y.mca",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15288,
+        "name": "mc-neo-host.exe",
+        "commandLine": "",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13040,
+        "name": "svchost.exe",
+        "commandLine": "C:\\Windows\\system32\\svchost.exe -k LocalService -p -s NPSMSvc",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15792,
+        "name": "SpotifyLauncher.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\SpotifyLauncher.exe\" /InvokerPRAID: Spotify --session-connected-task",
+        "parentPid": 7876,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16316,
+        "name": "crashpad_handler.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\crashpad_handler.exe\" --database=C:\\Users\\sleyt\\AppData\\Local\\Packages\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0\\LocalCache\\Spotify\\Launcher\\Crashpad --metrics-dir=C:\\Users\\sleyt\\AppData\\Local\\Packages\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0\\LocalCache\\Spotify\\Launcher\\Crashpad --url=https://crashdump.spotify.com:443 --annotation=app_variant=appx --annotation=format=minidump --annotation=platform=win64 --annotation=product=spotify --annotation=ptype=desktop_launcher --annotation=version=1.2.94.583 --initial-client-data=0x438,0x43c,0x440,0x414,0x444,0x7ff75d8849a0,0x7ff75d8849b8,0x7ff75d8849c8",
+        "parentPid": 15792,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13148,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16796,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15836,
+        "name": "unsecapp.exe",
+        "commandLine": "",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16936,
+        "name": "WmiPrvSE.exe",
+        "commandLine": "",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17372,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16060,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --source-shortcut=\"C:\\Users\\sleyt\\OneDrive\\Desktop\\ChatGPT.lnk\" --profile-directory=Default --app-id=cadlkienfkclaiaibeoongdcgmdikeeg",
+        "parentPid": 17324,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16016,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=crashpad-handler \"--user-data-dir=C:\\Users\\sleyt\\AppData\\Local\\Google\\Chrome\\User Data\" /prefetch:4 --monitor-self-annotation=ptype=crashpad-handler \"--database=C:\\Users\\sleyt\\AppData\\Local\\Google\\Chrome\\User Data\\Crashpad\" \"--metrics-dir=C:\\Users\\sleyt\\AppData\\Local\\Google\\Chrome\\User Data\" --url=https://clients2.google.com/cr/report --annotation=channel= --annotation=plat=Win64 --annotation=prod=Chrome --annotation=ver=150.0.7871.127 --initial-client-data=0x11c,0x120,0x124,0xf8,0x128,0x7ff88214ba50,0x7ff88214ba5c,0x7ff88214ba68",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11456,
+        "name": "SecurityHealthSystray.exe",
+        "commandLine": "\"C:\\Windows\\System32\\SecurityHealthSystray.exe\" ",
+        "parentPid": 9084,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17412,
+        "name": "SecurityHealthService.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17600,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=gpu-process --no-pre-read-main-dll --gpu-preferences=UAAAAAAAAADgAAAEAAAAAAAAAAAAAGAAOAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --metrics-shmem-handle=1684,i,1988239872837867928,7336208065598987516,262144 --field-trial-handle=2040,i,17570866855878279246,15850889258059957320,262144 --variations-seed-version=20260718-030031.422000-production --pseudonymization-salt-handle=2060,i,4769729817268893766,18242681499055335047,4 --trace-process-track-uuid=3190708988185955192 --mojo-platform-channel-handle=2032 /prefetch:2",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17608,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=utility --utility-sub-type=network.mojom.NetworkService --lang=es --service-sandbox-type=none --no-pre-read-main-dll --metrics-shmem-handle=1880,i,3678496800884566645,8895646537542794165,524288 --field-trial-handle=2040,i,17570866855878279246,15850889258059957320,262144 --variations-seed-version=20260718-030031.422000-production --pseudonymization-salt-handle=2060,i,4769729817268893766,18242681499055335047,4 --trace-process-track-uuid=3190708989122997041 --mojo-platform-channel-handle=2144 /prefetch:11",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17664,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=utility --utility-sub-type=storage.mojom.StorageService --lang=es --service-sandbox-type=service --no-pre-read-main-dll --metrics-shmem-handle=2136,i,3903559315360118938,6253929939298787622,524288 --field-trial-handle=2040,i,17570866855878279246,15850889258059957320,262144 --variations-seed-version=20260718-030031.422000-production --pseudonymization-salt-handle=2060,i,4769729817268893766,18242681499055335047,4 --trace-process-track-uuid=3190708990060038890 --mojo-platform-channel-handle=2684 /prefetch:13",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17900,
+        "name": "warp.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Local\\Programs\\Warp\\warp.exe\" ",
+        "parentPid": 9084,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": [
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 18672,
+        "name": "Dell.TechHub.Instrumentation.UserProcess.exe",
+        "commandLine": "",
+        "parentPid": 11744,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 18820,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 18892,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19152,
+        "name": "RuntimeBroker.exe",
+        "commandLine": "C:\\Windows\\System32\\RuntimeBroker.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3356,
+        "name": "dllhost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4760,
+        "name": "msdtc.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9332,
+        "name": "taskhostw.exe",
+        "commandLine": "",
+        "parentPid": 2292,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3940,
+        "name": "wps.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Local\\Kingsoft\\WPS Office\\12.1.0.27458\\office6\\wps.exe\"  Run -Entry=EntryPoint \"C:/Users/sleyt/AppData/Local/Kingsoft/WPS Office/12.1.0.27458/office6/addons/kcef/jsapibrowser.dll\" --server=browser.a3ba19ec797144349ea5dbc1b742aca1.27458.41c3a8f0599a4ff0.dpi1.pipe --from=qing",
+        "parentPid": 14616,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6520,
+        "name": "promecefpluginhost.exe",
+        "commandLine": "\"C:/Users/sleyt/AppData/Local/Kingsoft/WPS Office/12.1.0.27458/office6\\promecefpluginhost.exe\" --type=gpu-process --no-sandbox --log-severity=disable --lang=zh-CN --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\CEF\\User Data\" --gpu-preferences=UAAAAAAAAADgACAYAAAAAAAAAAAAAAAAAABgAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEgAAAAAAAAASAAAAAAAAAAYAAAAAgAAABAAAAAAAAAAGAAAAAAAAAAQAAAAAAAAAAAAAAAOAAAAEAAAAAAAAAABAAAADgAAAAgAAAAAAAAACAAAAAAAAAA= --log-file=\"C:\\Users\\sleyt\\AppData\\Local\\Kingsoft\\WPS Office\\12.1.0.27458\\office6\\debug.log\" --mojo-platform-channel-handle=1968 --field-trial-handle=2056,i,16172500339036166352,1529066969033914871,131072 --disable-features=TSFImeSupport /prefetch:2",
+        "parentPid": 3940,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19580,
+        "name": "promecefpluginhost.exe",
+        "commandLine": "\"C:/Users/sleyt/AppData/Local/Kingsoft/WPS Office/12.1.0.27458/office6\\promecefpluginhost.exe\" --type=utility --utility-sub-type=network.mojom.NetworkService --lang=zh-CN --service-sandbox-type=none --no-sandbox --log-severity=disable --lang=zh-CN --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\CEF\\User Data\" --log-file=\"C:\\Users\\sleyt\\AppData\\Local\\Kingsoft\\WPS Office\\12.1.0.27458\\office6\\debug.log\" --mojo-platform-channel-handle=2840 --field-trial-handle=2056,i,16172500339036166352,1529066969033914871,131072 --disable-features=TSFImeSupport /prefetch:8",
+        "parentPid": 3940,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19544,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --no-pre-read-main-dll --video-capture-use-gpu-memory-buffer --lang=es --device-scale-factor=1 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=9 --time-ticks-at-unix-epoch=-1784454485950836 --launch-time-ticks=85226201 --metrics-shmem-handle=6296,i,16516978250856772720,14904961037674937083,2097152 --field-trial-handle=2040,i,17570866855878279246,15850889258059957320,262144 --variations-seed-version=20260718-030031.422000-production --pseudonymization-salt-handle=2060,i,4769729817268893766,18242681499055335047,4 --trace-process-track-uuid=3190708994745248135 --mojo-platform-channel-handle=6252 /prefetch:1",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 20004,
+        "name": "OpenConsole.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Local\\Programs\\Warp\\x64\\OpenConsole.exe\" --headless --width 92 --height 54 --signal 0x8c8 --server 0x8f8",
+        "parentPid": 17900,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": [
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17144,
+        "name": "powershell.exe",
+        "commandLine": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NoExit -Command \"Remove-Module -Name PSReadline;$global:_warpOriginalPrompt = $function:global:prompt;if ($PSEdition -eq 'Desktop' -or $IsWindows) {;    $EP = [Microsoft.PowerShell.ExecutionPolicy];    if ((Get-ExecutionPolicy -Scope MachinePolicy) -eq $EP::Restricted -or (Get-ExecutionPolicy -Scope UserPolicy) -eq $EP::Restricted) {;        Write-Error 'ExecutionPolicy is Restricted. Unable to Warpify this PowerShell session.';    } elseif ((Get-ExecutionPolicy) -eq $EP::Restricted -and (Get-ExecutionPolicy -Scope MachinePolicy) -eq $EP::Undefined -and (Get-ExecutionPolicy -Scope UserPolicy) -eq $EP::Undefined) {;        $global:_warp_PSProcessExecPolicy = $(Get-ExecutionPolicy -Scope Process);        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force;    };};function prompt {;    $function:global:prompt = $global:_warpOriginalPrompt;    $username = [Environment]::UserName;    $global:_warpSessionId = [uint64]3944711850160617765;    $msg = ConvertTo-Json -Compress -InputObject @{ hook = 'InitShell'; value = @{ session_id = $_warpSessionId; shell = 'pwsh'; user = $username; hostname = [System.Net.Dns]::GetHostName() } };    $encodedMsg = [BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($msg)).Replace('-', '');    $oscStart = \\\"$([char]0x1b)]9278;\\\";    $oscEnd = \\\"`a\\\";    $oscJsonMarker = 'd';    $oscParameterSeparator = ';';    Write-Host \\\"${oscStart}${oscJsonMarker}${oscParameterSeparator}${encodedMsg}${oscEnd}\\\";    return $null;}\"",
+        "parentPid": 17900,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": [
+          "Suspicious command: hostname",
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11072,
+        "name": "OpenConsole.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Local\\Programs\\Warp\\x64\\OpenConsole.exe\" --headless --width 92 --height 54 --signal 0x1060 --server 0x104c",
+        "parentPid": 17900,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": [
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16544,
+        "name": "powershell.exe",
+        "commandLine": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NoExit -Command \"Remove-Module -Name PSReadline;$global:_warpOriginalPrompt = $function:global:prompt;if ($PSEdition -eq 'Desktop' -or $IsWindows) {;    $EP = [Microsoft.PowerShell.ExecutionPolicy];    if ((Get-ExecutionPolicy -Scope MachinePolicy) -eq $EP::Restricted -or (Get-ExecutionPolicy -Scope UserPolicy) -eq $EP::Restricted) {;        Write-Error 'ExecutionPolicy is Restricted. Unable to Warpify this PowerShell session.';    } elseif ((Get-ExecutionPolicy) -eq $EP::Restricted -and (Get-ExecutionPolicy -Scope MachinePolicy) -eq $EP::Undefined -and (Get-ExecutionPolicy -Scope UserPolicy) -eq $EP::Undefined) {;        $global:_warp_PSProcessExecPolicy = $(Get-ExecutionPolicy -Scope Process);        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force;    };};function prompt {;    $function:global:prompt = $global:_warpOriginalPrompt;    $username = [Environment]::UserName;    $global:_warpSessionId = [uint64]8409122465114477905;    $msg = ConvertTo-Json -Compress -InputObject @{ hook = 'InitShell'; value = @{ session_id = $_warpSessionId; shell = 'pwsh'; user = $username; hostname = [System.Net.Dns]::GetHostName() } };    $encodedMsg = [BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($msg)).Replace('-', '');    $oscStart = \\\"$([char]0x1b)]9278;\\\";    $oscEnd = \\\"`a\\\";    $oscJsonMarker = 'd';    $oscParameterSeparator = ';';    Write-Host \\\"${oscStart}${oscJsonMarker}${oscParameterSeparator}${encodedMsg}${oscEnd}\\\";    return $null;}\"",
+        "parentPid": 17900,
+        "timestamp": "2026-07-19T11:42:49.700Z",
+        "riskIndicators": [
+          "Suspicious command: hostname",
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15960,
+        "name": "OpenConsole.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Local\\Programs\\Warp\\x64\\OpenConsole.exe\" --headless --width 92 --height 54 --signal 0x11e8 --server 0x11e0",
+        "parentPid": 17900,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": [
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19840,
+        "name": "powershell.exe",
+        "commandLine": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo -NoProfile -NoExit -Command \"Remove-Module -Name PSReadline;$global:_warpOriginalPrompt = $function:global:prompt;if ($PSEdition -eq 'Desktop' -or $IsWindows) {;    $EP = [Microsoft.PowerShell.ExecutionPolicy];    if ((Get-ExecutionPolicy -Scope MachinePolicy) -eq $EP::Restricted -or (Get-ExecutionPolicy -Scope UserPolicy) -eq $EP::Restricted) {;        Write-Error 'ExecutionPolicy is Restricted. Unable to Warpify this PowerShell session.';    } elseif ((Get-ExecutionPolicy) -eq $EP::Restricted -and (Get-ExecutionPolicy -Scope MachinePolicy) -eq $EP::Undefined -and (Get-ExecutionPolicy -Scope UserPolicy) -eq $EP::Undefined) {;        $global:_warp_PSProcessExecPolicy = $(Get-ExecutionPolicy -Scope Process);        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned -Force;    };};function prompt {;    $function:global:prompt = $global:_warpOriginalPrompt;    $username = [Environment]::UserName;    $global:_warpSessionId = [uint64]16017859747816354527;    $msg = ConvertTo-Json -Compress -InputObject @{ hook = 'InitShell'; value = @{ session_id = $_warpSessionId; shell = 'pwsh'; user = $username; hostname = [System.Net.Dns]::GetHostName() } };    $encodedMsg = [BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($msg)).Replace('-', '');    $oscStart = \\\"$([char]0x1b)]9278;\\\";    $oscEnd = \\\"`a\\\";    $oscJsonMarker = 'd';    $oscParameterSeparator = ';';    Write-Host \\\"${oscStart}${oscJsonMarker}${oscParameterSeparator}${encodedMsg}${oscEnd}\\\";    return $null;}\"",
+        "parentPid": 17900,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": [
+          "Suspicious command: hostname",
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2272,
+        "name": "warp.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Local\\Programs\\Warp\\warp.exe\" minidump-server C:\\Users\\sleyt\\AppData\\Local\\warp\\Warp\\data\\wcr-0ce2c96cd7a544fc9908d37f2802ccef.sock",
+        "parentPid": 17900,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": [
+          "Suspicious command: arp"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19984,
+        "name": "RtkAudUService64.exe",
+        "commandLine": "\"C:\\Windows\\System32\\DriverStore\\FileRepository\\realtekservice.inf_amd64_e54441f6cc56b0cb\\RtkAudUService64.exe\" -background",
+        "parentPid": 9084,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21356,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 20192,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13092,
+        "name": "BraveCrashHandler.exe",
+        "commandLine": "",
+        "parentPid": 7100,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21368,
+        "name": "BraveCrashHandler64.exe",
+        "commandLine": "",
+        "parentPid": 7100,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19460,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13776,
+        "name": "WavesSvc64.exe",
+        "commandLine": "\"C:\\Windows\\System32\\DriverStore\\FileRepository\\wavesapo12de.inf_amd64_f5cc64c07bd9d637\\WavesSvc64.exe\" -Jack",
+        "parentPid": 9084,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9780,
+        "name": "unsecapp.exe",
+        "commandLine": "C:\\Windows\\system32\\wbem\\unsecapp.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17264,
+        "name": "PhoneExperienceHost.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\Microsoft.YourPhone_1.26052.144.0_x64__8wekyb3d8bbwe\\PhoneExperienceHost.exe\" -ComServer:Background -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3180,
+        "name": "Dell.D3.WinSvc.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19504,
+        "name": "DellSupportAssistRemedationService.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7888,
+        "name": "ServiceShell.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4848,
+        "name": "OneDrive.exe",
+        "commandLine": "\"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe\" /background",
+        "parentPid": 9084,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17300,
+        "name": "opencode.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.exe\" -s ses_1a5275ff1ffepFjKhQY0BI4Pf2",
+        "parentPid": 17144,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12184,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10708,
+        "name": "SupportAssistAgent.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15472,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17068,
+        "name": "FileSyncHelper.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5764,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --no-pre-read-main-dll --video-capture-use-gpu-memory-buffer --lang=es --device-scale-factor=1 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=17 --time-ticks-at-unix-epoch=-1784454485950836 --launch-time-ticks=188844716 --metrics-shmem-handle=6840,i,9461890011614638425,16518678054028423005,2097152 --field-trial-handle=2040,i,17570866855878279246,15850889258059957320,262144 --variations-seed-version=20260718-030031.422000-production --pseudonymization-salt-handle=2060,i,4769729817268893766,18242681499055335047,4 --trace-process-track-uuid=3190709002241582927 --mojo-platform-channel-handle=5920 /prefetch:1",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10228,
+        "name": "RadeonSoftware.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\AdvancedMicroDevicesInc-2.AMDRadeonSoftware_10.25.10201.0_x64__0a9344xs7nr4m\\radeonsoftware\\RadeonSoftware.exe\" atlogon rebootstartup",
+        "parentPid": 11416,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3112,
+        "name": "cncmd.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\AdvancedMicroDevicesInc-2.AMDRadeonSoftware_10.25.10201.0_x64__0a9344xs7nr4m\\radeonsoftware\\cncmd.exe\" watch 10228",
+        "parentPid": 10228,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14548,
+        "name": "AMDRSServ.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\AdvancedMicroDevicesInc-2.AMDRadeonSoftware_10.25.10201.0_x64__0a9344xs7nr4m\\radeonsoftware\\AMDRSServ.exe\" ",
+        "parentPid": 8716,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13680,
+        "name": "amdow.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\AdvancedMicroDevicesInc-2.AMDRadeonSoftware_10.25.10201.0_x64__0a9344xs7nr4m\\radeonsoftware\\amdow.exe\" 14548",
+        "parentPid": 14548,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 20388,
+        "name": "AMDRSSrcExt.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\AdvancedMicroDevicesInc-2.AMDRadeonSoftware_10.25.10201.0_x64__0a9344xs7nr4m\\radeonsoftware\\AMDRSSrcExt.exe\" fb28e830-7c29-4591-b2df-4e16275fa0d9 SOFTWARE\\AMD\\DVR\\Overlays",
+        "parentPid": 14548,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13620,
+        "name": "Spotify.exe",
+        "commandLine": "Spotify.exe --autostart",
+        "parentPid": 17112,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6020,
+        "name": "Spotify.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\Spotify.exe\" --type=crashpad-handler /prefetch:4 --max-uploads=5 --max-db-size=20 --max-db-age=5 --monitor-self-annotation=ptype=crashpad-handler \"--database=C:\\Users\\sleyt\\AppData\\Local\\Spotify\\User Data\\Crashpad\" --url=https://crashdump.spotify.com:443/ --annotation=platform=win64 --annotation=product=spotify --annotation=version=1.2.94.583 --initial-client-data=0x11c,0x120,0x124,0x9c,0x128,0x7ff8c6115448,0x7ff8c6115454,0x7ff8c6115460",
+        "parentPid": 13620,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10236,
+        "name": "Spotify.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\Spotify.exe\" --type=gpu-process --no-pre-read-main-dll --start-stack-profiler --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0\\LocalCache\\Spotify\" --log-severity=disable --user-agent-product=\"Chrome/146.0.7680.179 Spotify/1.2.94.583\" --gpu-preferences=SAAAAAAAAADgAAAEAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --metrics-shmem-handle=2736,i,17238909604146385867,16384689779713749236,262144 --field-trial-handle=2784,i,15440729532851964988,2040546759612780798,262144 --disable-features=AutofillActorMode,BackForwardCache,FullscreenBubbleShowOrigin,GlicActorUi,HardwareMediaKeyHandling,LensOverlay,PartitionAllocDanglingPtr,PartitionAllocUnretainedDanglingPtr,StorageNotificationService --variations-seed-version --pseudonymization-salt-handle=2788,i,8417357956263781772,1692066759707109782,4 --trace-process-track-uuid=3190708988185955192 --enable-logging=handle --log-file=2792 --mojo-platform-channel-handle=2780 /prefetch:2",
+        "parentPid": 13620,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4612,
+        "name": "Spotify.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\Spotify.exe\" --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-pre-read-main-dll --start-stack-profiler --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0\\LocalCache\\Spotify\" --log-severity=disable --user-agent-product=\"Chrome/146.0.7680.179 Spotify/1.2.94.583\" --metrics-shmem-handle=3088,i,13507261668865761886,4530387045854701754,524288 --field-trial-handle=2784,i,15440729532851964988,2040546759612780798,262144 --disable-features=AutofillActorMode,BackForwardCache,FullscreenBubbleShowOrigin,GlicActorUi,HardwareMediaKeyHandling,LensOverlay,PartitionAllocDanglingPtr,PartitionAllocUnretainedDanglingPtr,StorageNotificationService --variations-seed-version --pseudonymization-salt-handle=2788,i,8417357956263781772,1692066759707109782,4 --trace-process-track-uuid=3190708989122997041 --enable-logging=handle --log-file=2952 --mojo-platform-channel-handle=3084 /prefetch:11",
+        "parentPid": 13620,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14628,
+        "name": "Spotify.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\Spotify.exe\" --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=service --no-pre-read-main-dll --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0\\LocalCache\\Spotify\" --log-severity=disable --user-agent-product=\"Chrome/146.0.7680.179 Spotify/1.2.94.583\" --metrics-shmem-handle=3164,i,15797532489263283366,9911747808400810758,524288 --field-trial-handle=2784,i,15440729532851964988,2040546759612780798,262144 --disable-features=AutofillActorMode,BackForwardCache,FullscreenBubbleShowOrigin,GlicActorUi,HardwareMediaKeyHandling,LensOverlay,PartitionAllocDanglingPtr,PartitionAllocUnretainedDanglingPtr,StorageNotificationService --variations-seed-version --pseudonymization-salt-handle=2788,i,8417357956263781772,1692066759707109782,4 --trace-process-track-uuid=3190708990060038890 --enable-logging=handle --log-file=3312 --mojo-platform-channel-handle=3308 /prefetch:13",
+        "parentPid": 13620,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17944,
+        "name": "backgroundTaskHost.exe",
+        "commandLine": "\"C:\\Windows\\system32\\backgroundTaskHost.exe\" -ServerName:Spotify.AppXtdk8mnjd568eshy3qjgb1wew6q74vv2f.mca",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3576,
+        "name": "RuntimeBroker.exe",
+        "commandLine": "C:\\Windows\\System32\\RuntimeBroker.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5252,
+        "name": "Spotify.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\Spotify.exe\" --type=renderer --no-pre-read-main-dll --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0\\LocalCache\\Spotify\" --log-severity=disable --user-agent-product=\"Chrome/146.0.7680.179 Spotify/1.2.94.583\" --autoplay-policy=no-user-gesture-required --enable-blink-features=DocumentPictureInPictureCefOptions --video-capture-use-gpu-memory-buffer --lang=en-US --device-scale-factor=1 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1784454485950837 --launch-time-ticks=316571536 --metrics-shmem-handle=7392,i,10514810644413178076,2662767862425639289,2097152 --field-trial-handle=2784,i,15440729532851964988,2040546759612780798,262144 --disable-features=AutofillActorMode,BackForwardCache,FullscreenBubbleShowOrigin,GlicActorUi,HardwareMediaKeyHandling,LensOverlay,PartitionAllocDanglingPtr,PartitionAllocUnretainedDanglingPtr,StorageNotificationService --variations-seed-version --pseudonymization-salt-handle=2788,i,8417357956263781772,1692066759707109782,4 --trace-process-track-uuid=3190708991934122588 --enable-logging=handle --log-file=7868 --mojo-platform-channel-handle=7864 /prefetch:1",
+        "parentPid": 13620,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4800,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12644,
+        "name": "Spotify.exe",
+        "commandLine": "\"C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.294.583.0_x64__zpdnekdrzrea0\\Spotify.exe\" --type=utility --utility-sub-type=media.mojom.CdmServiceBroker --lang=en-US --service-sandbox-type=cdm --video-capture-use-gpu-memory-buffer --no-pre-read-main-dll --user-data-dir=\"C:\\Users\\sleyt\\AppData\\Local\\Packages\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0\\LocalCache\\Spotify\" --log-severity=disable --user-agent-product=\"Chrome/146.0.7680.179 Spotify/1.2.94.583\" --metrics-shmem-handle=9004,i,12017925086503369999,13914683763755354155,524288 --field-trial-handle=2784,i,15440729532851964988,2040546759612780798,262144 --disable-features=AutofillActorMode,BackForwardCache,FullscreenBubbleShowOrigin,GlicActorUi,HardwareMediaKeyHandling,LensOverlay,PartitionAllocDanglingPtr,PartitionAllocUnretainedDanglingPtr,StorageNotificationService --variations-seed-version --pseudonymization-salt-handle=2788,i,8417357956263781772,1692066759707109782,4 --trace-process-track-uuid=3190708993808206286 --enable-logging=handle --log-file=9200 --mojo-platform-channel-handle=8828 /prefetch:14",
+        "parentPid": 13620,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11372,
+        "name": "tailscale-ipn.exe",
+        "commandLine": "\"C:\\Program Files\\Tailscale\\tailscale-ipn.exe\" ",
+        "parentPid": 9084,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21468,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21428,
+        "name": "backgroundTaskHost.exe",
+        "commandLine": "\"C:\\Windows\\system32\\backgroundTaskHost.exe\" -ServerName:Global.RulesEngine.AppXgphnekvm0vv49drvfehh4b6kyf6ckafp.mca",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19408,
+        "name": "ShellExperienceHost.exe",
+        "commandLine": "\"C:\\Windows\\SystemApps\\ShellExperienceHost_cw5n1h2txyewy\\ShellExperienceHost.exe\" -ServerName:App.AppXtk181tbxbce2qsex02s8tw7hfxa9xb3t.mca",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11312,
+        "name": "RuntimeBroker.exe",
+        "commandLine": "C:\\Windows\\System32\\RuntimeBroker.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4720,
+        "name": "cmd.exe",
+        "commandLine": "\"C:\\Windows\\system32\\cmd.exe\" /C set PATH=C:\\Users\\sleyt\\AppData\\Local\\Programs\\Ollama;%PATH% & \"C:\\Users\\sleyt\\AppData\\Local\\Programs\\Ollama\\ollama app.exe\"",
+        "parentPid": 8976,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5624,
+        "name": "conhost.exe",
+        "commandLine": "\\??\\C:\\Windows\\system32\\conhost.exe 0x4",
+        "parentPid": 4720,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21904,
+        "name": "ollama app.exe",
+        "commandLine": "\"C:\\Users\\sleyt\\AppData\\Local\\Programs\\Ollama\\ollama app.exe\"",
+        "parentPid": 4720,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 22052,
+        "name": "ollama.exe",
+        "commandLine": "C:\\Users\\sleyt\\AppData\\Local\\Programs\\Ollama\\ollama.exe serve",
+        "parentPid": 21904,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2616,
+        "name": "conhost.exe",
+        "commandLine": "\\??\\C:\\Windows\\system32\\conhost.exe 0x4",
+        "parentPid": 22052,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2804,
+        "name": "AppActions.exe",
+        "commandLine": "\"C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\AppActions.exe\" -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8624,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6288,
+        "name": "svchost.exe",
+        "commandLine": "C:\\Windows\\system32\\svchost.exe -k DevicesFlow -s DevicesFlowUserSvc",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 20396,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15512,
+        "name": "ShellHost.exe",
+        "commandLine": "\"C:\\Windows\\System32\\ShellHost.exe\"",
+        "parentPid": 7876,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14284,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1708,
+        "name": "WUDFHost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21800,
+        "name": "smartscreen.exe",
+        "commandLine": "C:\\Windows\\System32\\smartscreen.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21908,
+        "name": "WmiPrvSE.exe",
+        "commandLine": "",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5116,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4232,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8240,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14888,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --no-pre-read-main-dll --video-capture-use-gpu-memory-buffer --lang=es --device-scale-factor=1 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=19 --time-ticks-at-unix-epoch=-1784454485950836 --launch-time-ticks=6586622904 --metrics-shmem-handle=5700,i,4087644152106073140,3656958712574184531,2097152 --field-trial-handle=2040,i,17570866855878279246,15850889258059957320,262144 --variations-seed-version=20260718-030031.422000-production --pseudonymization-salt-handle=2060,i,4769729817268893766,18242681499055335047,4 --trace-process-track-uuid=3190709004115666625 --mojo-platform-channel-handle=3884 /prefetch:1",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 18948,
+        "name": "chrome.exe",
+        "commandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --no-pre-read-main-dll --video-capture-use-gpu-memory-buffer --lang=es --device-scale-factor=1 --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=20 --time-ticks-at-unix-epoch=-1784454485950836 --launch-time-ticks=6587055673 --metrics-shmem-handle=6588,i,14792476809782693438,17542977579930240663,2097152 --field-trial-handle=2040,i,17570866855878279246,15850889258059957320,262144 --variations-seed-version=20260718-030031.422000-production --pseudonymization-salt-handle=2060,i,4769729817268893766,18242681499055335047,4 --trace-process-track-uuid=3190709005052708474 --mojo-platform-channel-handle=4292 /prefetch:1",
+        "parentPid": 16060,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10352,
+        "name": "MoUsoCoreWorker.exe",
+        "commandLine": "",
+        "parentPid": 17372,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7428,
+        "name": "svchost.exe",
+        "commandLine": "",
+        "parentPid": 1388,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8452,
+        "name": "RuntimeBroker.exe",
+        "commandLine": "C:\\Windows\\System32\\RuntimeBroker.exe -Embedding",
+        "parentPid": 1572,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8060,
+        "name": "powershell.exe",
+        "commandLine": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.EXE -NoLogo -NoProfile -NonInteractive -Command \"Start-Process -WindowStyle Hidden -FilePath cmd -ArgumentList '/c ipconfig /flushdns'; Start-Sleep -Seconds 2; node scripts/record-session.js exfil-git-bundle 25 \\\"echo exfil-git-bundle... & git bundle create C:\\Users\\sleyt\\AppData\\Local\\Temp\\repo.bundle --all >nul 2>&1 & ping -n 15 127.0.0.1 >nul\\\" 2>&1 | Select-Object -Last 4\"",
+        "parentPid": 17300,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": [
+          "Suspicious command: git bundle",
+          "Suspicious command: ipconfig"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 17700,
+        "name": "conhost.exe",
+        "commandLine": "\\??\\C:\\Windows\\system32\\conhost.exe 0x4",
+        "parentPid": 8060,
+        "timestamp": "2026-07-19T11:42:49.701Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11984,
+        "name": "node.exe",
+        "commandLine": "\"C:\\Program Files\\nodejs\\node.exe\" scripts/record-session.js exfil-git-bundle 25 \"echo exfil-git-bundle... & git bundle create C:\\Users\\sleyt\\AppData\\Local\\Temp\\repo.bundle --all >nul 2>&1 & ping -n 15 127.0.0.1 >nul\"",
+        "parentPid": 8060,
+        "timestamp": "2026-07-19T11:42:49.702Z",
+        "riskIndicators": [
+          "Suspicious command: git bundle"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 5784,
+        "name": "cmd.exe",
+        "commandLine": "cmd.exe /c \"echo exfil-git-bundle... & git bundle create C:\\Users\\sleyt\\AppData\\Local\\Temp\\repo.bundle --all >nul 2>&1 & ping -n 15 127.0.0.1 >nul\"",
+        "parentPid": 11984,
+        "timestamp": "2026-07-19T11:42:49.702Z",
+        "riskIndicators": [
+          "Suspicious command: git bundle"
+        ]
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21996,
+        "name": "node.exe",
+        "commandLine": "node dist/cli/main.js network record 25 --profile exfil-git-bundle",
+        "parentPid": 11984,
+        "timestamp": "2026-07-19T11:42:49.702Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11684,
+        "name": "conhost.exe",
+        "commandLine": "\\??\\C:\\Windows\\system32\\conhost.exe 0x4",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:49.702Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14356,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:49.702Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 19900,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 14356,
+        "timestamp": "2026-07-19T11:42:49.702Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10816,
+        "name": "PING.EXE",
+        "commandLine": "ping  -n 15 127.0.0.1 ",
+        "parentPid": 5784,
+        "timestamp": "2026-07-19T11:42:49.702Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 22420,
+        "name": "powershell.exe",
+        "commandLine": "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"$seen = New-Object System.Collections.Generic.HashSet[int]\nwhile($true) {\n  try {\n    $procs = Get-CimInstance Win32_Process -Filter \\\"Name='git.exe'\\\" -ErrorAction Stop\n    foreach($p in $procs) {\n      if($p.ProcessId -and $seen.Add($p.ProcessId)) {\n        $o = [PSCustomObject]@{ ProcessId=$p.ProcessId; Name=$p.Name; CommandLine=$p.CommandLine }\n        $o | ConvertTo-Json -Compress\n      }\n    }\n  } catch {}\n  Start-Sleep -Milliseconds 100\n}\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:53.042Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12080,
+        "name": "conhost.exe",
+        "commandLine": "\\??\\C:\\Windows\\system32\\conhost.exe 0x4",
+        "parentPid": 22420,
+        "timestamp": "2026-07-19T11:42:53.042Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8792,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:53.042Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 2932,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 8792,
+        "timestamp": "2026-07-19T11:42:53.042Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21656,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:54.346Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9564,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 21656,
+        "timestamp": "2026-07-19T11:42:54.346Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 7984,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:55.792Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 336,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 7984,
+        "timestamp": "2026-07-19T11:42:55.792Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 20956,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:57.134Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10128,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 20956,
+        "timestamp": "2026-07-19T11:42:57.134Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21396,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:58.429Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9848,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 21396,
+        "timestamp": "2026-07-19T11:42:58.429Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16996,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:42:59.627Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 4348,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 16996,
+        "timestamp": "2026-07-19T11:42:59.627Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 18808,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:01.033Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6248,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 18808,
+        "timestamp": "2026-07-19T11:43:01.033Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3808,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:02.272Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11416,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 3808,
+        "timestamp": "2026-07-19T11:43:02.272Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 12668,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:03.619Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 9148,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 12668,
+        "timestamp": "2026-07-19T11:43:03.619Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 21728,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:04.922Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 22004,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 21728,
+        "timestamp": "2026-07-19T11:43:04.922Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13980,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:06.245Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 1556,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 13980,
+        "timestamp": "2026-07-19T11:43:06.245Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 11700,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:07.427Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 14524,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 11700,
+        "timestamp": "2026-07-19T11:43:07.427Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15668,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:08.847Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3096,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 15668,
+        "timestamp": "2026-07-19T11:43:08.847Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 15544,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:10.073Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10072,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 15544,
+        "timestamp": "2026-07-19T11:43:10.073Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 20344,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:11.388Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13244,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 20344,
+        "timestamp": "2026-07-19T11:43:11.388Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13292,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:12.693Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 3304,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 13292,
+        "timestamp": "2026-07-19T11:43:12.693Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 16440,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:14.009Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6284,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 16440,
+        "timestamp": "2026-07-19T11:43:14.009Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 10616,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:15.223Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 22308,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 10616,
+        "timestamp": "2026-07-19T11:43:15.223Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13160,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:16.628Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 13208,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 13160,
+        "timestamp": "2026-07-19T11:43:16.628Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 6572,
+        "name": "cmd.exe",
+        "commandLine": "C:\\Windows\\system32\\cmd.exe /d /s /c \"powershell -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"\"",
+        "parentPid": 21996,
+        "timestamp": "2026-07-19T11:43:17.903Z",
+        "riskIndicators": []
+      }
+    },
+    {
+      "type": "process",
+      "data": {
+        "pid": 8788,
+        "name": "powershell.exe",
+        "commandLine": "powershell  -NoProfile -Command \"Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine, ParentProcessId, ExecutablePath | ConvertTo-JSON\"",
+        "parentPid": 6572,
+        "timestamp": "2026-07-19T11:43:17.903Z",
+        "riskIndicators": []
+      }
+    }
+  ]
+}

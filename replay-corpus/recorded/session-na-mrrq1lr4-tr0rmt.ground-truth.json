@@ -1,0 +1,8 @@
+{
+  "profileId": "exfil-gist",
+  "expectedRisk": "CRITICAL",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

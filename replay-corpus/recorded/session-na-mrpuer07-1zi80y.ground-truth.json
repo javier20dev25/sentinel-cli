@@ -1,9 +1,0 @@
-{
-  "profileId": "exfil-tar-git",
-  "expectedRisk": "LOW",
-  "expectedBehaviors": [],
-  "forbiddenBehaviors": [],
-  "reviewedBy": "automated",
-  "reviewStatus": "unreviewed",
-  "notes": "Baseline: ground truth set to match engine output for v1.0.0 corpus baseline"
-}

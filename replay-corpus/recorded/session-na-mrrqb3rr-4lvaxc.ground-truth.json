@@ -1,0 +1,8 @@
+{
+  "profileId": "exfil-tar-git",
+  "expectedRisk": "CRITICAL",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

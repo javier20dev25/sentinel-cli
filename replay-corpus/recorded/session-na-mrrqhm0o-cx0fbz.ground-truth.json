@@ -1,0 +1,8 @@
+{
+  "profileId": "claude-code",
+  "expectedRisk": "MEDIUM",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

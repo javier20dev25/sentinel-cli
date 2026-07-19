@@ -1,0 +1,8 @@
+{
+  "profileId": "read-env",
+  "expectedRisk": "MEDIUM",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

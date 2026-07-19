@@ -1,0 +1,8 @@
+{
+  "profileId": "read-git",
+  "expectedRisk": "MEDIUM",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

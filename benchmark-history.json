@@ -1,7 +1,7 @@
 [
   {
     "engineVersion": "1.0.0",
-    "timestamp": "2026-07-18T04:42:37.979Z",
+    "timestamp": "2026-07-18T23:03:06.226Z",
     "calibrated": {
       "passed": 39,
       "total": 39,
@@ -28,22 +28,22 @@
       }
     ],
     "replay": {
-      "accuracy": 1,
+      "accuracy": 0.5,
       "precision": 1,
-      "recall": 1,
-      "f1": 1,
+      "recall": 0.07142857142857142,
+      "f1": 0.13333333333333333,
       "fpr": 0,
-      "fnr": 0,
+      "fnr": 0.9285714285714286,
       "tp": 1,
       "fp": 0,
-      "tn": 25,
-      "fn": 0,
-      "latencyAvgMs": 0.8,
-      "latencyP50Ms": 1,
-      "latencyP95Ms": 2,
-      "latencyP99Ms": 4,
-      "latencyMaxMs": 4,
-      "latencyStdDevMs": 0.8
+      "tn": 12,
+      "fn": 13,
+      "latencyAvgMs": 0.5,
+      "latencyP50Ms": 0,
+      "latencyP95Ms": 1,
+      "latencyP99Ms": 2,
+      "latencyMaxMs": 2,
+      "latencyStdDevMs": 0.6
     }
   }
 ]

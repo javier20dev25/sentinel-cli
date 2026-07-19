@@ -1,0 +1,8 @@
+{
+  "profileId": "exfil-pastebin",
+  "expectedRisk": "CRITICAL",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

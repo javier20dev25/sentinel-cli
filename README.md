@@ -79,6 +79,120 @@ Connect from any MCP-compatible agent (Claude Desktop, Cursor, Cline, etc.).
 | `sentinel install-skills` | Install skills for AI coding agents |
 | `sentinel mcp` | Start MCP server (17 tools) for agent integration |
 
+## Network Auditor
+
+The Network Auditor subsystem monitors AI agent activity to detect repository exfiltration, data collection, and evasion behaviors. It operates as a local audit pipeline with zero telemetry transmission.
+
+### Capabilities
+
+- **Process monitoring** — Detects AI coding agents (Claude Code, Cursor, Copilot, etc.) and suspicious process chains
+- **Git command detection** — Continuous monitoring of git operations (clone, fetch, push, bundle, archive, pack-objects, rev-list, log, grep, etc.)
+- **File access analysis** — Mass read detection, embedding pattern identification, secret file access monitoring
+- **Anti-evasion detection** — 8 signal types: artificial rhythm, fragmented traffic, protocol hopping, custom compression, monitor awareness, memory-only operations, distributed chains, no temporary files
+- **Evidence chain correlation** — 4 chain types: repository exfiltration, pre-operational snapshot, full snapshot transfer, AI embedding
+- **Canary system** — Decoy files, fake secrets, contaminated git history with unique markers
+- **Risk assessment** — Configurable weights, contextual multipliers, 4-level scoring (LOW / MEDIUM / HIGH / CRITICAL)
+
+### CLI Usage
+
+```
+sentinel network start                     Start a live audit session
+sentinel network stop                      Stop and produce verdict
+sentinel network status                    Current session status
+sentinel network history -l <N>            Last N sessions
+sentinel network session <id>              Full session detail
+sentinel network export <id> --format fmt  Export session (json|markdown)
+```
+
+Full reference: [docs/NETWORK_AUDITOR.md](./docs/NETWORK_AUDITOR.md)
+
+## Session Recording and Replay
+
+Sentinel can record real OS sessions (process events, git commands, file accesses) and replay them through the detection pipeline for benchmarking and regression testing.
+
+### Recording
+
+```bash
+# Record a 30-second session
+node scripts/record-session.js git-clone 30 "cd /tmp && git clone https://github.com/expressjs/express"
+
+# Record using canonical profile
+sentinel network record 30 --profile git-clone
+```
+
+Recorded sessions are saved as `replay-corpus/recorded/session-<id>.json` with companion `.ground-truth.json` files containing expected risk level and behaviors.
+
+### Replay
+
+```bash
+# Replay a single session
+sentinel network replay run replay-corpus/recorded/session-<id>.json
+
+# Run full campaign on all recorded sessions
+sentinel network replay campaign replay-corpus/recorded
+
+# Compare baseline vs current results
+sentinel network replay diff replay-corpus/recorded-baseline replay-corpus/recorded
+```
+
+### Architecture
+
+```
+record-session.js
+  └── Starts PowerShell process monitor + git detector
+       └── Runs target workload (git clone, npm install, etc.)
+            └── Saves session + ground truth
+                 └── ReplayEngine replays through NetworkAuditPipeline
+                      └── Verdict: risk score, behaviors, confidence
+```
+
+## Canonical Corpus
+
+Sentinel defines 31 canonical session profiles spanning 4 categories:
+
+| Category    | Count | Profiles |
+|-------------|-------|----------|
+| Benign      | 16    | git-clone, git-fetch, git-pull, git-rebase, git-push, git-log, git-status, git-diff, npm-install, npm-test, cargo-build, go-mod-download, docker-build, docker-pull, terraform-plan, terraform-apply |
+| IA          | 4     | cursor-edit, cursor-refactor, copilot-chat, claude-code |
+| Suspicious  | 5     | grep-secrets, read-env, read-git, read-ssh, mass-file-read |
+| Malicious   | 6     | exfil-pastebin, exfil-gist, exfil-discord, exfil-dns, exfil-git-bundle, exfil-tar-git |
+
+Profiles that require specific tools (Docker, Go, Terraform) are marked with `requires` metadata and excluded from effective coverage when the tool is unavailable.
+
+### Corpus Coverage
+
+```bash
+sentinel network corpus coverage replay-corpus
+```
+
+Reports captured vs missing profiles, environment-dependent profiles, effective coverage, and category breakdown.
+
+## CI Gate
+
+The CI gate (`src/ci-gate.ts`) runs a full evaluation across 5 validation layers:
+
+1. **Calibrated corpus** — 39 synthetic scenarios (threshold: 100%)
+2. **Blind corpus #1** — 15 independent scenarios (threshold: 60%)
+3. **Blind corpus #2** — 14 frozen-engine scenarios (threshold: 60%)
+4. **Blind corpus #3** — 14 policy-frozen scenarios (threshold: 60%)
+5. **Replay corpus** — Recorded sessions with ground truth (thresholds: accuracy >= 75%, recall >= 95%, FPR <= 70%, FNR <= 5%)
+
+```bash
+node dist/ci-gate.js
+```
+
+Exit code 0 = all gates pass. Exit code 1 = regression detected.
+
+## Benchmark History
+
+Each CI gate run records a benchmark entry to `benchmark-history.json`:
+
+```
+sentinel network benchmark history
+```
+
+Benchmark entries include per-corpus pass rates, replay metrics (accuracy, precision, recall, F1, FPR, FNR), and latency distribution (P50, P95, P99, max, standard deviation). A delta table compares the current entry against the previous version across all metrics.
+
 ## Sentinels Core
 
 - **LiteScanner** — 30 SAST rules: secrets, eval, network, env access, command injection, SQLi, prototype pollution, crypto misuse
@@ -105,18 +219,45 @@ sentinel/
 │       ├── gemini/       # GEMINI.md
 │       └── codex/        # CODEX.md
 ├── docs/
-│   ├── SKILLS.md         # Skills system documentation
-│   └── TRUST_MODEL.md    # Evidence trust hierarchy
+│   ├── NETWORK_AUDITOR.md  # Network auditor full documentation
+│   ├── SKILLS.md           # Skills system documentation
+│   └── TRUST_MODEL.md      # Evidence trust hierarchy
 ├── src/
 │   ├── cli/              # CLI commands + intelligence modules
 │   │   ├── main.ts       # Commander entry point
 │   │   ├── install-skills.ts  # Skills installer
-│   │   └── intelligence/ # Signal vault, integrity, baselines
+│   │   ├── intelligence/ # Signal vault, integrity, baselines
+│   │   └── network/      # Network auditor CLI layer
+│   │       ├── auditor.ts # Session lifecycle, orchestration
+│   │       ├── process-monitor.ts
+│   │       ├── git-detector.ts
+│   │       ├── corpus-coverage.ts
+│   │       └── session-recorder.ts
 │   ├── mcp/              # Standalone MCP server (extracted from Oracle)
 │   │   └── server.ts     # 17-tool MCP protocol server
 │   ├── core/lite/        # LiteScanner SAST engine
+│   ├── core/network/     # Network auditor core
+│   │   ├── pipeline.ts         # Event orchestration
+│   │   ├── behavior-engine.ts  # 8 classifiers
+│   │   ├── risk-engine.ts      # Risk scoring
+│   │   ├── anti-evasion-engine.ts
+│   │   ├── evidence-chain.ts
+│   │   ├── canary-system.ts
+│   │   ├── replay-engine.ts    # Deterministic replay
+│   │   ├── evaluator.ts        # Benchmark evaluation
+│   │   ├── benchmark-history.ts
+│   │   ├── canonical-sessions.ts # 31 profiles
+│   │   └── types.ts            # 35+ interfaces
+│   ├── ci-gate.ts        # Regression gate (5 layers)
 │   ├── install-skills.sh # Unix standalone installer
 │   └── install-skills.ps1 # Windows standalone installer
+├── replay-corpus/        # Session corpus
+│   ├── corpus-version.json   # Version metadata
+│   ├── recorded/             # Real recorded sessions
+│   └── synthetic/            # Synthetic scenarios + ground truth
+├── benchmark-history.json    # Versioned benchmark entries
+└── scripts/
+    └── record-session.js     # Session acquisition script
 ```
 
 ## Sentinel Oracle

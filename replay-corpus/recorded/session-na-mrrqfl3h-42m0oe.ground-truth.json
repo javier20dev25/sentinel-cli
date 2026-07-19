@@ -1,0 +1,8 @@
+{
+  "profileId": "cursor-refactor",
+  "expectedRisk": "MEDIUM",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

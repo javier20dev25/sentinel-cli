@@ -1,0 +1,8 @@
+{
+  "profileId": "exfil-discord",
+  "expectedRisk": "CRITICAL",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

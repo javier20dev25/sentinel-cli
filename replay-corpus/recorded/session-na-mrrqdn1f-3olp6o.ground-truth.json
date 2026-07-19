@@ -1,0 +1,8 @@
+{
+  "profileId": "cursor-edit",
+  "expectedRisk": "MEDIUM",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

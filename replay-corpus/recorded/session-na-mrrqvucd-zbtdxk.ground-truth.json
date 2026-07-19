@@ -1,0 +1,8 @@
+{
+  "profileId": "mass-file-read",
+  "expectedRisk": "HIGH",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

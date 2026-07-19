@@ -1,8 +1,9 @@
 {
   "version": "1.0.0",
-  "recordedAt": "2026-07-18T04:43:23.245Z",
+  "recordedAt": "2026-07-18T23:02:10.813Z",
   "sentinelVersion": "1.0.0",
   "recordingProtocol": "v1",
+  "corpusVersion": "v1.0.0",
   "profiles": {
     "total": 31,
     "captured": 26,
@@ -36,5 +37,250 @@
       "captured": 6,
       "unavailable": 0
     }
-  }
+  },
+  "sessions": [
+    {
+      "id": "mrpnulxj-31aao6",
+      "profile": "git-status",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrpnxmhi-pz76p1",
+      "profile": "git-push",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrptjyte-d5gl8j",
+      "profile": "npm-install",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrptsm6v-gxrm6n",
+      "profile": "npm-test",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrptvj4r-iv2gqq",
+      "profile": "cargo-build",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrptxxeq-upo6yu",
+      "profile": "git-log",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrptzkgw-5k4fqc",
+      "profile": "git-diff",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrqvueev-4rzntm",
+      "profile": "git-fetch",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrqvvxap-zl5idi",
+      "profile": "git-clone",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrqvxlpa-ph1tfb",
+      "profile": "git-pull",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrqvz515-w7ny84",
+      "profile": "git-rebase",
+      "category": "benign",
+      "risk": "LOW",
+      "behaviors": []
+    },
+    {
+      "id": "mrqwfm3p-ymjsgk",
+      "profile": "cursor-edit",
+      "category": "ia",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqwh9ia-nhn1po",
+      "profile": "cursor-refactor",
+      "category": "ia",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqwiuh8-4f3bfc",
+      "profile": "copilot-chat",
+      "category": "ia",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqwkhg8-gtrh98",
+      "profile": "claude-code",
+      "category": "ia",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqx0qzf-cz8s56",
+      "profile": "exfil-discord",
+      "category": "malicious",
+      "risk": "LOW",
+      "behaviors": [
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious"
+      ]
+    },
+    {
+      "id": "mrqx51dk-xt27wz",
+      "profile": "grep-secrets",
+      "category": "suspicious",
+      "risk": "LOW",
+      "behaviors": [
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious",
+        "dns_suspicious"
+      ]
+    },
+    {
+      "id": "mrqx8dil-hery6b",
+      "profile": "read-git",
+      "category": "suspicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqxbjy6-v45x9n",
+      "profile": "mass-file-read",
+      "category": "suspicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqxdbh5-l6l38i",
+      "profile": "exfil-pastebin",
+      "category": "malicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqxezaq-t2gzjj",
+      "profile": "exfil-gist",
+      "category": "malicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqxgmsf-ubfcp6",
+      "profile": "exfil-dns",
+      "category": "malicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqy5e4l-dxygl6",
+      "profile": "read-env",
+      "category": "suspicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqy75sq-btttzy",
+      "profile": "read-ssh",
+      "category": "suspicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    },
+    {
+      "id": "mrqy8wb6-til8p4",
+      "profile": "exfil-git-bundle",
+      "category": "malicious",
+      "risk": "CRITICAL",
+      "behaviors": [
+        "git_bundle_created",
+        "full_repo_snapshot"
+      ]
+    },
+    {
+      "id": "mrqyarx1-4h4zij",
+      "profile": "exfil-tar-git",
+      "category": "malicious",
+      "risk": "LOW",
+      "behaviors": [
+        "process_suspicious"
+      ]
+    }
+  ]
 }

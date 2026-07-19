@@ -24,7 +24,8 @@ const SENSITIVE_GIT_COMMANDS = [
 const PREPARATION_GIT_COMMANDS = [
   'git cat-file', 'git rev-list', 'git ls-tree',
   'git count-objects', 'git show-ref', 'git for-each-ref',
-  'git diff --cached', 'git stash list'
+  'git diff --cached', 'git stash list', 'git stash',
+  'git bundle list-heads'
 ];
 
 const SUSPICIOUS_HOST_PATTERNS = [
@@ -33,17 +34,18 @@ const SUSPICIOUS_HOST_PATTERNS = [
   '.cloud.google.com', 's3.amazonaws.com',
   '.githubcopilot.com', '.cursor.sh', '.claude.ai',
   'api.github.com',
-  'pastebin.com', 'transfer.sh', 'file.io', 'mega.nz', 'gist.github.com'
+  'pastebin.com', 'transfer.sh', 'file.io', 'mega.nz', 'gist.github.com',
+  'discord.com', 'httpbin.org', 'webhook.site', 'requestbin.com',
+  'pipedream.com', 'ngrok.io', 'hookbin.com',
+  'beacon.this', 'canarytokens.com',
 ];
 
-// Paths that indicate a prompt/completion call to an AI API (Fix C — minimal)
 export const AI_PROMPT_API_PATHS = [
   '/v1/chat/completions', '/v1/messages', '/v1/complete',
   '/v1/completions', '/api/generate', '/api/chat',
   '/v1/responses', '/chat/completions',
 ];
 
-// Sensitive file path fragments that indicate credential/secret access (Fix B — minimal)
 const SECRET_PATH_FRAGMENTS = [
   '.env', 'secrets', 'credentials', 'api_key', 'private_key',
   '.pem', '.p12', '.pfx', 'password', 'passwd',
@@ -51,7 +53,6 @@ const SECRET_PATH_FRAGMENTS = [
   '.npmrc', '.netrc',
 ];
 
-// Command fragments that indicate the process is checking for monitoring tools (Fix E — minimal)
 const MONITOR_DETECTION_COMMANDS = [
   'procexp', 'wireshark', 'tcpview', 'process monitor', 'processmonitor',
   'sentinel', 'debugger', 'isdebuggerpresent', 'checkremotedebugger',
@@ -73,7 +74,6 @@ export function classifyFlow(flow: NetworkFlow): Behavior | null {
       type = 'code_upload';
       evidence.push(`Large upload (${(flow.bytesSent / 1024 / 1024).toFixed(1)} MB) to ${flow.hostname}`);
     } else if (isAiPromptPath) {
-      // Fix C: known AI host + known prompt path → ai_prompt_sent
       type = 'ai_prompt_sent';
       evidence.push(`AI prompt API call: ${flow.method ?? 'POST'} ${flow.path} → ${flow.hostname}`);
     } else {
@@ -81,7 +81,6 @@ export function classifyFlow(flow: NetworkFlow): Behavior | null {
       evidence.push(`Connection to AI/cloud host: ${flow.hostname}`);
     }
   } else if (isAiPromptPath) {
-    // Fix C: unknown host but the path is a recognized AI API endpoint
     type = flow.bytesSent > 50 * 1024 ? 'code_upload' : 'ai_prompt_sent';
     const label = flow.bytesSent > 50 * 1024
       ? `Large payload (${(flow.bytesSent / 1024).toFixed(0)} KB) to AI API path`
@@ -166,7 +165,8 @@ export function classifyCanaryEvent(
 }
 
 const PREPARATION_SYSTEM_COMMANDS = [
-  'whoami', 'ipconfig', 'netstat', 'hostname', 'arp', 'route', 'systeminfo'
+  'whoami', 'ipconfig', 'netstat', 'hostname', 'arp', 'route', 'systeminfo',
+  'nslookup',
 ];
 
 export function classifyPreparationCommands(proc: ProcessEvent): Behavior | null {
@@ -177,8 +177,7 @@ export function classifyPreparationCommands(proc: ProcessEvent): Behavior | null
       return {
         id: generateId(),
         sessionId: '',
-        // Fix D: emit 'preparation_detected' — the type scenarios expect.
-        // 'pre_operational_snapshot_detected' is reserved for evidence chain results.
+          // 'pre_operational_snapshot_detected' is reserved for evidence chain results.
         type: 'preparation_detected',
         confidence: 0.8,
         evidence: [`Preparation command: ${prepCmd}`],
@@ -199,7 +198,15 @@ export function classifyProcess(proc: ProcessEvent): Behavior | null {
   const nameLower = proc.name.toLowerCase();
 
   // Skip Sentinel's own acquisition infrastructure to avoid self-detection false positives
-  if (cmdLower.includes('dist/cli/main.js') || cmdLower.includes('scripts/record-session.js')) {
+  // Use nameLower check to avoid skipping parent shell processes whose command line
+  // references the recorder but are not themselves the recorder (e.g. powershell.exe launching node)
+  if (nameLower.includes('node.exe') && (cmdLower.includes('dist/cli/main.js') || cmdLower.includes('scripts/record-session.js'))) {
+    return null;
+  }
+
+  // Skip legitimate system processes that happen to have AI-adjacent names
+  // (e.g. Microsoft Copilot proxy service is a system component, not an adversarial AI agent)
+  if (nameLower.includes('mscopilot') || cmdLower.includes('\\microsoft\\copilot\\')) {
     return null;
   }
 
@@ -212,7 +219,6 @@ export function classifyProcess(proc: ProcessEvent): Behavior | null {
     type = 'process_suspicious';
   }
 
-  // Fix E (minimal): detect monitor/debugger awareness checks via process name or command line.
   // Only applies to non-AI-agent processes to avoid false positives on IDE internals.
   // Single-word patterns match as standalone tokens (avoiding 'sentinel' in 'sentinel-cli').
   // Multi-word patterns use exact substring match (they're specific enough to avoid FPs).
@@ -251,6 +257,24 @@ export function classifyProcess(proc: ProcessEvent): Behavior | null {
       type = gitAction as BehaviorType;
       evidence.push(`Suspicious git command: ${gitCmd}`);
     }
+  }
+
+  // Detect curl sending data (--data-binary, -d, --data, -F, -T)
+  if (cmdLower.includes('curl') && /--data-binary|-(?:d|f|t)\b|--data(?:-raw)?\b|--upload-file\b/.test(cmdLower)) {
+    type = 'code_upload';
+    evidence.push(`Data upload via curl: ${proc.commandLine.substring(0, 160)}`);
+  }
+
+  // Detect DNS tunneling via nslookup TXT queries
+  if (cmdLower.includes('nslookup') && (cmdLower.includes('-type=txt') || cmdLower.includes('-t=txt') || /nslookup\s+.*\.(?:attacker|exfil|tunnel)/i.test(cmdLower))) {
+    type = 'dns_suspicious';
+    evidence.push(`DNS tunneling via nslookup: ${proc.commandLine.substring(0, 160)}`);
+  }
+
+  // Detect tar archiving .git directory
+  if (cmdLower.includes('tar') && cmdLower.includes('.git') && (cmdLower.includes('-czf') || cmdLower.includes('-zcf') || cmdLower.includes('--create'))) {
+    type = 'git_archive_created';
+    evidence.push(`Git archive via tar: ${proc.commandLine.substring(0, 160)}`);
   }
 
   if (!type) return null;
@@ -297,8 +321,7 @@ export function classifyFileAccess(access: FileAccessEvent): Behavior | null {
     });
   }
 
-  // Fix B (minimal): detect access to sensitive credential/secret files.
-  // We only classify if no stronger git-related type was already set,
+  // Only classify if no stronger git-related type was already set,
   // so git object reads are not downgraded to secrets_scanned.
   if (!type && SECRET_PATH_FRAGMENTS.some(f => pathLower.includes(f))) {
     type = 'secrets_scanned';

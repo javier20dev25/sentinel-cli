@@ -1,0 +1,8 @@
+{
+  "profileId": "exfil-dns",
+  "expectedRisk": "CRITICAL",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

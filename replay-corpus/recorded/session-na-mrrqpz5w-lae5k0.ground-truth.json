@@ -1,0 +1,8 @@
+{
+  "profileId": "read-ssh",
+  "expectedRisk": "HIGH",
+  "expectedBehaviors": [],
+  "forbiddenBehaviors": [],
+  "reviewedBy": "automated",
+  "reviewStatus": "unreviewed"
+}

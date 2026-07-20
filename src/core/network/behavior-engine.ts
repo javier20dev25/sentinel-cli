@@ -220,15 +220,36 @@ export function classifyProcess(proc: ProcessEvent): Behavior | null {
   }
 
   // Check for monitor termination attempts (must precede monitor_awareness check)
+  // Properly parses the target PID from the command arguments and compares it
+  // to the actual Sentinel process PID, avoiding false positives from substring
+  // matches or unrelated kill commands.
   if (!type) {
     const sentinelPid = process.pid;
-    if (
-      cmdLower.includes('taskkill') || cmdLower.includes('stop-process') || cmdLower.includes('wmic process')
-    ) {
-      const targetsSentinel = cmdLower.includes('sentinel') || cmdLower.includes(String(sentinelPid));
+    const isKillCmd = cmdLower.includes('taskkill') || cmdLower.includes('stop-process') || cmdLower.includes('wmic process');
+
+    if (isKillCmd) {
+      let targetsSentinel = false;
+
+      // Match by name: taskkill /IM sentinel*, Stop-Process -Name sentinel, wmic ... name="sentinel*"
+      if (cmdLower.includes('sentinel')) {
+        targetsSentinel = true;
+      }
+
+      // Match by PID argument: extract the target PID from the command and compare
+      // taskkill /PID <N>  |  Stop-Process -Id <N>  |  wmic ... ProcessId=<N>
+      if (!targetsSentinel) {
+        const pidMatch = cmdLower.match(/(?:\/pid\s+|processid\s*=\s*|-id\s+|-instanceid\s+)(\d+)/i);
+        if (pidMatch) {
+          const targetPid = parseInt(pidMatch[1], 10);
+          if (targetPid === sentinelPid) {
+            targetsSentinel = true;
+          }
+        }
+      }
+
       if (targetsSentinel) {
         type = 'monitor_disabled';
-        evidence.push(`Monitor termination attempt detected: command targets sentinel process`);
+        evidence.push(`Monitor termination attempt detected: command targets sentinel process (PID ${sentinelPid})`);
       }
     }
   }

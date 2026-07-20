@@ -79,19 +79,30 @@ Connect from any MCP-compatible agent (Claude Desktop, Cursor, Cline, etc.).
 | `sentinel install-skills` | Install skills for AI coding agents |
 | `sentinel mcp` | Start MCP server (17 tools) for agent integration |
 
-## Network Auditor
+## Behavior-based Network & Process Monitoring
 
-The Network Auditor subsystem monitors AI agent activity to detect repository exfiltration, data collection, and evasion behaviors. It operates as a local audit pipeline with zero telemetry transmission.
+Sentinel CLI includes a behavior-based monitoring engine designed to detect repository exfiltration attempts by correlating process execution, Git activity, network connections and DNS events.
 
-### Capabilities
+Unlike traditional traffic inspection tools (such as HTTP proxies like mitmproxy) which intercept and display request contents, Sentinel focuses on reconstructing behavioral chains from multiple telemetry sources — processes spawned, Git commands executed, connections established, and DNS queries resolved. This approach detects the *shape* of an exfiltration workflow (preparation → packaging → transfer) regardless of the specific tools or protocols used.
 
-- **Process monitoring** — Detects AI coding agents (Claude Code, Cursor, Copilot, etc.) and suspicious process chains
-- **Git command detection** — Continuous monitoring of git operations (clone, fetch, push, bundle, archive, pack-objects, rev-list, log, grep, etc.)
-- **File access analysis** — Mass read detection, embedding pattern identification, secret file access monitoring
-- **Anti-evasion detection** — 8 signal types: artificial rhythm, fragmented traffic, protocol hopping, custom compression, monitor awareness, memory-only operations, distributed chains, no temporary files
-- **Evidence chain correlation** — 4 chain types: repository exfiltration, pre-operational snapshot, full snapshot transfer, AI embedding
-- **Canary system** — Decoy files, fake secrets, contaminated git history with unique markers
-- **Risk assessment** — Configurable weights, contextual multipliers, 4-level scoring (LOW / MEDIUM / HIGH / CRITICAL)
+The engine is particularly aimed at scenarios involving AI coding assistants and development agents, where conventional network inspection may not capture the full picture:
+
+- A `git bundle` created and transmitted via HTTPS may look like normal traffic to a proxy.
+- Exfiltration via DNS tunneling or split across multiple protocols leaves no single packet to inspect.
+- Preparation commands (`git rev-list`, `git cat-file`) produce no network traffic at all.
+
+Sentinel observes all these layers simultaneously and evaluates risk based on what combination of behaviors appears and in what sequence.
+
+### Telemetry Sources
+
+| Source | Mechanism | Coverage |
+|---|---|---|
+| Process monitor | WMI polling (100ms) | Process creation, command lines, parent-child chains |
+| Git detector | WMI polling (100ms) | Git actions classified by type (bundle, archive, push, rev-list, log, etc.) |
+| Connection inspector | `netstat -ano` (500ms) | TCP connections to external hosts, port/service identification |
+| DNS observer | `ipconfig /displaydns` (2000ms) | DNS queries matching known AI/exfiltration domains |
+
+See [docs/behavior-engine.md](./docs/behavior-engine.md) for the complete classifier reference and [docs/risk-engine.md](./docs/risk-engine.md) for risk scoring details.
 
 ### CLI Usage
 
@@ -104,47 +115,38 @@ sentinel network session <id>              Full session detail
 sentinel network export <id> --format fmt  Export session (json|markdown)
 ```
 
-Full reference: [docs/NETWORK_AUDITOR.md](./docs/NETWORK_AUDITOR.md)
+### Behavior Detection Reference
 
-## Session Recording and Replay
+| Behavior | Trigger | Source |
+|---|---|---|
+| `code_upload` | HTTP POST to AI/exfiltration host with payload | Network + Process |
+| `git_bundle_created` | `git bundle create` executed | Process + Git |
+| `git_archive_created` | `git archive` or `tar` + `.git` | Process + Git |
+| `dns_suspicious` | DNS query to AI/exfiltration domain | DNS + Process |
+| `preparation_detected` | Recon commands (whoami, nslookup, git rev-list, etc.) | Process |
+| `process_suspicious` | AI agent process detected | Process |
+| `full_repo_snapshot` | `git push --mirror` or `--all --force` | Git |
 
-Sentinel can record real OS sessions (process events, git commands, file accesses) and replay them through the detection pipeline for benchmarking and regression testing.
+Full documentation: [docs/NETWORK_AUDITOR.md](./docs/NETWORK_AUDITOR.md)
+Architecture overview: [docs/architecture.md](./docs/architecture.md)
+Known limitations: [docs/limitations.md](./docs/limitations.md)
 
-### Recording
+### Session Recording and Replay
+
+The recording subsystem captures real OS sessions (process events, git commands, file accesses) for offline replay and benchmarking.
 
 ```bash
 # Record a 30-second session
 node scripts/record-session.js git-clone 30 "cd /tmp && git clone https://github.com/expressjs/express"
 
-# Record using canonical profile
-sentinel network record 30 --profile git-clone
-```
-
-Recorded sessions are saved as `replay-corpus/recorded/session-<id>.json` with companion `.ground-truth.json` files containing expected risk level and behaviors.
-
-### Replay
-
-```bash
-# Replay a single session
+# Replay through pipeline
 sentinel network replay run replay-corpus/recorded/session-<id>.json
 
 # Run full campaign on all recorded sessions
 sentinel network replay campaign replay-corpus/recorded
-
-# Compare baseline vs current results
-sentinel network replay diff replay-corpus/recorded-baseline replay-corpus/recorded
 ```
 
-### Architecture
-
-```
-record-session.js
-  └── Starts PowerShell process monitor + git detector
-       └── Runs target workload (git clone, npm install, etc.)
-            └── Saves session + ground truth
-                 └── ReplayEngine replays through NetworkAuditPipeline
-                      └── Verdict: risk score, behaviors, confidence
-```
+15 sessions are included in `replay-corpus/recorded/`: 6 exfiltration profiles (all scoring CRITICAL) and 9 benign profiles. See [docs/replay-system.md](./docs/replay-system.md) and [docs/corpus.md](./docs/corpus.md).
 
 ## Canonical Corpus
 
@@ -219,7 +221,17 @@ sentinel/
 │       ├── gemini/       # GEMINI.md
 │       └── codex/        # CODEX.md
 ├── docs/
-│   ├── NETWORK_AUDITOR.md  # Network auditor full documentation
+│   ├── NETWORK_AUDITOR.md  # Network auditor full documentation v2
+│   ├── architecture.md     # Pipeline architecture overview
+│   ├── behavior-engine.md  # Behavior classifiers reference
+│   ├── risk-engine.md      # Risk scoring system
+│   ├── network-monitor.md  # Sensor implementation details
+│   ├── recording-guide.md  # Session recording guide
+│   ├── replay-system.md    # Replay engine and campaign system
+│   ├── corpus.md           # Corpus v1.0 description
+│   ├── ground-truth.md     # Ground truth protocol
+│   ├── limitations.md      # Known limitations (Windows, polling)
+│   ├── roadmap.md          # v2 roadmap (ETW, Sysmon, ML)
 │   ├── SKILLS.md           # Skills system documentation
 │   └── TRUST_MODEL.md      # Evidence trust hierarchy
 ├── src/

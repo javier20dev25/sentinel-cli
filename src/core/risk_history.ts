@@ -107,7 +107,7 @@ export function loadHistory(repoPath: string): RiskSnapshot[] {
 }
 
 export function loadBaseline(repoPath: string): RiskSnapshot | null {
-  const history = loadHistory(repoPath);
+  const history = loadHistory(repoPath).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   return history.find(s => s.branch === 'main' || s.branch === 'master') || null;
 }
 

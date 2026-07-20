@@ -800,13 +800,22 @@ networkCmd.command('start')
 Hub:
   1-9: Funcionalidades existentes
   10: Network Auditor ─┬─ 1. Start Audit
-                        ├─ 2. Stop Audit & Get Verdict
-                        ├─ 3. Status
-                        ├─ 4. Session History
-                        ├─ 5. Trusted Agents
-                        └─ 0. Back to Main Menu
+                         ├─ 2. Stop Audit & Get Verdict
+                         ├─ 3. Status
+                         ├─ 4. Live Events
+                         ├─ 5. Session History
+                         ├─ 6. Replay Session
+                         ├─ 7. Export Session
+                         ├─ 8. Settings (thresholds, trusted, CLI commands)
+                         ├─ 9. Auto-start (toggle on/off, register/remove OS task)
+                         └─ 0. Back to Main Menu
   11: Exit
 ```
+
+- **Settings** muestra la configuración actual (alert threshold, trusted hosts/processes, performance budget) y los comandos CLI avanzados disponibles.
+- **Auto-start** persiste la preferencia en `~/.sentinel/network-config.json` y registra/elimina una tarea programada:
+  - Windows: `ScheduledTask 'SentinelNetworkMonitor'` (ejecuta `sentinel network start` al iniciar sesión)
+  - Linux: systemd user service `sentinel-network.service`
 
 ---
 
@@ -831,7 +840,70 @@ sentinel network export <id>               Exporta sesión (json|markdown)
 sentinel network trusted list              Lista agentes confiables
 sentinel network trusted add <name>        Añade agente confiable
 sentinel network trusted remove <name>     Elimina agente confiable
+
+sentinel network doctor                    Health check completo
+                      --metrics            Muestra métricas runtime
+                      --coverage           Reporte de cobertura de sensores
+                      --drift              Test de deriva de confianza
+
+sentinel network blindspots list           Lista puntos ciegos registrados
+sentinel network blindspots add            Registra nuevo punto ciego
+sentinel network blindspots stats          Estadísticas de puntos ciegos
+
+sentinel network campaign list             Lista campañas de validación
+sentinel network campaign run [tag]        Ejecuta campaña (opcional: filtro por tag)
+sentinel network campaign show <id>        Muestra detalle de campaña
+
+sentinel network replay run <file/dir>     Replay de sesiones grabadas
+sentinel network replay campaign <dir>     Ejecuta campaña de replay
+sentinel network replay diff <baseline>    Compara contra línea base
+
+sentinel network benchmark history         Historial de benchmarks del pipeline
+
+sentinel network record [sec] [dir] [tags] Graba sesión real y la procesa
+                      --profile <id>       Perfil canónico para etiquetado
+
+sentinel network corpus coverage           Cobertura del corpus vs perfiles
 ```
+
+### Configuración persistente
+
+Las preferencias de red se almacenan en `~/.sentinel/network-config.json`:
+
+```json
+{
+  "autoStart": false,
+  "alertThreshold": "MEDIUM",
+  "trustedHosts": [],
+  "trustedProcesses": [],
+  "performanceBudget": {
+    "maxCpuPercent": 5,
+    "maxMemoryMb": 128,
+    "maxEventsPerSecond": 1000,
+    "providerTimeoutMs": 3000
+  }
+}
+```
+
+### Auto-start
+
+El monitor puede iniciarse automáticamente al iniciar sesión:
+
+| Plataforma | Mecanismo | Comando |
+|-----------|-----------|---------|
+| Windows | Scheduled Task | `Register-ScheduledTask -TaskName SentinelNetworkMonitor` |
+| Linux | systemd user service | `systemctl --user enable sentinel-network.service` |
+
+La activación se realiza desde el menú Hub (opción 9) o configurando `autoStart: true` en `~/.sentinel/network-config.json`.
+
+### Kill Detection (`monitor_disabled`)
+
+El `BehaviorEngine` detecta intentos de deshabilitar el monitor detectando procesos cuyo command line contiene `taskkill`, `Stop-Process`, o `wmic process` combinado con `sentinel` o el PID del proceso Sentinel. La detección asigna el comportamiento `monitor_disabled` con peso 80 en el risk engine y confianza 0.9.
+
+Comandos detectados:
+- `taskkill /F /IM sentinel.exe` / `taskkill /PID <PID> /F`
+- `Stop-Process -Name sentinel` / `Stop-Process -Id <PID>`
+- `wmic process where name="sentinel.exe" delete`
 
 ### Ejemplo de uso
 

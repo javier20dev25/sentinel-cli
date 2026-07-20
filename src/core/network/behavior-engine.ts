@@ -219,10 +219,24 @@ export function classifyProcess(proc: ProcessEvent): Behavior | null {
     type = 'process_suspicious';
   }
 
-  // Only applies to non-AI-agent processes to avoid false positives on IDE internals.
+  // Check for monitor termination attempts (must precede monitor_awareness check)
+  if (!type) {
+    const sentinelPid = process.pid;
+    if (
+      cmdLower.includes('taskkill') || cmdLower.includes('stop-process') || cmdLower.includes('wmic process')
+    ) {
+      const targetsSentinel = cmdLower.includes('sentinel') || cmdLower.includes(String(sentinelPid));
+      if (targetsSentinel) {
+        type = 'monitor_disabled';
+        evidence.push(`Monitor termination attempt detected: command targets sentinel process`);
+      }
+    }
+  }
+
+  // Only applies to non-AI-agent and non-kill processes to avoid false positives on IDE internals.
   // Single-word patterns match as standalone tokens (avoiding 'sentinel' in 'sentinel-cli').
   // Multi-word patterns use exact substring match (they're specific enough to avoid FPs).
-  if (!isAiAgent) {
+  if (!type && !isAiAgent) {
     let matched: string | undefined;
 
     // Check process name first (most reliable)
@@ -283,7 +297,7 @@ export function classifyProcess(proc: ProcessEvent): Behavior | null {
     id: generateId(),
     sessionId: '',
     type,
-    confidence: type === 'monitor_awareness_detected' ? 0.85 : 0.8,
+    confidence: type === 'monitor_awareness_detected' ? 0.85 : type === 'monitor_disabled' ? 0.9 : 0.8,
     evidence,
     artifacts: [],
     timestamp: new Date(),

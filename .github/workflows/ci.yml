@@ -2,25 +2,30 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master, main, v1.x, v2.x]
   pull_request:
-    branches: [main, master]
+    branches: [master, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: [18, 20, 22]
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
+          cache: 'npm'
+
       - run: npm ci
-      - run: npx tsc
-      - run: npx vitest run --reporter=verbose
-        env:
-          SENTINEL_PROVIDER: test
-      - run: npm pack --dry-run
+      - run: npm run build
+      - run: npm test

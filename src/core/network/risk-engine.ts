@@ -26,6 +26,7 @@ const BEHAVIOR_WEIGHTS: Record<BehaviorType, number> = {
   preparation_detected: 40,
   process_chain_detected: 50,
   monitor_awareness_detected: 70,
+  monitor_disabled: 80,
   canary_read: 70,
   canary_modified: 75,
   fake_secret_read: 80,

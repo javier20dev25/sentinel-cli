@@ -26,6 +26,7 @@ Detecta en procesos:
 | Condición | Behavior |
 |---|---|
 | Nombre/cmdline contiene AI agent (grok, cursor, claude, etc.) | `process_suspicious` |
+| cmdline contiene `taskkill`/`Stop-Process`/`wmic process` + `sentinel` o PID Sentinel | `monitor_disabled` |
 | cmdline matchea monitor detection commands | `monitor_awareness_detected` |
 | cmdline contiene `git bundle create`, `git archive` | `git_bundle_created` / `git_archive_created` |
 | cmdline contiene `git rev-list --all`, `git pack-objects`, etc. | `repo_indexed` |
@@ -36,6 +37,8 @@ Detecta en procesos:
 Skip rules (no generan behavior):
 - `node.exe` ejecutando `dist/cli/main.js` o `scripts/record-session.js` (propia infraestructura)
 - `mscopilot` o `\microsoft\copilot\` (proceso legítimo del SO)
+
+**Orden de evaluación**: `monitor_disabled` se evalúa antes que `monitor_awareness_detected` para que un intento de `Stop-Process` contra sentinel no sea clasificado erróneamente como simple conciencia del monitor.
 
 ### classifyFileAccess(access: FileAccessEvent): Behavior | null
 

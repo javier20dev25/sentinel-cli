@@ -117,7 +117,8 @@ export type BehaviorType =
   | 'fake_secret_exfiltrated'
   | 'contaminated_git_read'
   | 'evidence_chain_detected'
-  | 'pre_operational_snapshot_detected';
+  | 'pre_operational_snapshot_detected'
+  | 'monitor_disabled';
 
 export interface RiskAssessment {
   score: number;

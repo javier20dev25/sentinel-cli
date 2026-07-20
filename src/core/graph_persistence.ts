@@ -4,6 +4,8 @@ import * as os from 'os';
 import * as crypto from 'crypto';
 import { AgencyGraph } from './agency_graph';
 
+let _graphSeq = 0;
+
 export interface GraphSnapshot {
   id: string;
   timestamp: string;
@@ -24,7 +26,7 @@ export function saveGraphSnapshot(repoPath: string, graph: AgencyGraph): string 
   const dir = getGraphDir(repoPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  const id = Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+  const id = Date.now().toString(36) + '-' + (_graphSeq++).toString(36).padStart(4, '0');
   const hash = crypto.createHash('sha256').update(path.resolve(repoPath)).digest('hex').substring(0, 12);
   const snapshot: GraphSnapshot = {
     id,
@@ -77,9 +79,9 @@ export function computeGraphTrend(repoPath: string): { chainCountDelta: number; 
     return { chainCountDelta: 0, scoreDelta: 0 };
   }
 
-  const sorted = [...snapshots].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-  const current = sorted[sorted.length - 1];
-  const previous = sorted[sorted.length - 2];
+  const sorted = [...snapshots].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const current = sorted[0];
+  const previous = sorted[1];
 
   const currentTopScore = current.topChains[0]?.score ?? 0;
   const previousTopScore = previous.topChains[0]?.score ?? 0;

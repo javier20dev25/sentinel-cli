@@ -100,6 +100,33 @@ program
     });
 
 program
+    .command('build')
+    .description('Record and analyze a build process — process graph, artifacts, network, hash chain')
+    .argument('<command>', 'Build command to run (e.g. "npm run build")')
+    .option('--cwd <path>', 'Working directory (default: current)')
+    .option('--timeout <ms>', 'Timeout in milliseconds', '300000')
+    .action(async (cmd: string, options) => {
+        await preFlightCheck();
+        const { recordBuild } = await import('./build/build-recorder');
+        const { renderBuildSummary } = await import('./build/build-summary');
+
+        const parts = cmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [cmd];
+        const command = parts[0];
+        const args = parts.slice(1).map((s: string) => s.replace(/^"(.*)"$/, '$1'));
+
+        const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
+        const timeout = parseInt(options.timeout, 10);
+
+        console.log(pc.cyan('\n  🎣 Build Flight Recorder'));
+        console.log(pc.dim(`  Recording: ${cmd}`));
+        console.log(pc.dim(`  CWD:       ${cwd}`));
+        console.log('');
+
+        const record = await recordBuild(command, args, cwd, timeout);
+        console.log(renderBuildSummary(record));
+    });
+
+program
     .command('benchmark')
     .description('Run corpus-based benchmark to measure FP/FN')
     .option('--corpus <path>', 'Path to corpus directory', './scripts/corpus')

@@ -1,0 +1,13 @@
+name: Reviewdog Analysis
+on:
+  pull_request_review_comment:
+    types: [created]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: reviewdog -reporter=github-pr-review

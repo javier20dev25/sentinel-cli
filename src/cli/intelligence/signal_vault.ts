@@ -9,6 +9,7 @@ import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
+import { Vault, VaultRecordScan, VaultSignal } from '../../core/vault';
 
 export interface ScanSignal {
     repo: string;
@@ -19,7 +20,7 @@ export interface ScanSignal {
     source_scan: string;
 }
 
-export class SignalVault {
+export class SignalVault implements Vault {
     private db: Database.Database;
 
     constructor() {
@@ -74,14 +75,7 @@ export class SignalVault {
         `);
     }
 
-    public recordScan(scan: {
-        id: string;
-        repo: string;
-        pr: number;
-        author: string;
-        score: number;
-        band: string;
-    }): void {
+    public recordScan(scan: VaultRecordScan): void {
         const stmt = this.db.prepare(`
             INSERT OR REPLACE INTO scans (id, repo_name, pr_number, author, risk_score, risk_band)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -89,7 +83,7 @@ export class SignalVault {
         stmt.run(scan.id, scan.repo, scan.pr, scan.author, scan.score, scan.band);
     }
 
-    public recordSignal(signal: ScanSignal): void {
+    public recordSignal(signal: VaultSignal): void {
         const stmt = this.db.prepare(`
             INSERT INTO signals (repo, author, signal_type, weight, file_path, source_scan)
             VALUES (?, ?, ?, ?, ?, ?)

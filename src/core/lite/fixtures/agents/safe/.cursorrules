@@ -1,0 +1,6 @@
+# Cursor Rules
+
+- Run `npm test` before committing
+- Use TypeScript strict mode
+- No `any` types without explicit justification
+- All exports must have JSDoc comments

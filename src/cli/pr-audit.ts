@@ -1,4 +1,5 @@
 import { LiteScanner } from '../core/lite/lite_scanner';
+import { SignalVault } from './intelligence/signal_vault';
 import { createHash } from 'crypto';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { execFileSync } from 'child_process';
@@ -263,7 +264,7 @@ export async function runPrAudit(options: PrAuditOptions): Promise<PrAuditResult
 
   const contentHash = createHash('sha256').update(rawDiff, 'utf8').digest('hex');
   const files = parseUnifiedDiff(rawDiff);
-  const scanner = new LiteScanner();
+  const scanner = new LiteScanner(new SignalVault());
   const result = await scanner.auditPR(options.repo, options.prNumber, options.author || 'unknown', files);
   const threatIntel = correlateThreats(options.author || 'unknown');
 

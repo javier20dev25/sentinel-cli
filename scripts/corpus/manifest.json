@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "vulnerable": {
+    "count": 10,
+    "expectedFindings": {
+      "vuln/secrets.env": { "minAlerts": 5, "categories": ["secrets"] },
+      "vuln/malware.js": { "minAlerts": 3, "categories": ["obfuscation", "injection", "malware"] },
+      "vuln/supply-chain.yml": { "minAlerts": 4, "categories": ["ci-supply-chain", "misconfig"] },
+      "vuln/ast-threat.js": { "minAlerts": 5, "categories": ["injection", "malware", "secrets"] },
+      "vuln/unicode.txt": { "minAlerts": 1, "categories": ["malware"] },
+      "vuln/entropy.txt": { "minAlerts": 1, "categories": ["obfuscation"] },
+      "vuln/package.json": { "minAlerts": 2, "categories": ["supply-chain"] },
+      "vuln/package-lock.json": { "minAlerts": 2, "categories": ["supply-chain"] },
+      "vuln/rust-threat.rs": { "minAlerts": 2, "categories": ["supply-chain"] },
+      "vuln/go-threat.go": { "minAlerts": 2, "categories": ["supply-chain", "malware"] }
+    }
+  },
+  "clean": {
+    "count": 8,
+    "expectedFindings": {
+      "clean/normal.js": { "maxAlerts": 0 },
+      "clean/normal.py": { "maxAlerts": 0 },
+      "clean/normal.rs": { "maxAlerts": 0 },
+      "clean/normal.go": { "maxAlerts": 0 },
+      "clean/normal.env": { "maxAlerts": 0 },
+      "clean/normal.yml": { "maxAlerts": 0 },
+      "clean/package.json": { "maxAlerts": 0 },
+      "clean/package-lock.json": { "maxAlerts": 0 }
+    }
+  }
+}

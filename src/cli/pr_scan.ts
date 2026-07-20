@@ -1,4 +1,5 @@
 import { LiteScanner } from '../core/lite/lite_scanner';
+import { SignalVault } from './intelligence/signal_vault';
 import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 
@@ -38,7 +39,7 @@ async function main() {
     const author = process.env.SENTINEL_AUTHOR || 'unknown';
 
     const files = parseUnifiedDiff(diff);
-    const scanner = new LiteScanner();
+    const scanner = new LiteScanner(new SignalVault());
     const result = await scanner.auditPR(repo, prNumber, author, files);
 
     const contentHash = createHash('sha256').update(diff, 'utf8').digest('hex');

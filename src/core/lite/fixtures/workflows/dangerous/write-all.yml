@@ -1,0 +1,10 @@
+name: Write All
+on:
+  push:
+    branches: [main]
+permissions: write-all
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello

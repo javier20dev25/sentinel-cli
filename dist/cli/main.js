@@ -2038,6 +2038,195 @@ workflow
         checkRun: options.checkRun,
     });
 }));
+// --- Network Auditor CLI ---
+const networkCmd = program.command('network')
+    .description('Audit AI agent network activity and detect repository exfiltration');
+networkCmd
+    .command('start')
+    .description('Start a network audit session')
+    .option('--http-proxy', 'Enable HTTP proxy interception (port 8089)')
+    .option('--tls', 'Enable TLS interception (requires CA cert, port 9090)')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const { requestConsent } = yield Promise.resolve().then(() => __importStar(require('./network/legal-consent')));
+    const auditor = new NetworkAuditor();
+    if (!requestConsent(auditor['db'])) {
+        console.log('Cannot start audit without consent.');
+        process.exit(1);
+    }
+    if (options.httpProxy) {
+        auditor['config'].enableHttpInterceptor = true;
+    }
+    if (options.tls) {
+        auditor['config'].enableTlsInterceptor = true;
+    }
+    yield auditor.start();
+    process.on('SIGINT', () => {
+        auditor.stop();
+        process.exit(0);
+    });
+}));
+networkCmd
+    .command('stop')
+    .description('Stop the running network audit session')
+    .action(() => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.stop();
+    const verdict = auditor.getVerdict();
+    if (verdict) {
+        const { renderVerdict, renderDnaSummary } = yield Promise.resolve().then(() => __importStar(require('./network/render-network')));
+        console.log(renderVerdict(verdict));
+        console.log(renderDnaSummary(verdict.sessionDna));
+    }
+}));
+networkCmd
+    .command('status')
+    .description('Show audit status and current session info')
+    .action(() => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c;
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    const status = auditor.getStatus();
+    if (status.running) {
+        console.log(`Status: running (session: ${(_a = status.session) === null || _a === void 0 ? void 0 : _a.id})`);
+        console.log(`Flows captured: ${(_b = status.session) === null || _b === void 0 ? void 0 : _b.flows.length}`);
+        console.log(`Behaviors: ${(_c = status.session) === null || _c === void 0 ? void 0 : _c.behaviors.length}`);
+    }
+    else {
+        console.log('Status: stopped');
+    }
+}));
+networkCmd
+    .command('history')
+    .description('Show past audit sessions')
+    .option('-l, --limit <number>', 'Number of sessions to show', '10')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.showHistory();
+}));
+networkCmd
+    .command('session <id>')
+    .description('Show details for a specific session')
+    .action((id) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.showSessionDetail(id);
+}));
+networkCmd
+    .command('export <id>')
+    .description('Export session data')
+    .option('--format <format>', 'Output format (json|markdown)', 'json')
+    .action((id, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    const output = auditor.exportSession(id, options.format);
+    console.log(output);
+}));
+networkCmd
+    .command('trusted')
+    .description('Manage trusted agents')
+    .argument('<action>', 'list|add|remove')
+    .argument('[name]', 'Agent name')
+    .action((action, name) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    switch (action) {
+        case 'list':
+            auditor.listTrustedAgents();
+            break;
+        case 'add':
+            if (name)
+                auditor.addTrustedAgent(name);
+            break;
+        case 'remove':
+            if (name)
+                auditor.removeTrustedAgent(name);
+            break;
+        default:
+            console.log('Usage: sentinel network trusted <list|add|remove> [name]');
+    }
+}));
+networkCmd
+    .command('doctor')
+    .description('Check network auditor health, coverage, and sensor drift')
+    .option('--metrics', 'Show runtime metrics')
+    .option('--coverage', 'Show detailed coverage report')
+    .option('--drift', 'Run sensor confidence drift test')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.doctor(options.metrics, options.coverage, options.drift);
+}));
+networkCmd
+    .command('blindspots')
+    .description('Manage the blind spot log (record detection failures)')
+    .argument('<action>', 'list|add|show|update|delete|stats')
+    .argument('[args...]', 'Additional arguments')
+    .action((action, args) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.blindspots(action, ...(args || []));
+}));
+networkCmd
+    .command('campaign')
+    .description('Run validation campaigns against the detection pipeline')
+    .argument('<action>', 'list|run|show|delete')
+    .argument('[args...]', 'Additional arguments (tag filter, campaign id)')
+    .action((action, args) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.campaign(action, ...(args || []));
+}));
+networkCmd
+    .command('benchmark')
+    .description('View benchmark history across engine versions')
+    .argument('<action>', 'history')
+    .action((action) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.benchmark(action);
+}));
+networkCmd
+    .command('replay')
+    .description('Replay recorded sessions through the detection pipeline')
+    .argument('<action>', 'run|campaign|diff')
+    .argument('[args...]', 'Session file, directory, or baseline/current dirs')
+    .action((action, args) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.replay(action, ...(args || []));
+}));
+networkCmd
+    .command('record')
+    .description('Record a real OS session and replay through the pipeline')
+    .argument('[duration_sec]', 'Recording duration in seconds (default: 30)')
+    .argument('[output_dir]', 'Output directory (default: replay-corpus/recorded)')
+    .argument('[tags...]', 'Optional tags')
+    .option('--profile <id>', 'Canonical profile ID (e.g. git-clone)')
+    .action((duration_sec, output_dir, tags, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    const args = [duration_sec || '30'];
+    if (output_dir)
+        args.push(output_dir);
+    if (tags)
+        args.push(...tags);
+    if (options.profile)
+        args.push('--profile', options.profile);
+    yield auditor.record('start', ...args);
+}));
+networkCmd
+    .command('corpus')
+    .description('Inspect corpus coverage against canonical profiles')
+    .argument('<action>', 'coverage')
+    .argument('[corpus_dir]', 'Corpus directory (default: replay-corpus)')
+    .action((action, corpus_dir) => __awaiter(void 0, void 0, void 0, function* () {
+    const { NetworkAuditor } = yield Promise.resolve().then(() => __importStar(require('./network/auditor')));
+    const auditor = new NetworkAuditor();
+    auditor.corpus(action, corpus_dir);
+}));
 // --- Token Inspector CLI (Fase 1C) ---
 program
     .command('token-inspect')
@@ -2090,6 +2279,31 @@ program.on('--help', () => {
     console.log(w(`${cmd('sentinel check-classified <path>')}          — ${desc('Classified data check')}`));
     console.log(w(`${cmd('sentinel token-inspect <token>')}            — ${desc('Classify and risk-assess a token')}`));
     console.log(w(`${cmd('sentinel token-inspect <token> --check')}    — ${desc('Verify GitHub token scopes via API')}`));
+    console.log(w(`${cmd('sentinel network start')}                    — ${desc('Start AI agent network audit')}`));
+    console.log(w(`${cmd('sentinel network stop')}                     — ${desc('Stop audit and get verdict')}`));
+    console.log(w(`${cmd('sentinel network status')}                   — ${desc('Show audit status')}`));
+    console.log(w(`${cmd('sentinel network history')}                  — ${desc('Past audit sessions')}`));
+    console.log(w(`${cmd('sentinel network session <id>')}             — ${desc('Session details')}`));
+    console.log(w(`${cmd('sentinel network export <id>')}              — ${desc('Export session report')}`));
+    console.log(w(`${cmd('sentinel network doctor')}                   — ${desc('Health, coverage & sensor diagnostics')}`));
+    console.log(w(`${cmd('sentinel network doctor --metrics')}         — ${desc('Runtime metrics')}`));
+    console.log(w(`${cmd('sentinel network doctor --coverage')}        — ${desc('Detailed coverage per sensor')}`));
+    console.log(w(`${cmd('sentinel network doctor --drift')}           — ${desc('Sensor confidence drift test')}`));
+    console.log(w(`${cmd('sentinel network blindspots list')}          — ${desc('List blind spot entries')}`));
+    console.log(w(`${cmd('sentinel network blindspots add')}           — ${desc('Log a new blind spot')}`));
+    console.log(w(`${cmd('sentinel network blindspots stats')}         — ${desc('Blind spot statistics')}`));
+    console.log(w(`${cmd('sentinel network blindspots show <id>')}     — ${desc('Show blind spot detail')}`));
+    console.log(w(`${cmd('sentinel network blindspots update <id>')}   — ${desc('Update blind spot status')}`));
+    console.log(w(`${cmd('sentinel network campaign run')}             — ${desc('Run all validation scenarios')}`));
+    console.log(w(`${cmd('sentinel network campaign run <tag>')}       — ${desc('Run scenarios with a specific tag')}`));
+    console.log(w(`${cmd('sentinel network campaign list')}            — ${desc('List past campaign runs')}`));
+    console.log(w(`${cmd('sentinel network campaign show <id>')}       — ${desc('Show campaign report')}`));
+    console.log(w(`${cmd('sentinel network record [sec] [dir] [--profile <id>]')} — ${desc('Record session (use --profile for canonical tag)')}`));
+    console.log(w(`${cmd('sentinel network corpus coverage')}           — ${desc('Show corpus coverage vs canonical profiles')}`));
+    console.log(w(`${cmd('sentinel network replay run <file>')}        — ${desc('Replay a single session JSON through pipeline')}`));
+    console.log(w(`${cmd('sentinel network replay campaign <dir>')}    — ${desc('Replay all sessions in directory as campaign')}`));
+    console.log(w(`${cmd('sentinel network replay diff <a> <b>')}      — ${desc('Compare two replay campaign results')}`));
+    console.log(w(`${cmd('sentinel network benchmark history')}        — ${desc('Show benchmark history across versions')}`));
     console.log(w(`${cmd('sentinel mcp')}                              — ${desc('MCP server for AI tools')}`));
     console.log(w(`${cmd('sentinel hub')}                              — ${desc('Interactive operations menu')}`));
     console.log('');

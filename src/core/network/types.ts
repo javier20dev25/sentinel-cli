@@ -369,11 +369,70 @@ export interface Verdict {
   overallRisk: RiskAssessment;
   behaviors: Behavior[];
   evidence: Evidence[];
+  evidenceChain?: EvidenceRecord[];
+  evidenceChainVerification?: EvidenceChainVerification;
+  mitreMapping?: MitreAttackMapping[];
+  behaviorTimeline?: BehaviorTimelineStage[];
   sessionDna: SessionDna;
   timestamp: Date;
   confidenceScore: number;
   coverageInfo: CoverageInfo;
   healthAtEnd: HealthReport;
+}
+
+export interface EvidenceRecord {
+  index: number;
+  timestamp: string;
+  evidenceId: string;
+  evidenceType: string;
+  summary: string;
+  previousHash: string | null;
+  hash: string;
+}
+
+export interface EvidenceChainVerification {
+  totalRecords: number;
+  chainValid: boolean;
+  firstHash: string;
+  lastHash: string;
+  tamperedIndices: number[];
+  verifiedAt: string;
+}
+
+export interface MitreTechnique {
+  id: string;
+  name: string;
+  tactic: MitreTactic;
+}
+
+export type MitreTactic =
+  | 'Reconnaissance'
+  | 'Resource Development'
+  | 'Initial Access'
+  | 'Execution'
+  | 'Persistence'
+  | 'Privilege Escalation'
+  | 'Defense Evasion'
+  | 'Credential Access'
+  | 'Discovery'
+  | 'Lateral Movement'
+  | 'Collection'
+  | 'Command and Control'
+  | 'Exfiltration'
+  | 'Impact';
+
+export interface MitreAttackMapping {
+  behaviorType: BehaviorType;
+  techniqueId: string;
+  techniqueName: string;
+  tactic: MitreTactic;
+}
+
+export interface BehaviorTimelineStage {
+  stage: 'Preparation' | 'Collection' | 'Packaging' | 'Exfiltration' | 'Other';
+  behaviors: BehaviorType[];
+  timestamp: Date;
+  evidence: string[];
 }
 
 export interface SessionDna {

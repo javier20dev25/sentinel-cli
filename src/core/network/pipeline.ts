@@ -13,7 +13,7 @@ import {
   classifyCanaryEvent, classifyPreparationCommands,
   AI_PROMPT_API_PATHS
 } from './behavior-engine';
-import { assessRisk } from './risk-engine';
+import { assessRisk, computeRiskConfidence } from './risk-engine';
 import {
   buildFlowEvidence, buildProcessEvidence, buildFileAccessEvidence,
   buildGitCommandEvidence, buildBehaviorEvidence, buildRiskEvidence,
@@ -24,6 +24,8 @@ import { AntiEvasionEngine } from './anti-evasion-engine';
 import { EvidenceChainCorrelator } from './evidence-chain';
 import { CanarySystem } from './canary-system';
 import { HealthMonitor, SENSOR_TRUST_SCORES, DEFAULT_CAPABILITIES } from './providers';
+import { buildEvidenceChain, verifyEvidenceChain } from './evidence-chain-crypto';
+import { buildMitreMappings, buildBehaviorTimeline } from './mitre-attack';
 
 export class NetworkAuditPipeline {
   private config: NetworkAuditConfig;
@@ -448,7 +450,26 @@ export class NetworkAuditPipeline {
     );
 
     const confidenceScore = this.computeConfidenceScore(behaviors);
-    return buildVerdict(sessionId, risk, behaviors, allEvidence, dna, confidenceScore, coverage, health);
+
+    // Build evidence hash chain for tamper-proof audit trail
+    const evidenceChain = buildEvidenceChain(allEvidence);
+    const evidenceChainVerification = verifyEvidenceChain(evidenceChain);
+
+    // Build MITRE ATT&CK mappings for enriched reporting
+    const behaviorTypes = [...new Set(behaviors.map(b => b.type))];
+    const mitreMapping = buildMitreMappings(behaviorTypes);
+
+    // Build behavior timeline (Preparation → Collection → Packaging → Exfiltration)
+    const behaviorTimeline = buildBehaviorTimeline(
+      behaviors.map(b => ({ type: b.type, timestamp: b.timestamp, evidence: b.evidence }))
+    );
+
+    const verdict = buildVerdict(sessionId, risk, behaviors, allEvidence, dna, confidenceScore, coverage, health);
+    verdict.evidenceChain = evidenceChain;
+    verdict.evidenceChainVerification = evidenceChainVerification;
+    verdict.mitreMapping = mitreMapping;
+    verdict.behaviorTimeline = behaviorTimeline;
+    return verdict;
   }
 
   reset(): void {

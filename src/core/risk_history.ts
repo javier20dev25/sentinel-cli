@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { execSync } from 'child_process';
+
+let _snapshotSeq = 0;
 import { AgencyScoreResult } from './agency_score';
 import { AttackScenario } from './attack_scenario';
 
@@ -59,7 +61,7 @@ export function saveSnapshot(
   const dir = path.join(getHistoryDir(), repoHash(repoPath));
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  const id = Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+  const id = Date.now().toString(36) + '-' + (_snapshotSeq++).toString(36).padStart(4, '0');
   const effectiveBranch = branch ?? detectBranch(repoPath);
   const snapshot: RiskSnapshot = {
     id,

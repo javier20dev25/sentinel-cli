@@ -1,49 +1,49 @@
 [
   {
     "engineVersion": "1.0.0",
-    "timestamp": "2026-07-18T23:03:06.226Z",
+    "timestamp": "2026-07-20T09:33:58.119Z",
     "calibrated": {
-      "passed": 39,
+      "passed": 31,
       "total": 39,
-      "passRate": 100
+      "passRate": 79.5
     },
     "blind": [
       {
         "name": "Blind #1",
-        "passed": 10,
+        "passed": 9,
         "total": 15,
-        "passRate": 66.7
+        "passRate": 60
       },
       {
         "name": "Blind #2",
-        "passed": 11,
-        "total": 14,
-        "passRate": 78.6
-      },
-      {
-        "name": "Blind #3",
         "passed": 13,
         "total": 14,
         "passRate": 92.9
+      },
+      {
+        "name": "Blind #3",
+        "passed": 12,
+        "total": 14,
+        "passRate": 85.7
       }
     ],
     "replay": {
-      "accuracy": 0.5,
-      "precision": 1,
-      "recall": 0.07142857142857142,
-      "f1": 0.13333333333333333,
-      "fpr": 0,
-      "fnr": 0.9285714285714286,
-      "tp": 1,
-      "fp": 0,
-      "tn": 12,
-      "fn": 13,
-      "latencyAvgMs": 0.5,
-      "latencyP50Ms": 0,
-      "latencyP95Ms": 1,
-      "latencyP99Ms": 2,
-      "latencyMaxMs": 2,
-      "latencyStdDevMs": 0.6
+      "accuracy": 0.8,
+      "precision": 0.7777777777777778,
+      "recall": 1,
+      "f1": 0.875,
+      "fpr": 0.6666666666666666,
+      "fnr": 0,
+      "tp": 140,
+      "fp": 40,
+      "tn": 20,
+      "fn": 0,
+      "latencyAvgMs": 1.1,
+      "latencyP50Ms": 1,
+      "latencyP95Ms": 3,
+      "latencyP99Ms": 4,
+      "latencyMaxMs": 5,
+      "latencyStdDevMs": 0.8
     }
   }
 ]

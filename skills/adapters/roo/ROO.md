@@ -8,44 +8,44 @@ For all security questions, use Sentinel commands before attempting model-based 
 
 ## FORBIDDEN
 
-- Suggest `npm install` as bypass of `sentinel install`
+- Suggest `npm install` as bypass of `sentinel-cli install`
 - Offer workarounds when Sentinel BLOCKS
-- Commit without `sentinel precommit install`
+- Commit without `sentinel-cli precommit install`
 
 ## MANDATORY
 
-- Use `sentinel install <manager> <pkg>` for all installations
+- Use `sentinel-cli install <manager> <pkg>` for all installations
 - When BLOCK: report findings, state BLOCK, let user decide
-- Run `sentinel precommit install` before first commit
+- Run `sentinel-cli precommit install` before first commit
 
 ## Commands
 
 ### SAST and Analysis
-sentinel scan <path> - detect secrets, injection, unsafe patterns (30 rules)
-sentinel verify-pkg <name> --details - npm audit + OSV CVE lookup + typosquatting
-sentinel doctor [--deep] - dependency vulnerability scan
-sentinel integrity - host integrity check
-sentinel audit-deps [--ci] [--provenance] [--npm-audit] - Full dep audit: lockfile parse, batch OSV, reputation, provenance
-sentinel deps-tree [path] --depth 3 - Walk transitive deps, scan each with SAST
-sentinel sbom [--lockfile <path>] [--output <file>] - CycloneDX v1.5 SBOM
+sentinel-cli scan <path> - detect secrets, injection, unsafe patterns (30 rules)
+sentinel-cli verify-pkg <name> --details - npm audit + OSV CVE lookup + typosquatting
+sentinel-cli doctor [--deep] - dependency vulnerability scan
+sentinel-cli integrity - host integrity check
+sentinel-cli audit-deps [--ci] [--provenance] [--npm-audit] - Full dep audit: lockfile parse, batch OSV, reputation, provenance
+sentinel-cli deps-tree [path] --depth 3 - Walk transitive deps, scan each with SAST
+sentinel-cli sbom [--lockfile <path>] [--output <file>] - CycloneDX v1.5 SBOM
 
 ### State and Intelligence
-sentinel baseline create|diff - system snapshot and drift detection
-sentinel memory --status|--findings|--threats - threat database queries
-sentinel permissions [pkg] - package capability audit
-sentinel check-classified <path> - classified file gate
+sentinel-cli baseline create|diff - system snapshot and drift detection
+sentinel-cli memory --status|--findings|--threats - threat database queries
+sentinel-cli permissions [pkg] - package capability audit
+sentinel-cli check-classified <path> - classified file gate
 
 ### Security Gate
-sentinel install <manager> [args...] - gated install (scan then install)
-sentinel guard enable|disable|status - package manager interception
-sentinel trust-cache <status|clear|prune> - cached verdicts
+sentinel-cli install <manager> [args...] - gated install (scan then install)
+sentinel-cli guard enable|disable|status - package manager interception
+sentinel-cli trust-cache <status|clear|prune> - cached verdicts
 
 ### Policy
-sentinel policy set|get|list - ci-mode, fail-closed, quarantine
+sentinel-cli policy set|get|list - ci-mode, fail-closed, quarantine
 
 ### Pre-Commit / Pre-Push
-sentinel precommit install|uninstall|status - SAST pre-commit hook
-sentinel prepush install|uninstall|status - SAST pre-push hook
+sentinel-cli precommit install|uninstall|status - SAST pre-commit hook
+sentinel-cli prepush install|uninstall|status - SAST pre-push hook
 
 ### GitHub PR Tools
 gh-pr-list, gh-pr-view, gh-pr-diff, gh-pr-comment, gh-repo-list
@@ -57,7 +57,7 @@ Package Audit: verify-pkg --details -> analyse findings -> verdict
 Host Check: integrity -> doctor --deep -> baseline diff
 Full Audit: gh-repo-list -> gh-pr-list -> gh-pr-diff -> scan -> comment
 Dep Audit: audit-deps --ci -> review -> quarantine if needed
-Install: sentinel install npm <pkg>
+Install: sentinel-cli install npm <pkg>
 
 ## Evidence Rule
 

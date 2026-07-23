@@ -5,7 +5,7 @@ Instrument a build command and capture a forensic record of every process, file 
 ## Usage
 
 ```bash
-sentinel build "<command>" [--provenance] [--save]
+sentinel-cli build "<command>" [--provenance] [--save]
 ```
 
 ### Options
@@ -20,11 +20,11 @@ sentinel build "<command>" [--provenance] [--save]
 ### Examples
 
 ```bash
-sentinel build "npm run build"
-sentinel build "make -j4" --timeout 60000
-sentinel build "go build ./..." --provenance
-sentinel build "gcc -O2 main.c -o app" --provenance --save
-sentinel build "gcc -O2 main.c -o app" --provenance --save   # second run shows diff
+sentinel-cli build "npm run build"
+sentinel-cli build "make -j4" --timeout 60000
+sentinel-cli build "go build ./..." --provenance
+sentinel-cli build "gcc -O2 main.c -o app" --provenance --save
+sentinel-cli build "gcc -O2 main.c -o app" --provenance --save   # second run shows diff
 ```
 
 ## What It Captures

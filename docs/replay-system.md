@@ -25,9 +25,9 @@ replayFile(session.json)
 
 | Comando | Descripción |
 |---|---|
-| `sentinel network replay run <file>` | Replay de una sesión |
-| `sentinel network replay campaign <dir>` | Replay de todas las sesiones en directorio |
-| `sentinel network replay diff <baseline> <current>` | Compara dos campañas |
+| `sentinel-cli network replay run <file>` | Replay de una sesión |
+| `sentinel-cli network replay campaign <dir>` | Replay de todas las sesiones en directorio |
+| `sentinel-cli network replay diff <baseline> <current>` | Compara dos campañas |
 
 ## ReplayResult
 

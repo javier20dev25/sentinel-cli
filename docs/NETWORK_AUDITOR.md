@@ -817,7 +817,7 @@ Hub:
 
 - **Settings** muestra la configuración actual (alert threshold, trusted hosts/processes, performance budget) y los comandos CLI avanzados disponibles.
 - **Auto-start** persiste la preferencia en `~/.sentinel/network-config.json` y registra/elimina una tarea programada:
-  - Windows: `ScheduledTask 'SentinelNetworkMonitor'` (ejecuta `sentinel network start` al iniciar sesión)
+  - Windows: `ScheduledTask 'SentinelNetworkMonitor'` (ejecuta `sentinel-cli network start` al iniciar sesión)
   - Linux: systemd user service `sentinel-network.service`
 
 ---
@@ -825,48 +825,48 @@ Hub:
 ## 15. Comandos
 
 ```
-sentinel network start                     Inicia sesión de auditoría
+sentinel-cli network start                     Inicia sesión de auditoría
                      --http-proxy          Habilita proxy HTTP (puerto 8089)
                      --tls                 Habilita interceptor TLS (puerto 9090)
 
-sentinel network stop                      Detiene auditoría y muestra veredicto
+sentinel-cli network stop                      Detiene auditoría y muestra veredicto
 
-sentinel network status                    Estado actual de la sesión
+sentinel-cli network status                    Estado actual de la sesión
 
-sentinel network history -l <N>            Últimas N sesiones (default: 10)
+sentinel-cli network history -l <N>            Últimas N sesiones (default: 10)
 
-sentinel network session <id>              Detalle completo de una sesión
+sentinel-cli network session <id>              Detalle completo de una sesión
 
-sentinel network export <id>               Exporta sesión (json|markdown)
+sentinel-cli network export <id>               Exporta sesión (json|markdown)
                           --format <fmt>
 
-sentinel network trusted list              Lista agentes confiables
-sentinel network trusted add <name>        Añade agente confiable
-sentinel network trusted remove <name>     Elimina agente confiable
+sentinel-cli network trusted list              Lista agentes confiables
+sentinel-cli network trusted add <name>        Añade agente confiable
+sentinel-cli network trusted remove <name>     Elimina agente confiable
 
-sentinel network doctor                    Health check completo
+sentinel-cli network doctor                    Health check completo
                       --metrics            Muestra métricas runtime
                       --coverage           Reporte de cobertura de sensores
                       --drift              Test de deriva de confianza
 
-sentinel network blindspots list           Lista puntos ciegos registrados
-sentinel network blindspots add            Registra nuevo punto ciego
-sentinel network blindspots stats          Estadísticas de puntos ciegos
+sentinel-cli network blindspots list           Lista puntos ciegos registrados
+sentinel-cli network blindspots add            Registra nuevo punto ciego
+sentinel-cli network blindspots stats          Estadísticas de puntos ciegos
 
-sentinel network campaign list             Lista campañas de validación
-sentinel network campaign run [tag]        Ejecuta campaña (opcional: filtro por tag)
-sentinel network campaign show <id>        Muestra detalle de campaña
+sentinel-cli network campaign list             Lista campañas de validación
+sentinel-cli network campaign run [tag]        Ejecuta campaña (opcional: filtro por tag)
+sentinel-cli network campaign show <id>        Muestra detalle de campaña
 
-sentinel network replay run <file/dir>     Replay de sesiones grabadas
-sentinel network replay campaign <dir>     Ejecuta campaña de replay
-sentinel network replay diff <baseline>    Compara contra línea base
+sentinel-cli network replay run <file/dir>     Replay de sesiones grabadas
+sentinel-cli network replay campaign <dir>     Ejecuta campaña de replay
+sentinel-cli network replay diff <baseline>    Compara contra línea base
 
-sentinel network benchmark history         Historial de benchmarks del pipeline
+sentinel-cli network benchmark history         Historial de benchmarks del pipeline
 
-sentinel network record [sec] [dir] [tags] Graba sesión real y la procesa
+sentinel-cli network record [sec] [dir] [tags] Graba sesión real y la procesa
                       --profile <id>       Perfil canónico para etiquetado
 
-sentinel network corpus coverage           Cobertura del corpus vs perfiles
+sentinel-cli network corpus coverage           Cobertura del corpus vs perfiles
 ```
 
 ### Configuración persistente
@@ -912,22 +912,22 @@ Comandos detectados:
 
 ```bash
 # Iniciar auditoría básica
-sentinel network start
+sentinel-cli network start
 
 # Iniciar con interceptores de red
-sentinel network start --http-proxy --tls
+sentinel-cli network start --http-proxy --tls
 
 # Ver estado durante la sesión
-sentinel network status
+sentinel-cli network status
 
 # Detener y obtener veredicto
-sentinel network stop
+sentinel-cli network stop
 
 # Ver historial
-sentinel network history -l 5
+sentinel-cli network history -l 5
 
 # Exportar sesión a markdown
-sentinel network export <session-id> --format markdown
+sentinel-cli network export <session-id> --format markdown
 ```
 
 ---
@@ -975,7 +975,7 @@ Identificar patrones diseñados para evadir detección:
 - **Fragmentación**: 200MB enviados como 10,000 paquetes de 20KB
 - **Cambio de protocolo**: Alterna entre HTTP, DNS, WebSocket, QUIC
 - **Ofuscación**: XOR → Base85 → Chunks → JSON en lugar de gzip directo
-- **Detección de monitor**: El proceso cambia comportamiento cuando sentinel está activo
+- **Detección de monitor**: El proceso cambia comportamiento cuando sentinel-cli está activo
 
 ### Capa 4: Canarios y Validación
 
@@ -1347,9 +1347,9 @@ replayFile(session.json)
 
 | Command | Description |
 |---------|-------------|
-| `sentinel network replay run <file>` | Replay single session |
-| `sentinel network replay campaign <dir>` | Replay all sessions in directory, produce campaign report |
-| `sentinel network replay diff <baseline> <current>` | Compare two replay campaign results |
+| `sentinel-cli network replay run <file>` | Replay single session |
+| `sentinel-cli network replay campaign <dir>` | Replay all sessions in directory, produce campaign report |
+| `sentinel-cli network replay diff <baseline> <current>` | Compare two replay campaign results |
 
 ### 21.3 Replay Result
 
@@ -1473,7 +1473,7 @@ Corpus Coverage
 ### 23.2 CLI
 
 ```
-sentinel network corpus coverage <corpus-dir>
+sentinel-cli network corpus coverage <corpus-dir>
 ```
 
 ---
@@ -1604,7 +1604,7 @@ When 2+ entries exist, a delta table compares the current vs previous version ac
 ### 25.4 CLI
 
 ```
-sentinel network benchmark history
+sentinel-cli network benchmark history
 ```
 
 ---

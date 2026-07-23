@@ -25,7 +25,7 @@ src/
   mcp/
     server.ts          # MCP server (standalone, no external dependency)
   cli/
-    install-skills.ts  # sentinel install-skills command
+    install-skills.ts  # sentinel-cli install-skills command
 
 install-skills.sh      # Bootstrap for Unix
 install-skills.ps1     # Bootstrap for Windows
@@ -40,11 +40,11 @@ Each adapter contains the same core content (constitution rules, command referen
 ### Via Sentinel CLI
 
 ```bash
-sentinel install-skills             # Interactive: select agent
-sentinel install-skills --agent claude
-sentinel install-skills --agent all  # Install for all detected agents
-sentinel install-skills --list       # List supported agents
-sentinel install-skills --detect     # Auto-detect installed agents
+sentinel-cli install-skills             # Interactive: select agent
+sentinel-cli install-skills --agent claude
+sentinel-cli install-skills --agent all  # Install for all detected agents
+sentinel-cli install-skills --list       # List supported agents
+sentinel-cli install-skills --detect     # Auto-detect installed agents
 ```
 
 ### Standalone script
@@ -88,7 +88,7 @@ It also checks for configuration directories like `~/.cursor/rules/`, `~/.config
 | OpenCode | `SKILL.md` | `.opencode/skills/SKILL.md` |
 | Windsurf | `.windsurfrules` | Project root |
 | Roo Code | `ROO.md` | Project root |
-| Any MCP client | MCP protocol | Connects to `sentinel mcp` (stdio or HTTP) |
+| Any MCP client | MCP protocol | Connects to `sentinel-cli mcp` (stdio or HTTP) |
 
 ---
 
@@ -98,10 +98,10 @@ Sentinel exposes its full tool set through the Model Context Protocol (MCP). Any
 
 ```bash
 # Start MCP server (stdio mode)
-sentinel mcp
+sentinel-cli mcp
 
 # Start MCP server (HTTP mode)
-sentinel mcp --http --port 3003
+sentinel-cli mcp --http --port 3003
 ```
 
 ### MCP Tools
@@ -127,15 +127,15 @@ Sentinel commands cost **zero model tokens**. Every analysis task delegated to S
 
 | Command | Tokens Saved | Model Alternative |
 |---------|-------------|-------------------|
-| `sentinel scan <file>` | ~2,000 | Model reads file + reasons about security patterns |
-| `sentinel scan <dir>` | ~8,000+ | Model walks directory + reads every file |
-| `sentinel verify-pkg <pkg>` | ~10,000+ | Model cannot audit tarballs; best effort is guessing |
-| `sentinel doctor [--deep]` | ~5,000 | Model parses lockfile + evaluates each dependency |
-| `sentinel integrity` | ~1,500 | Model checks PATH + reads config files |
-| `sentinel permissions <pkg>` | ~3,000 | Model reads package source + classifies capabilities |
-| `sentinel memory --threats` | ~2,000 | Model has no access to local threat history |
-| `sentinel check-classified <path>` | ~1,000 | Model reads staged files + compares to rules |
-| `sentinel baseline diff` | ~4,000 | Model reads both snapshots + computes diff |
+| `sentinel-cli scan <file>` | ~2,000 | Model reads file + reasons about security patterns |
+| `sentinel-cli scan <dir>` | ~8,000+ | Model walks directory + reads every file |
+| `sentinel-cli verify-pkg <pkg>` | ~10,000+ | Model cannot audit tarballs; best effort is guessing |
+| `sentinel-cli doctor [--deep]` | ~5,000 | Model parses lockfile + evaluates each dependency |
+| `sentinel-cli integrity` | ~1,500 | Model checks PATH + reads config files |
+| `sentinel-cli permissions <pkg>` | ~3,000 | Model reads package source + classifies capabilities |
+| `sentinel-cli memory --threats` | ~2,000 | Model has no access to local threat history |
+| `sentinel-cli check-classified <path>` | ~1,000 | Model reads staged files + compares to rules |
+| `sentinel-cli baseline diff` | ~4,000 | Model reads both snapshots + computes diff |
 | `gh-pr-diff + scan` (full PR audit) | ~10,000+ | Model reads entire PR diff + analyzes each hunk |
 
 ### Cost Per Workflow
@@ -231,41 +231,41 @@ The agent must never use model reasoning to override Sentinel evidence. If Senti
 
 | Command | Description |
 |---------|-------------|
-| `sentinel scan <path>` | SAST scan with 30 rules. Detects secrets, eval(), env access, network requests, command injection, SQL injection, prototype pollution, crypto misuse, and more. |
-| `sentinel scan <path> --json` | Machine-readable JSON output. |
-| `sentinel verify-pkg <package>` | Audit npm package without installing. Detects typosquatting, secret leaks, malicious patterns. |
-| `sentinel verify-pkg <package> --details` | Full analysis breakdown. |
-| `sentinel doctor [--deep]` | System health check for npm dependencies. Deep flag analyses full dependency tree. |
-| `sentinel integrity [--uptime] [--watch]` | Host integrity verification. Checks code hash, PATH, vault, clock, manifest. |
-| `sentinel baseline create <name>` | Create system snapshot. |
-| `sentinel baseline diff [name]` | Compare current state against snapshot. |
-| `sentinel permissions [package]` | Audit package capabilities and governance. |
+| `sentinel-cli scan <path>` | SAST scan with 30 rules. Detects secrets, eval(), env access, network requests, command injection, SQL injection, prototype pollution, crypto misuse, and more. |
+| `sentinel-cli scan <path> --json` | Machine-readable JSON output. |
+| `sentinel-cli verify-pkg <package>` | Audit npm package without installing. Detects typosquatting, secret leaks, malicious patterns. |
+| `sentinel-cli verify-pkg <package> --details` | Full analysis breakdown. |
+| `sentinel-cli doctor [--deep]` | System health check for npm dependencies. Deep flag analyses full dependency tree. |
+| `sentinel-cli integrity [--uptime] [--watch]` | Host integrity verification. Checks code hash, PATH, vault, clock, manifest. |
+| `sentinel-cli baseline create <name>` | Create system snapshot. |
+| `sentinel-cli baseline diff [name]` | Compare current state against snapshot. |
+| `sentinel-cli permissions [package]` | Audit package capabilities and governance. |
 
 ### Classified Document Management
 
 | Command | Description |
 |---------|-------------|
-| `sentinel check-classified <repoPath>` | Pre-commit hook. Blocks if classified files staged. |
-| `sentinel classify` | Manage classified document database. |
+| `sentinel-cli check-classified <repoPath>` | Pre-commit hook. Blocks if classified files staged. |
+| `sentinel-cli classify` | Manage classified document database. |
 
 ### Package Management (Security-Gated)
 
 | Command | Description |
 |---------|-------------|
-| `sentinel install <manager> [args...]` | Install packages through security gate (npm, pip, yarn, etc.). |
-| `sentinel guard enable` | Enable OS-level package interception. |
-| `sentinel guard disable` | Disable interception. |
-| `sentinel guard status` | Show guard state. |
+| `sentinel-cli install <manager> [args...]` | Install packages through security gate (npm, pip, yarn, etc.). |
+| `sentinel-cli guard enable` | Enable OS-level package interception. |
+| `sentinel-cli guard disable` | Disable interception. |
+| `sentinel-cli guard status` | Show guard state. |
 
 ### Memory and Threat Intelligence
 
 | Command | Description |
 |---------|-------------|
-| `sentinel memory --status` | Signal vault status summary. |
-| `sentinel memory --findings` | List historical findings. |
-| `sentinel memory --threats` | Show threat correlations. |
-| `sentinel memory --ingest <file>` | Load findings into vault. |
-| `sentinel memory --wipe` | Clear vault data. |
+| `sentinel-cli memory --status` | Signal vault status summary. |
+| `sentinel-cli memory --findings` | List historical findings. |
+| `sentinel-cli memory --threats` | Show threat correlations. |
+| `sentinel-cli memory --ingest <file>` | Load findings into vault. |
+| `sentinel-cli memory --wipe` | Clear vault data. |
 
 ### GitHub Integration (SecuriGit)
 
@@ -281,11 +281,11 @@ The agent must never use model reasoning to override Sentinel evidence. If Senti
 
 | Command | Description |
 |---------|-------------|
-| `sentinel env-encrypt <file>` | Encrypt .env file (AES-256-CBC). Requires `SENTINEL_ENV_KEY`. |
-| `sentinel env-decrypt <file>` | Decrypt .env.enc file. |
-| `sentinel hub` | Interactive TUI. |
-| `sentinel policies` | Show security policy. |
-| `sentinel guide` | Complete user guide. |
+| `sentinel-cli env-encrypt <file>` | Encrypt .env file (AES-256-CBC). Requires `SENTINEL_ENV_KEY`. |
+| `sentinel-cli env-decrypt <file>` | Decrypt .env.enc file. |
+| `sentinel-cli hub` | Interactive TUI. |
+| `sentinel-cli policies` | Show security policy. |
+| `sentinel-cli guide` | Complete user guide. |
 
 ---
 
@@ -386,7 +386,7 @@ The agent MUST NOT: group by severity, present summary tables, omit any field, s
 
 Place `CLAUD.md` in your project root. Claude Code reads it automatically on project context load. The skill teaches Claude:
 
-- When to call `sentinel scan` instead of reading files
+- When to call `sentinel-cli scan` instead of reading files
 - How to interpret BLOCK / REVIEW / ALLOW
 - To attach evidence verbatim to every security claim
 - To chain tools for complete workflows

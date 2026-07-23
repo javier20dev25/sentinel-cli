@@ -172,8 +172,8 @@ Red Team Report generates
 **Purpose:** Save attack telemetry for reuse without re-executing.
 
 ```bash
-sentinel replay list                    # List datasets
-sentinel replay run <dataset-id>        # Run replay
+sentinel-cli replay list                    # List datasets
+sentinel-cli replay run <dataset-id>        # Run replay
 ```
 
 **Data Structure:**
@@ -198,8 +198,8 @@ datasets/
 **Purpose:** Automatically validate that detections don't break.
 
 ```bash
-sentinel regression list                # List suites
-sentinel regression coverage            # View coverage
+sentinel-cli regression list                # List suites
+sentinel-cli regression coverage            # View coverage
 ```
 
 **Default Suite (12 tests):**
@@ -224,8 +224,8 @@ sentinel regression coverage            # View coverage
 **Purpose:** Visualize mapping coverage vs MITRE ATT&CK.
 
 ```bash
-sentinel coverage                       # View matrix
-sentinel coverage --save                # Save to file
+sentinel-cli coverage                       # View matrix
+sentinel-cli coverage --save                # Save to file
 ```
 
 **28 MITRE Techniques Mapped:**
@@ -249,9 +249,9 @@ sentinel coverage --save                # Save to file
 **Purpose:** Detect anomalies by comparing against known good builds.
 
 ```bash
-sentinel baseline-pro list              # List profiles
-sentinel baseline-pro create <id>       # Create profile
-sentinel baseline-pro show <id>         # View details
+sentinel-cli baseline-pro list              # List profiles
+sentinel-cli baseline-pro create <id>       # Create profile
+sentinel-cli baseline-pro show <id>         # View details
 ```
 
 **Statistics:**
@@ -280,9 +280,9 @@ sentinel baseline-pro show <id>         # View details
 **Purpose:** Framework prepared to measure performance, accuracy, and stability under load.
 
 ```bash
-sentinel stress config                  # Configure test
-sentinel stress results <config-id>     # View results
-sentinel stress compare <config-id>     # Compare runs
+sentinel-cli stress config                  # Configure test
+sentinel-cli stress results <config-id>     # View results
+sentinel-cli stress compare <config-id>     # Compare runs
 ```
 
 **Metrics Prepared to Measure:**
@@ -303,9 +303,9 @@ sentinel stress compare <config-id>     # Compare runs
 ### Level 1 (Normal User)
 
 ```
-sentinel build observe <cmd>            # Verdict + trust + highlights
-sentinel scan <path>                    # findings by severity
-sentinel top                            # top findings
+sentinel-cli build observe <cmd>            # Verdict + trust + highlights
+sentinel-cli scan <path>                    # findings by severity
+sentinel-cli top                            # top findings
 ```
 
 **Output:** Verdict, Trust Score, 3-5 highlights, what to do.
@@ -313,61 +313,61 @@ sentinel top                            # top findings
 ### Level 2 (Analyst)
 
 ```
-sentinel build explain                  # Why the score is what it is
-sentinel inspect                        # Graph, centrality, dominators
-sentinel trust                          # Trust calibration
+sentinel-cli build explain                  # Why the score is what it is
+sentinel-cli inspect                        # Graph, centrality, dominators
+sentinel-cli trust                          # Trust calibration
 ```
 
 ### Level 3 (Researcher)
 
 ```
-sentinel build observe --verbose        # Full technical details
-sentinel build graph                    # Evidence graph
-sentinel atomic --list                  # Atomic RT tests mapped
+sentinel-cli build observe --verbose        # Full technical details
+sentinel-cli build graph                    # Evidence graph
+sentinel-cli atomic --list                  # Atomic RT tests mapped
 ```
 
 ### Level 4 (Pipeline)
 
 ```
-sentinel build observe --json           # JSON for pipelines
-sentinel scan --json                    # findings JSON
-sentinel regression list                # regression suites
+sentinel-cli build observe --json           # JSON for pipelines
+sentinel-cli scan --json                    # findings JSON
+sentinel-cli regression list                # regression suites
 ```
 
 ### Red Team
 
 ```
-sentinel redteam --list                 # 26 attacks, 10 campaigns
-sentinel redteam --coverage             # Coverage matrix
-sentinel atomic --priority P1 --dry-run # Preview without executing
-sentinel atomic --script                # Generate script
+sentinel-cli redteam --list                 # 26 attacks, 10 campaigns
+sentinel-cli redteam --coverage             # Coverage matrix
+sentinel-cli atomic --priority P1 --dry-run # Preview without executing
+sentinel-cli atomic --script                # Generate script
 ```
 
 ### Testing & Validation
 
 ```
-sentinel replay list                    # Replay datasets
-sentinel replay run <id>                # Run replay
-sentinel regression coverage            # Test coverage
-sentinel coverage                       # MITRE ATT&CK matrix
-sentinel stress config                  # Configure stress test
-sentinel stress results <id>            # Results
+sentinel-cli replay list                    # Replay datasets
+sentinel-cli replay run <id>                # Run replay
+sentinel-cli regression coverage            # Test coverage
+sentinel-cli coverage                       # MITRE ATT&CK matrix
+sentinel-cli stress config                  # Configure stress test
+sentinel-cli stress results <id>            # Results
 ```
 
 ### Baseline & Performance
 
 ```
-sentinel baseline-pro list              # Baseline profiles
-sentinel baseline-pro show <id>         # Details
-sentinel stress compare <id>            # Compare runs
+sentinel-cli baseline-pro list              # Baseline profiles
+sentinel-cli baseline-pro show <id>         # Details
+sentinel-cli stress compare <id>            # Compare runs
 ```
 
 ### Integrations
 
 ```
-sentinel mcp                            # MCP server
-sentinel hub                            # Interactive menu
-sentinel guide                          # 22 sections
+sentinel-cli mcp                            # MCP server
+sentinel-cli hub                            # Interactive menu
+sentinel-cli guide                          # 22 sections
 ```
 
 ---

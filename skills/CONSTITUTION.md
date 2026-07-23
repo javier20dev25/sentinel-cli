@@ -50,11 +50,11 @@ This document defines the binding rules that any AI agent must follow when using
 
 **3.1** Tasks Sentinel can do locally cost zero API tokens. The agent must prefer them over model-based analysis.
 
-**3.2** The agent should not open and read large files that Sentinel can scan. Scanning 1000 files with `sentinel scan .` costs zero tokens. Reading them with the model costs hundreds of thousands of tokens.
+**3.2** The agent should not open and read large files that Sentinel can scan. Scanning 1000 files with `sentinel-cli scan .` costs zero tokens. Reading them with the model costs hundreds of thousands of tokens.
 
-**3.3** The agent should not download and inspect package tarballs manually. `sentinel verify-pkg` does this deterministically and reports findings without token consumption.
+**3.3** The agent should not download and inspect package tarballs manually. `sentinel-cli verify-pkg` does this deterministically and reports findings without token consumption.
 
-**3.4** The agent should not parse lockfiles to find vulnerabilities. `sentinel doctor --deep` runs the full dependency tree analysis locally.
+**3.4** The agent should not parse lockfiles to find vulnerabilities. `sentinel-cli doctor --deep` runs the full dependency tree analysis locally.
 
 ---
 

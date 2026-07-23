@@ -55,19 +55,19 @@ It also integrates with AI coding agents (Claude, Cursor, Cline, Windsurf, OpenC
 npm install -g @sentinel/cli
 
 # Scan a project for vulnerabilities
-sentinel scan ./src
+sentinel-cli scan ./src
 
 # Audit all dependencies
-sentinel audit-deps
+sentinel-cli audit-deps
 
 # Start network monitoring
-sentinel network start
+sentinel-cli network start
 
 # Observe a build
-sentinel build observe "npm run build"
+sentinel-cli build observe "npm run build"
 
 # Install skills for AI coding agents (optional)
-sentinel install-skills
+sentinel-cli install-skills
 ```
 
 ---
@@ -79,7 +79,7 @@ sentinel install-skills
 30 deterministic rules covering: secrets detection, eval() usage, network access, environment variable exposure, command injection, SQL injection, prototype pollution, crypto misuse, obfuscation, and workflow poisoning.
 
 ```bash
-sentinel scan <path>
+sentinel-cli scan <path>
 ```
 
 ### 2. Supply Chain Security
@@ -95,10 +95,10 @@ Multi-layer package auditing without installing anything:
 | Malicious patterns | Embedded secrets, suspicious install scripts |
 
 ```bash
-sentinel audit-deps           # Full dependency audit
-sentinel verify-pkg <name>    # Single package check
-sentinel sbom                 # CycloneDX v1.5 SBOM generation
-sentinel deps-tree <path>     # Transitive dependency scan
+sentinel-cli audit-deps           # Full dependency audit
+sentinel-cli verify-pkg <name>    # Single package check
+sentinel-cli sbom                 # CycloneDX v1.5 SBOM generation
+sentinel-cli deps-tree <path>     # Transitive dependency scan
 ```
 
 ### 3. Network Auditor (Behavior-based Exfiltration Detection)
@@ -108,12 +108,12 @@ Monitors process execution, Git activity, network connections, and DNS queries t
 **31 behavior classifiers** mapped to MITRE ATT&CK, with SHA-256 evidence chaining and timeline reconstruction.
 
 ```bash
-sentinel network start         # Start a live audit session
-sentinel network stop          # Stop and produce verdict
-sentinel network status        # Current session status
-sentinel network history -l N  # Last N sessions
-sentinel network session <id>  # Session detail
-sentinel network export <id>   # Export (json|markdown)
+sentinel-cli network start         # Start a live audit session
+sentinel-cli network stop          # Stop and produce verdict
+sentinel-cli network status        # Current session status
+sentinel-cli network history -l N  # Last N sessions
+sentinel-cli network session <id>  # Session detail
+sentinel-cli network export <id>   # Export (json|markdown)
 ```
 
 ### 4. Build Flight Recorder
@@ -121,18 +121,18 @@ sentinel network export <id>   # Export (json|markdown)
 Captures a complete forensic record of any build command: process tree (filtered to build descendants), file artifacts created during the build, and a SHA-256 integrity chain. Outputs a `CLEAN`/`REVIEW` verdict based on anomalous processes.
 
 ```bash
-sentinel build observe "npm run build"
-sentinel build observe "make -j4" --verbose
-sentinel build observe "go build ./..." --json
-sentinel build explain              # Why the score is what it is
-sentinel inspect                    # Evidence graph, centrality, dominators
+sentinel-cli build observe "npm run build"
+sentinel-cli build observe "make -j4" --verbose
+sentinel-cli build observe "go build ./..." --json
+sentinel-cli build explain              # Why the score is what it is
+sentinel-cli inspect                    # Evidence graph, centrality, dominators
 ```
 
 ### 5. GitHub Integration
 
 ```bash
-sentinel pr-audit --repo R --pr N     # Audit a single PR
-sentinel workflow full-audit --repo R # Audit ALL PRs in one repo
+sentinel-cli pr-audit --repo R --pr N     # Audit a single PR
+sentinel-cli workflow full-audit --repo R # Audit ALL PRs in one repo
 ```
 
 PR Bot auto-analyzes all open PRs across your repos, posts findings as PR comments with Check Run status.
@@ -141,47 +141,47 @@ PR Bot auto-analyzes all open PRs across your repos, posts findings as PR commen
 
 | Command | Description |
 |---------|-------------|
-| `sentinel integrity` | Chain-of-trust host verification (hash, PATH, vault, clock, manifest) |
-| `sentinel doctor` | Dependency health and system diagnostics |
-| `sentinel baseline create\|diff` | System snapshots and drift detection |
-| `sentinel permissions <pkg>` | Capability audit of installed packages |
+| `sentinel-cli integrity` | Chain-of-trust host verification (hash, PATH, vault, clock, manifest) |
+| `sentinel-cli doctor` | Dependency health and system diagnostics |
+| `sentinel-cli baseline create\|diff` | System snapshots and drift detection |
+| `sentinel-cli permissions <pkg>` | Capability audit of installed packages |
 
 ### 7. Security Guard
 
 OS-level package manager interception and git hooks:
 
 ```bash
-sentinel guard enable            # Intercept npm/yarn/pip installs
-sentinel guard status            # Check guard status
-sentinel precommit install       # Block commits with threats
-sentinel prepush install         # Block pushes with threats
-sentinel install npm <pkg>       # Scan then install
+sentinel-cli guard enable            # Intercept npm/yarn/pip installs
+sentinel-cli guard status            # Check guard status
+sentinel-cli precommit install       # Block commits with threats
+sentinel-cli prepush install         # Block pushes with threats
+sentinel-cli install npm <pkg>       # Scan then install
 ```
 
 ### 8. Threat Intelligence Memory
 
 ```bash
-sentinel memory --status         # View vault status
-sentinel memory --ingest <file>  # Ingest cloud report
-sentinel memory --findings       # Query past findings
-sentinel memory --threats        # Threat correlations
+sentinel-cli memory --status         # View vault status
+sentinel-cli memory --ingest <file>  # Ingest cloud report
+sentinel-cli memory --findings       # Query past findings
+sentinel-cli memory --threats        # Threat correlations
 ```
 
 ### 9. Red Team & Validation
 
 ```bash
-sentinel redteam --list          # 26 attack scenarios, 10 campaigns
-sentinel redteam --coverage      # Coverage matrix
-sentinel atomic --list           # 30+ Atomic RT tests mapped
-sentinel atomic --dry-run        # Preview without executing
-sentinel coverage                # MITRE ATT&CK matrix
-sentinel replay list             # Replay datasets
-sentinel regression list         # Regression suites
+sentinel-cli redteam --list          # 26 attack scenarios, 10 campaigns
+sentinel-cli redteam --coverage      # Coverage matrix
+sentinel-cli atomic --list           # 30+ Atomic RT tests mapped
+sentinel-cli atomic --dry-run        # Preview without executing
+sentinel-cli coverage                # MITRE ATT&CK matrix
+sentinel-cli replay list             # Replay datasets
+sentinel-cli regression list         # Regression suites
 ```
 
 ### 10. Interactive Hub
 
-`sentinel hub` launches a bilingual (English/Spanish) operations menu:
+`sentinel-cli hub` launches a bilingual (English/Spanish) operations menu:
 
 ```
   0. PR Bot — Auto-Analyze All Open PRs
@@ -219,13 +219,13 @@ sentinel regression list         # Regression suites
 Platform-specific instruction files that teach AI agents to call Sentinel for all security-relevant tasks. Available for 8 agent platforms:
 
 ```bash
-sentinel install-skills           # auto-detect agents
-sentinel install-skills --list    # show detected agents
-sentinel install-skills --all     # install for all platforms
+sentinel-cli install-skills           # auto-detect agents
+sentinel-cli install-skills --list    # show detected agents
+sentinel-cli install-skills --all     # install for all platforms
 ```
 
 Each skill teaches the agent:
-- **Sentinel primacy** — call `sentinel scan` before reading code with the model
+- **Sentinel primacy** — call `sentinel-cli scan` before reading code with the model
 - **Evidence attachment** — every security claim must include verbatim Sentinel output
 - **Trust hierarchy** — Sentinel evidence (Tier 1) overrides model reasoning (Tier 4)
 - **Workflows** — PR review, package audit, host integrity, full audit pipelines
@@ -243,7 +243,7 @@ Each skill teaches the agent:
 
 ### MCP Server
 
-Model Context Protocol server (`sentinel mcp`) exposing 17 tools as standard MCP tool calls:
+Model Context Protocol server (`sentinel-cli mcp`) exposing 17 tools as standard MCP tool calls:
 
 | Category | Tools |
 |----------|-------|
@@ -253,8 +253,8 @@ Model Context Protocol server (`sentinel mcp`) exposing 17 tools as standard MCP
 | GitHub PR Tools | gh-pr-list, gh-pr-view, gh-pr-diff, gh-repo-list |
 
 ```bash
-sentinel mcp                      # stdio mode (default)
-sentinel mcp --http --port 3003   # HTTP/SSE mode
+sentinel-cli mcp                      # stdio mode (default)
+sentinel-cli mcp --http --port 3003   # HTTP/SSE mode
 ```
 
 ---
@@ -262,7 +262,7 @@ sentinel mcp --http --port 3003   # HTTP/SSE mode
 ## Demo
 
 ```
-$ sentinel build observe "npm run build"
+$ sentinel-cli build observe "npm run build"
 
   ══════════════════════════════════════════════
    SENTINEL BUILD OBSERVATION
@@ -292,7 +292,7 @@ $ sentinel build observe "npm run build"
 ```
 
 ```
-$ sentinel pr-audit --repo javier20dev25/sentinel-cli --pr 42
+$ sentinel-cli pr-audit --repo javier20dev25/sentinel-cli --pr 42
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ✔ CLEAN  │  PR #42  │  javier20dev25/sentinel-cli
@@ -340,16 +340,16 @@ Sentinel exists because of six convictions:
 
 | When | How |
 |------|-----|
-| **Pull Request review** | `sentinel pr-audit` posts findings as PR comment |
-| **Release pipeline** | `sentinel build observe` as quality gate |
-| **Incident investigation** | `sentinel build explain` for causal analysis |
-| **Supply chain audit** | `sentinel audit-deps` for dependency trust |
-| **Red Team validation** | `sentinel redteam` for attack simulation |
-| **Regression detection** | `sentinel regression` for automated validation |
-| **AI agent integration** | `sentinel mcp` for 17 tool calls via MCP protocol |
-| **System integrity** | `sentinel integrity` for chain-of-trust verification |
-| **Package interception** | `sentinel guard enable` for OS-level npm/pip blocking |
-| **Threat history** | `sentinel memory` for local threat intelligence vault |
+| **Pull Request review** | `sentinel-cli pr-audit` posts findings as PR comment |
+| **Release pipeline** | `sentinel-cli build observe` as quality gate |
+| **Incident investigation** | `sentinel-cli build explain` for causal analysis |
+| **Supply chain audit** | `sentinel-cli audit-deps` for dependency trust |
+| **Red Team validation** | `sentinel-cli redteam` for attack simulation |
+| **Regression detection** | `sentinel-cli regression` for automated validation |
+| **AI agent integration** | `sentinel-cli mcp` for 17 tool calls via MCP protocol |
+| **System integrity** | `sentinel-cli integrity` for chain-of-trust verification |
+| **Package interception** | `sentinel-cli guard enable` for OS-level npm/pip blocking |
+| **Threat history** | `sentinel-cli memory` for local threat intelligence vault |
 
 ---
 
@@ -357,67 +357,67 @@ Sentinel exists because of six convictions:
 
 ### Security Scanning
 ```bash
-sentinel scan <path>               # SAST findings by severity
-sentinel audit-deps                # Dependency audit (lockfile + OSV)
-sentinel verify-pkg <name>         # Single package check
-sentinel sbom                      # CycloneDX v1.5 SBOM
-sentinel deps-tree <path>          # Transitive dependency scan
+sentinel-cli scan <path>               # SAST findings by severity
+sentinel-cli audit-deps                # Dependency audit (lockfile + OSV)
+sentinel-cli verify-pkg <name>         # Single package check
+sentinel-cli sbom                      # CycloneDX v1.5 SBOM
+sentinel-cli deps-tree <path>          # Transitive dependency scan
 ```
 
 ### Build Intelligence
 ```bash
-sentinel build observe <cmd>       # Verdict + trust + explanation
-sentinel build explain             # Why the score is what it is
-sentinel inspect                   # Evidence graph, centrality, dominators
-sentinel top                       # Top findings from recent builds
+sentinel-cli build observe <cmd>       # Verdict + trust + explanation
+sentinel-cli build explain             # Why the score is what it is
+sentinel-cli inspect                   # Evidence graph, centrality, dominators
+sentinel-cli top                       # Top findings from recent builds
 ```
 
 ### Network & Red Team
 ```bash
-sentinel network start             # Start live monitoring
-sentinel network stop              # Stop and get verdict
-sentinel redteam --list            # 26 attacks, 10 campaigns
-sentinel atomic --list             # 30+ Atomic RT tests mapped
-sentinel coverage                  # MITRE ATT&CK matrix
+sentinel-cli network start             # Start live monitoring
+sentinel-cli network stop              # Stop and get verdict
+sentinel-cli redteam --list            # 26 attacks, 10 campaigns
+sentinel-cli atomic --list             # 30+ Atomic RT tests mapped
+sentinel-cli coverage                  # MITRE ATT&CK matrix
 ```
 
 ### GitHub Integration
 ```bash
-sentinel pr-audit --repo R --pr N  # Audit a single PR
-sentinel workflow full-audit       # Audit ALL PRs in a repo
+sentinel-cli pr-audit --repo R --pr N  # Audit a single PR
+sentinel-cli workflow full-audit       # Audit ALL PRs in a repo
 ```
 
 ### Security Guard & Hooks
 ```bash
-sentinel guard enable              # Intercept npm/yarn/pip
-sentinel precommit install         # Block commits with threats
-sentinel prepush install           # Block pushes with threats
-sentinel install npm <pkg>         # Scan then install
+sentinel-cli guard enable              # Intercept npm/yarn/pip
+sentinel-cli precommit install         # Block commits with threats
+sentinel-cli prepush install           # Block pushes with threats
+sentinel-cli install npm <pkg>         # Scan then install
 ```
 
 ### Validation
 ```bash
-sentinel replay list               # Replay datasets
-sentinel regression list           # Regression suites
-sentinel baseline-pro list         # Baseline profiles
-sentinel stress config             # Stress testing
+sentinel-cli replay list               # Replay datasets
+sentinel-cli regression list           # Regression suites
+sentinel-cli baseline-pro list         # Baseline profiles
+sentinel-cli stress config             # Stress testing
 ```
 
 ### AI Integration
 ```bash
-sentinel mcp                       # MCP server (17 tools)
-sentinel hub                       # Interactive operations menu
-sentinel install-skills            # Install for 8 AI agents
+sentinel-cli mcp                       # MCP server (17 tools)
+sentinel-cli hub                       # Interactive operations menu
+sentinel-cli install-skills            # Install for 8 AI agents
 ```
 
 ### System
 ```bash
-sentinel integrity                 # Chain-of-trust verification
-sentinel doctor                    # System health check
-sentinel baseline create|diff      # System snapshots
-sentinel permissions <pkg>         # Capability audit
-sentinel memory --status           # Threat vault status
-sentinel token-inspect <token>     # Classify and risk-assess a token
+sentinel-cli integrity                 # Chain-of-trust verification
+sentinel-cli doctor                    # System health check
+sentinel-cli baseline create|diff      # System snapshots
+sentinel-cli permissions <pkg>         # Capability audit
+sentinel-cli memory --status           # Threat vault status
+sentinel-cli token-inspect <token>     # Classify and risk-assess a token
 ```
 
 ---
@@ -425,8 +425,8 @@ sentinel token-inspect <token>     # Classify and risk-assess a token
 ## Benchmarks
 
 ```bash
-sentinel benchmark                 # SAST precision/recall
-sentinel network benchmark history # Detection pipeline metrics
+sentinel-cli benchmark                 # SAST precision/recall
+sentinel-cli network benchmark history # Detection pipeline metrics
 ```
 
 | Layer | Scenarios | Pass Rate |

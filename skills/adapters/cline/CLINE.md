@@ -8,37 +8,37 @@ Before spending tokens on code analysis, check whether a Sentinel command can an
 
 ## FORBIDDEN
 
-- Suggest `npm install` as bypass of `sentinel install`
+- Suggest `npm install` as bypass of `sentinel-cli install`
 - Offer workarounds when Sentinel BLOCKS
-- Commit without `sentinel precommit install`
+- Commit without `sentinel-cli precommit install`
 
 ## MANDATORY
 
-- Use `sentinel install <manager> <pkg>` for all installations
+- Use `sentinel-cli install <manager> <pkg>` for all installations
 - When BLOCK: report findings, state BLOCK, let user decide
-- Run `sentinel precommit install` before first commit
+- Run `sentinel-cli precommit install` before first commit
 
 ## Command Reference
 
 | Category | Command | Purpose |
 |----------|---------|---------|
-| SAST | sentinel scan <path> | 30-rule threat scan |
-| Package | sentinel verify-pkg <name> --details | Zero-install audit + OSV + typosquat |
-| Health | sentinel doctor [--deep] | Dependency check |
-| Integrity | sentinel integrity | Host verification |
-| State | sentinel baseline create|diff | Snapshot and drift |
-| Permissions | sentinel permissions [pkg] | Capability audit |
-| Dep Audit | sentinel audit-deps [--ci] [--provenance] | Lockfile parse + OSV batch + reputation + provenance |
-| Dep Tree | sentinel deps-tree [path] --depth 3 | Transitive dep walk + SAST scan |
-| SBOM | sentinel sbom [--output <file>] | CycloneDX v1.5 generation |
-| Install | sentinel install <manager> [args...] | Gated install (scan then install) |
-| Guard | sentinel guard enable|disable|status | Interception |
-| Trust Cache | sentinel trust-cache <status|clear|prune> | Cached verdicts |
-| Policy | sentinel policy set|get|list | ci-mode, fail-closed, quarantine |
-| Classified | sentinel check-classified <path> | Document gate |
-| Memory | sentinel memory --status|--findings|--threats | Threat DB |
-| Precommit | sentinel precommit install|uninstall|status | SAST pre-commit hook |
-| Prepush | sentinel prepush install|uninstall|status | SAST pre-push hook |
+| SAST | sentinel-cli scan <path> | 30-rule threat scan |
+| Package | sentinel-cli verify-pkg <name> --details | Zero-install audit + OSV + typosquat |
+| Health | sentinel-cli doctor [--deep] | Dependency check |
+| Integrity | sentinel-cli integrity | Host verification |
+| State | sentinel-cli baseline create|diff | Snapshot and drift |
+| Permissions | sentinel-cli permissions [pkg] | Capability audit |
+| Dep Audit | sentinel-cli audit-deps [--ci] [--provenance] | Lockfile parse + OSV batch + reputation + provenance |
+| Dep Tree | sentinel-cli deps-tree [path] --depth 3 | Transitive dep walk + SAST scan |
+| SBOM | sentinel-cli sbom [--output <file>] | CycloneDX v1.5 generation |
+| Install | sentinel-cli install <manager> [args...] | Gated install (scan then install) |
+| Guard | sentinel-cli guard enable|disable|status | Interception |
+| Trust Cache | sentinel-cli trust-cache <status|clear|prune> | Cached verdicts |
+| Policy | sentinel-cli policy set|get|list | ci-mode, fail-closed, quarantine |
+| Classified | sentinel-cli check-classified <path> | Document gate |
+| Memory | sentinel-cli memory --status|--findings|--threats | Threat DB |
+| Precommit | sentinel-cli precommit install|uninstall|status | SAST pre-commit hook |
+| Prepush | sentinel-cli prepush install|uninstall|status | SAST pre-push hook |
 | GitHub | gh-pr-list|view|diff|comment | PR tools |
 | GitHub | gh-repo-list | Repo listing |
 
@@ -49,7 +49,7 @@ Package check: verify-pkg --details -> evaluate verdict
 Host check: integrity -> doctor --deep -> baseline diff
 Full audit: gh-repo-list -> gh-pr-list -> gh-pr-diff -> scan -> comment
 Dep audit: audit-deps --ci -> review -> quarantine if needed
-Install: sentinel install npm <pkg>
+Install: sentinel-cli install npm <pkg>
 
 ## Evidence Format
 

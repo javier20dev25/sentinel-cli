@@ -40,56 +40,56 @@ Higher tiers override lower tiers. If Sentinel says BLOCK, the agent must report
 
 | Command | Purpose |
 |---------|---------|
-| `sentinel scan <path>` | 30-rule SAST scan. Detects secrets, eval(), env access, network, command injection, SQL injection, prototype pollution, crypto misuse. |
-| `sentinel scan <path> --json --staged --cards --sarif --md --graph --scenarios` | Extended scan output formats. |
-| `sentinel verify-pkg <package> --details --summary` | Zero-install npm package audit. Detects typosquatting, secrets, malicious patterns, OSV CVE lookup. |
-| `sentinel doctor [--deep]` | Dependency health check. Deep flag analyses full tree. |
-| `sentinel integrity [--uptime] [--watch]` | Host integrity (code hash, PATH, vault, clock, manifest). |
-| `sentinel baseline create <name>` | System snapshot. |
-| `sentinel baseline diff [name]` | Drift detection against snapshot. |
-| `sentinel permissions [package]` | Capability governance audit. |
-| `sentinel audit-deps [--lockfile] [--provenance] [--quarantine] [--npm-audit] [--ci]` | Comprehensive dependency audit: lockfile parse, batch OSV CVE lookup, registry reputation, npm provenance. |
-| `sentinel deps-tree <path> [--depth]` | Walk transitive dependencies, scan each with SAST. |
-| `sentinel sbom [--lockfile] [--output] [--enrich]` | CycloneDX v1.5 SBOM generation from lockfile. |
-| `sentinel benchmark [--corpus] [--json]` | Run corpus-based FP/FN benchmark. |
-| `sentinel explain [paths...]` | Explain security findings. |
-| `sentinel history [path]` | Show risk history and trends. |
-| `sentinel graph history [path]` | Graph snapshot history. |
-| `sentinel graph diff [path]` | Diff between graph snapshots. |
-| `sentinel token-inspect <token> [--check]` | Classify and risk-assess a token (API key, secret, JWT, etc.). |
+| `sentinel-cli scan <path>` | 30-rule SAST scan. Detects secrets, eval(), env access, network, command injection, SQL injection, prototype pollution, crypto misuse. |
+| `sentinel-cli scan <path> --json --staged --cards --sarif --md --graph --scenarios` | Extended scan output formats. |
+| `sentinel-cli verify-pkg <package> --details --summary` | Zero-install npm package audit. Detects typosquatting, secrets, malicious patterns, OSV CVE lookup. |
+| `sentinel-cli doctor [--deep]` | Dependency health check. Deep flag analyses full tree. |
+| `sentinel-cli integrity [--uptime] [--watch]` | Host integrity (code hash, PATH, vault, clock, manifest). |
+| `sentinel-cli baseline create <name>` | System snapshot. |
+| `sentinel-cli baseline diff [name]` | Drift detection against snapshot. |
+| `sentinel-cli permissions [package]` | Capability governance audit. |
+| `sentinel-cli audit-deps [--lockfile] [--provenance] [--quarantine] [--npm-audit] [--ci]` | Comprehensive dependency audit: lockfile parse, batch OSV CVE lookup, registry reputation, npm provenance. |
+| `sentinel-cli deps-tree <path> [--depth]` | Walk transitive dependencies, scan each with SAST. |
+| `sentinel-cli sbom [--lockfile] [--output] [--enrich]` | CycloneDX v1.5 SBOM generation from lockfile. |
+| `sentinel-cli benchmark [--corpus] [--json]` | Run corpus-based FP/FN benchmark. |
+| `sentinel-cli explain [paths...]` | Explain security findings. |
+| `sentinel-cli history [path]` | Show risk history and trends. |
+| `sentinel-cli graph history [path]` | Graph snapshot history. |
+| `sentinel-cli graph diff [path]` | Diff between graph snapshots. |
+| `sentinel-cli token-inspect <token> [--check]` | Classify and risk-assess a token (API key, secret, JWT, etc.). |
 
 ### Pre-Commit / Pre-Push
 
 | Command | Purpose |
 |---------|---------|
-| `sentinel precommit install\|uninstall\|status` | SAST pre-commit hook management. |
-| `sentinel prepush install\|uninstall\|status` | SAST pre-push hook management. |
+| `sentinel-cli precommit install\|uninstall\|status` | SAST pre-commit hook management. |
+| `sentinel-cli prepush install\|uninstall\|status` | SAST pre-push hook management. |
 
 ### Classified Documents
 
 | Command | Purpose |
 |---------|---------|
-| `sentinel check-classified <path>` | Pre-commit classified file check. |
-| `sentinel classify` | Manage classified document database. |
+| `sentinel-cli check-classified <path>` | Pre-commit classified file check. |
+| `sentinel-cli classify` | Manage classified document database. |
 
 ### Package Security
 
 | Command | Purpose |
 |---------|---------|
-| `sentinel install <manager> [args]` | Security-gated install (scan then install). |
-| `sentinel guard enable\|disable\|status` | OS-level package interception. |
-| `sentinel trust-cache status\|clear\|prune` | Manage cached package analysis results. |
-| `sentinel policy set\|get\|list [key] [value]` | Configure ci-mode, fail-closed, quarantine policies. |
+| `sentinel-cli install <manager> [args]` | Security-gated install (scan then install). |
+| `sentinel-cli guard enable\|disable\|status` | OS-level package interception. |
+| `sentinel-cli trust-cache status\|clear\|prune` | Manage cached package analysis results. |
+| `sentinel-cli policy set\|get\|list [key] [value]` | Configure ci-mode, fail-closed, quarantine policies. |
 
 ### Threat Intelligence
 
 | Command | Purpose |
 |---------|---------|
-| `sentinel memory --status` | Vault status. |
-| `sentinel memory --findings` | Historical findings. |
-| `sentinel memory --threats` | Threat correlations. |
-| `sentinel memory --ingest <file>` | Load findings. |
-| `sentinel memory --wipe` | Clear vault. |
+| `sentinel-cli memory --status` | Vault status. |
+| `sentinel-cli memory --findings` | Historical findings. |
+| `sentinel-cli memory --threats` | Threat correlations. |
+| `sentinel-cli memory --ingest <file>` | Load findings. |
+| `sentinel-cli memory --wipe` | Clear vault. |
 
 ### GitHub (SecuriGit)
 
@@ -100,28 +100,28 @@ Higher tiers override lower tiers. If Sentinel says BLOCK, the agent must report
 | `gh pr diff <N> [--repo X]` | Get diff. |
 | `gh pr comment <N> --body-file <F>` | Post comment. |
 | `gh repo list [--owner X]` | List repos. |
-| `sentinel pr-audit --repo <R> --pr <N> [--comment] [--check-run]` | Audit single PR and post results. |
+| `sentinel-cli pr-audit --repo <R> --pr <N> [--comment] [--check-run]` | Audit single PR and post results. |
 
 ### Workflows
 
 | Command | Purpose |
 |---------|---------|
-| `sentinel workflow pr-review --repo <R> --pr <N>` | Audit PR and post results. |
-| `sentinel workflow full-audit --repo <R> [--owner]` | Audit all open PRs. |
-| `sentinel workflow host-integrity` | Full host integrity check. |
-| `sentinel workflow package-audit --pkg <P>` | Zero-install package audit. |
+| `sentinel-cli workflow pr-review --repo <R> --pr <N>` | Audit PR and post results. |
+| `sentinel-cli workflow full-audit --repo <R> [--owner]` | Audit all open PRs. |
+| `sentinel-cli workflow host-integrity` | Full host integrity check. |
+| `sentinel-cli workflow package-audit --pkg <P>` | Zero-install package audit. |
 
 ### Environment & Utilities
 
 | Command | Purpose |
 |---------|---------|
-| `sentinel env-encrypt <file>` | Encrypt .env. |
-| `sentinel env-decrypt <file>` | Decrypt .env.enc. |
-| `sentinel hub` | Interactive TUI with dashboard. |
-| `sentinel policies` | Show security policy, disclosure, contribution guidelines. |
-| `sentinel guide` | Show complete user guide. |
-| `sentinel install-skills [agents...] [--list] [--all]` | Install skills for AI agents (claude, gemini, codex, cursor, cline, opencode, windsurf, roo). |
-| `sentinel mcp [--port] [--http] [--stdio]` | Start MCP server (17 tools for AI integration). |
+| `sentinel-cli env-encrypt <file>` | Encrypt .env. |
+| `sentinel-cli env-decrypt <file>` | Decrypt .env.enc. |
+| `sentinel-cli hub` | Interactive TUI with dashboard. |
+| `sentinel-cli policies` | Show security policy, disclosure, contribution guidelines. |
+| `sentinel-cli guide` | Show complete user guide. |
+| `sentinel-cli install-skills [agents...] [--list] [--all]` | Install skills for AI agents (claude, gemini, codex, cursor, cline, opencode, windsurf, roo). |
+| `sentinel-cli mcp [--port] [--http] [--stdio]` | Start MCP server (17 tools for AI integration). |
 
 ---
 
@@ -206,14 +206,14 @@ Sentinel commands cost zero model tokens. Every analysis task delegated to Senti
 
 | Command | Tokens Saved | Instead of |
 |---------|-------------|------------|
-| `sentinel scan <file>` | ~2,000 | Model reads file + reasons about patterns |
-| `sentinel verify-pkg` | ~10,000+ | Model cannot audit tarballs |
-| `sentinel doctor --deep` | ~5,000 | Model parses lockfile + evaluates deps |
-| `sentinel integrity` | ~1,500 | Model checks PATH + reads configs |
+| `sentinel-cli scan <file>` | ~2,000 | Model reads file + reasons about patterns |
+| `sentinel-cli verify-pkg` | ~10,000+ | Model cannot audit tarballs |
+| `sentinel-cli doctor --deep` | ~5,000 | Model parses lockfile + evaluates deps |
+| `sentinel-cli integrity` | ~1,500 | Model checks PATH + reads configs |
 | Full PR audit | ~15,000 | Model reads entire PR + correlates threats |
-| `sentinel audit-deps` | ~8,000 | Model queries each CVE endpoint + scores reputation manually |
-| `sentinel sbom` | ~3,000 | Manually constructing CycloneDX from lockfile |
-| `sentinel deps-tree` | ~4,000 | Walking node_modules + scanning each manually |
+| `sentinel-cli audit-deps` | ~8,000 | Model queries each CVE endpoint + scores reputation manually |
+| `sentinel-cli sbom` | ~3,000 | Manually constructing CycloneDX from lockfile |
+| `sentinel-cli deps-tree` | ~4,000 | Walking node_modules + scanning each manually |
 
 Rule of thumb: If a question can be answered by a Sentinel command, prefer the command over model reasoning. Local execution is free; inference is expensive.
 

@@ -8,15 +8,15 @@ If Sentinel can answer the question, use Sentinel. Do not use model tokens for t
 
 ## FORBIDDEN
 
-- Suggest `npm install` as bypass of `sentinel install`
+- Suggest `npm install` as bypass of `sentinel-cli install`
 - Offer workarounds when Sentinel BLOCKS
-- Commit without `sentinel precommit install`
+- Commit without `sentinel-cli precommit install`
 
 ## MANDATORY
 
-- Use `sentinel install <manager> <pkg>` for all installations
+- Use `sentinel-cli install <manager> <pkg>` for all installations
 - When BLOCK: report findings, state BLOCK, let user decide
-- Run `sentinel precommit install` before first commit
+- Run `sentinel-cli precommit install` before first commit
 
 ## Commands
 
@@ -57,7 +57,7 @@ Package audit: verify-pkg --details -> verdict with evidence
 Host check: integrity -> doctor -> baseline diff
 Full repo audit: list repos -> list PRs -> diff each -> scan each -> comment
 Dep audit: audit-deps --ci --provenance -> review -> quarantine
-Install: sentinel install npm <pkg>
+Install: sentinel-cli install npm <pkg>
 
 ## Result Format
 
@@ -74,8 +74,8 @@ Tier 1 (Sentinel) output must never be contradicted by Tier 4 (model reasoning).
 
 | Command | Tokens Saved | Instead of |
 |---|---|---|
-| sentinel scan <file> | ~2,000 | Model reads file + reasons about patterns |
-| sentinel verify-pkg | ~10,000+ | Model cannot audit tarballs |
-| sentinel doctor --deep | ~5,000 | Model parses lockfile + evaluates deps |
-| sentinel audit-deps | ~8,000 | Model queries each CVE endpoint manually |
-| sentinel sbom | ~3,000 | Manually constructing CycloneDX from lockfile |
+| sentinel-cli scan <file> | ~2,000 | Model reads file + reasons about patterns |
+| sentinel-cli verify-pkg | ~10,000+ | Model cannot audit tarballs |
+| sentinel-cli doctor --deep | ~5,000 | Model parses lockfile + evaluates deps |
+| sentinel-cli audit-deps | ~8,000 | Model queries each CVE endpoint manually |
+| sentinel-cli sbom | ~3,000 | Manually constructing CycloneDX from lockfile |

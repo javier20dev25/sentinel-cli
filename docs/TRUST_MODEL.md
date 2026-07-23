@@ -9,13 +9,13 @@ Defines how the agent should rank evidence sources when analysing security issue
 Deterministic output from local Sentinel tools. This is the most reliable source because it comes from verifiable static analysis, not model inference.
 
 **Sources:**
-- `sentinel scan` — finding list with file, line, severity, type, description
-- `sentinel verify-pkg` — verdict, findings, file count, scan time
-- `sentinel integrity` — integrity level, reasons, chain status
-- `sentinel memory` — historical findings, threat correlations
-- `sentinel doctor` — vulnerability report, dependency analysis
-- `sentinel check-classified` — pass/fail with matched files
-- `sentinel baseline diff` — changed files, new threats
+- `sentinel-cli scan` — finding list with file, line, severity, type, description
+- `sentinel-cli verify-pkg` — verdict, findings, file count, scan time
+- `sentinel-cli integrity` — integrity level, reasons, chain status
+- `sentinel-cli memory` — historical findings, threat correlations
+- `sentinel-cli doctor` — vulnerability report, dependency analysis
+- `sentinel-cli check-classified` — pass/fail with matched files
+- `sentinel-cli baseline diff` — changed files, new threats
 
 **Trust: maximum. Do not override with model reasoning.**
 
@@ -91,8 +91,8 @@ The AI model's own analysis, pattern matching, and conclusions based on its trai
 User asks: is this PR safe?
 
 1. Agent runs `gh-pr-diff` (Tier 3) to get the diff
-2. Pipes diff into `sentinel scan` (Tier 1) — finds hardcoded secret
-3. Agent checks `sentinel memory --threats` (Tier 1) — same author has 3 prior threats
+2. Pipes diff into `sentinel-cli scan` (Tier 1) — finds hardcoded secret
+3. Agent checks `sentinel-cli memory --threats` (Tier 1) — same author has 3 prior threats
 4. Model reads the diff (Tier 4) to explain the finding
 
 Result: Tier 1 + Tier 1 = Confirmed BLOCK. Model narrates the evidence.

@@ -8,7 +8,7 @@ node scripts/record-session.js <profileId> <duration_sec> [work_cmd]
 
 ## Funcionamiento
 
-1. Inicia el recorder de Sentinel (`sentinel network record`): captura procesos, red, DNS
+1. Inicia el recorder de Sentinel (`sentinel-cli network record`): captura procesos, red, DNS
 2. Si se especifica `work_cmd`, lo ejecuta en background via `cmd.exe /c`
 3. Espera la duración especificada o hasta que termine el recorder
 4. Guarda en `replay-corpus/recorded/session-<id>.json`

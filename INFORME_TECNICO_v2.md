@@ -313,8 +313,8 @@ Red Team Report genera
 **Propósito:** Guardar telemetría de ataques para reutilizar sin volver a ejecutar.
 
 ```bash
-sentinel replay list                    # Listar datasets
-sentinel replay run <dataset-id>        # Ejecutar replay
+sentinel-cli replay list                    # Listar datasets
+sentinel-cli replay run <dataset-id>        # Ejecutar replay
 ```
 
 **Estructura:**
@@ -339,8 +339,8 @@ datasets/
 **Propósito:** Validar automáticamente que las detecciones no se rompen.
 
 ```bash
-sentinel regression list                # Listar suites
-sentinel regression coverage            # Ver cobertura
+sentinel-cli regression list                # Listar suites
+sentinel-cli regression coverage            # Ver cobertura
 ```
 
 **Suite default (12 tests):**
@@ -365,8 +365,8 @@ sentinel regression coverage            # Ver cobertura
 **Propósito:** Visualizar cobertura de mapping vs MITRE ATT&CK.
 
 ```bash
-sentinel coverage                       # Ver matriz
-sentinel coverage --save                # Guardar a archivo
+sentinel-cli coverage                       # Ver matriz
+sentinel-cli coverage --save                # Guardar a archivo
 ```
 
 **28 Técnicas MITRE mapeadas:**
@@ -390,9 +390,9 @@ sentinel coverage --save                # Guardar a archivo
 **Propósito:** Detectar anomalías comparando contra builds conocidos buenos.
 
 ```bash
-sentinel baseline-pro list              # Listar perfiles
-sentinel baseline-pro create <id>       # Crear perfil
-sentinel baseline-pro show <id>         # Ver detalles
+sentinel-cli baseline-pro list              # Listar perfiles
+sentinel-cli baseline-pro create <id>       # Crear perfil
+sentinel-cli baseline-pro show <id>         # Ver detalles
 ```
 
 **Estadísticas:**
@@ -421,9 +421,9 @@ sentinel baseline-pro show <id>         # Ver detalles
 **Propósito:** Framework preparado para medir performance, accuracy y estabilidad bajo carga.
 
 ```bash
-sentinel stress config                  # Configurar test
-sentinel stress results <config-id>     # Ver resultados
-sentinel stress compare <config-id>     # Comparar runs
+sentinel-cli stress config                  # Configurar test
+sentinel-cli stress results <config-id>     # Ver resultados
+sentinel-cli stress compare <config-id>     # Comparar runs
 ```
 
 **Métricas preparadas para medir:**
@@ -444,9 +444,9 @@ sentinel stress compare <config-id>     # Comparar runs
 ### 9.1 Nivel 1 (Usuario normal)
 
 ```
-sentinel build observe <cmd>            # Veredicto + trust + highlights
-sentinel scan <path>                    # findings por severidad
-sentinel top                            # top findings
+sentinel-cli build observe <cmd>            # Veredicto + trust + highlights
+sentinel-cli scan <path>                    # findings por severidad
+sentinel-cli top                            # top findings
 ```
 
 **Output:** Veredicto, Trust Score, 3-5 highlights, qué hacer.
@@ -454,61 +454,61 @@ sentinel top                            # top findings
 ### 9.2 Nivel 2 (Analista)
 
 ```
-sentinel build explain                  # Por qué el score es lo que es
-sentinel inspect                        # Grafo, centralidad, dominadores
-sentinel trust                          # Calibración de confianza
+sentinel-cli build explain                  # Por qué el score es lo que es
+sentinel-cli inspect                        # Grafo, centralidad, dominadores
+sentinel-cli trust                          # Calibración de confianza
 ```
 
 ### 9.3 Nivel 3 (Investigador)
 
 ```
-sentinel build observe --verbose        # Detalles técnicos completos
-sentinel build graph                    # Grafo de evidencia
-sentinel atomic --list                  # Atomic RT tests mapeados
+sentinel-cli build observe --verbose        # Detalles técnicos completos
+sentinel-cli build graph                    # Grafo de evidencia
+sentinel-cli atomic --list                  # Atomic RT tests mapeados
 ```
 
 ### 9.4 Nivel 4 (Pipeline)
 
 ```
-sentinel build observe --json           # JSON para pipelines
-sentinel scan --json                    # findings JSON
-sentinel regression list                # regression suites
+sentinel-cli build observe --json           # JSON para pipelines
+sentinel-cli scan --json                    # findings JSON
+sentinel-cli regression list                # regression suites
 ```
 
 ### 9.5 Red Team
 
 ```
-sentinel redteam --list                 # 26 ataques, 10 campañas
-sentinel redteam --coverage             # Matriz de cobertura
-sentinel atomic --priority P1 --dry-run # Preview sin ejecutar
-sentinel atomic --script                # Genera script
+sentinel-cli redteam --list                 # 26 ataques, 10 campañas
+sentinel-cli redteam --coverage             # Matriz de cobertura
+sentinel-cli atomic --priority P1 --dry-run # Preview sin ejecutar
+sentinel-cli atomic --script                # Genera script
 ```
 
 ### 9.6 Testing & Validation
 
 ```
-sentinel replay list                    # Datasets de replay
-sentinel replay run <id>                # Ejecutar replay
-sentinel regression coverage            # Cobertura de tests
-sentinel coverage                       # Matriz MITRE ATT&CK
-sentinel stress config                  # Configurar stress test
-sentinel stress results <id>            # Resultados
+sentinel-cli replay list                    # Datasets de replay
+sentinel-cli replay run <id>                # Ejecutar replay
+sentinel-cli regression coverage            # Cobertura de tests
+sentinel-cli coverage                       # Matriz MITRE ATT&CK
+sentinel-cli stress config                  # Configurar stress test
+sentinel-cli stress results <id>            # Resultados
 ```
 
 ### 9.7 Baseline & Performance
 
 ```
-sentinel baseline-pro list              # Perfiles de baseline
-sentinel baseline-pro show <id>         # Detalles
-sentinel stress compare <id>            # Comparar runs
+sentinel-cli baseline-pro list              # Perfiles de baseline
+sentinel-cli baseline-pro show <id>         # Detalles
+sentinel-cli stress compare <id>            # Comparar runs
 ```
 
 ### 9.8 Integrations
 
 ```
-sentinel mcp                            # Servidor MCP
-sentinel hub                            # Menú interactivo
-sentinel guide                          # 22 secciones
+sentinel-cli mcp                            # Servidor MCP
+sentinel-cli hub                            # Menú interactivo
+sentinel-cli guide                          # 22 secciones
 ```
 
 ---

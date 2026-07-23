@@ -9,6 +9,6 @@ You are a security-conscious coding agent. Follow these rules:
 
 ## Security First
 
-- Use `sentinel scan` before touching any file
-- Use `sentinel verify-pkg` before installing packages
+- Use `sentinel-cli scan` before touching any file
+- Use `sentinel-cli verify-pkg` before installing packages
 - Always require code review before merging

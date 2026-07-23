@@ -1,10 +1,52 @@
 # Sentinel — Security Intelligence Platform
 
-> SAST Scanner · Supply Chain Shield · Network Auditor · Skills System · MCP Server
+> SAST Scanner · Supply Chain Shield · Network Auditor · Build Intelligence · Skills System · MCP Server
 
-Sentinel is a deterministic, local-first security intelligence platform. It scans source code for vulnerabilities, audits software supply chains, monitors network behavior for exfiltration attempts, and verifies system integrity — all without sending data to third-party services.
+Sentinel is a deterministic, local-first security intelligence platform. It scans source code for vulnerabilities, audits software supply chains, monitors network behavior for exfiltration attempts, observes build processes, and verifies system integrity — all without sending data to third-party services.
 
 It also integrates with AI coding agents (Claude, Cursor, Cline, Windsurf, OpenCode, Roo, Gemini, Codex) via platform-specific skills and a Model Context Protocol (MCP) server, but Sentinel works standalone as a CLI security tool for any development workflow.
+
+---
+
+## Contents
+
+| I want to... | Go to |
+|--------------|-------|
+| Install and try it | [Quick Start](#quick-start) |
+| Understand what it does | [Core Capabilities](#core-capabilities) |
+| See a real output | [Demo](#demo) |
+| Understand the architecture | [Architecture](#architecture) |
+| Read the design principles | [Design Philosophy](#design-philosophy) |
+| Compare with other tools | [How Sentinel Compares](#how-sentinel-compares) |
+| Find a use case | [Use Cases](#use-cases) |
+| Learn the CLI commands | [CLI Commands](#cli-commands-70) |
+| See benchmark numbers | [Benchmarks](#benchmarks) |
+| Understand maturity level | [Current Maturity](#current-maturity) |
+| Read the full documentation | [Documentation](#documentation) |
+| Contribute | [Contributing](./CONTRIBUTING.md) |
+| Report a vulnerability | [Security](./SECURITY.md) |
+| See the roadmap | [Roadmap](./ROADMAP.md) |
+
+---
+
+## Current Maturity
+
+| Area | Status |
+|------|--------|
+| **SAST (30 rules)** | Production-ready |
+| **Supply chain audit** | Production-ready |
+| **Network auditor** | Production-ready |
+| **GitHub integration** | Production-ready |
+| **Build intelligence** | Production-ready |
+| **Red Team emulation** | Research-grade (simulated) |
+| **Replay & regression** | Implemented, needs external validation |
+| **Atomic RT validation** | Pending (requires isolated VM) |
+| **CALDERA campaigns** | Pending |
+| **External benchmarking** | Pending |
+
+**1,040 automated regression and unit tests** covering implemented functionality. CI runs on Node 20 + 22.
+
+---
 
 ## Quick Start
 
@@ -21,13 +63,18 @@ sentinel audit-deps
 # Start network monitoring
 sentinel network start
 
+# Observe a build
+sentinel build observe "npm run build"
+
 # Install skills for AI coding agents (optional)
 sentinel install-skills
 ```
 
+---
+
 ## Core Capabilities
 
-### Static Analysis (SAST)
+### 1. Static Analysis (SAST)
 
 30 deterministic rules covering: secrets detection, eval() usage, network access, environment variable exposure, command injection, SQL injection, prototype pollution, crypto misuse, obfuscation, and workflow poisoning.
 
@@ -35,7 +82,7 @@ sentinel install-skills
 sentinel scan <path>
 ```
 
-### Supply Chain Security
+### 2. Supply Chain Security
 
 Multi-layer package auditing without installing anything:
 
@@ -51,9 +98,10 @@ Multi-layer package auditing without installing anything:
 sentinel audit-deps           # Full dependency audit
 sentinel verify-pkg <name>    # Single package check
 sentinel sbom                 # CycloneDX v1.5 SBOM generation
+sentinel deps-tree <path>     # Transitive dependency scan
 ```
 
-### Network Auditor (Behavior-based Exfiltration Detection)
+### 3. Network Auditor (Behavior-based Exfiltration Detection)
 
 Monitors process execution, Git activity, network connections, and DNS queries to detect repository exfiltration patterns. Unlike traditional tools that inspect packet contents, Sentinel reconstructs behavioral chains (preparation → collection → packaging → exfiltration) to detect the *shape* of an attack regardless of the tools used.
 
@@ -68,23 +116,28 @@ sentinel network session <id>  # Session detail
 sentinel network export <id>   # Export (json|markdown)
 ```
 
-See [Network Auditor Documentation](./docs/NETWORK_AUDITOR.md).
-
-### Build Flight Recorder
+### 4. Build Flight Recorder
 
 Captures a complete forensic record of any build command: process tree (filtered to build descendants), file artifacts created during the build, and a SHA-256 integrity chain. Outputs a `CLEAN`/`REVIEW` verdict based on anomalous processes.
 
 ```bash
-sentinel build "npm run build"
-sentinel build "make -j4" --timeout 60000
-sentinel build "go build ./..." --provenance   # full report
-sentinel build "gcc -O2 *.c -o app" --save     # save for diff
-sentinel build "gcc -O2 *.c -o app" --provenance --save  # second run shows diff
+sentinel build observe "npm run build"
+sentinel build observe "make -j4" --verbose
+sentinel build observe "go build ./..." --json
+sentinel build explain              # Why the score is what it is
+sentinel inspect                    # Evidence graph, centrality, dominators
 ```
 
-See [Build Flight Recorder Documentation](./docs/build-flight-recorder.md).
+### 5. GitHub Integration
 
-### System Integrity
+```bash
+sentinel pr-audit --repo R --pr N     # Audit a single PR
+sentinel workflow full-audit --repo R # Audit ALL PRs in one repo
+```
+
+PR Bot auto-analyzes all open PRs across your repos, posts findings as PR comments with Check Run status.
+
+### 6. System Integrity
 
 | Command | Description |
 |---------|-------------|
@@ -93,7 +146,40 @@ See [Build Flight Recorder Documentation](./docs/build-flight-recorder.md).
 | `sentinel baseline create\|diff` | System snapshots and drift detection |
 | `sentinel permissions <pkg>` | Capability audit of installed packages |
 
-### Interactive Hub
+### 7. Security Guard
+
+OS-level package manager interception and git hooks:
+
+```bash
+sentinel guard enable            # Intercept npm/yarn/pip installs
+sentinel guard status            # Check guard status
+sentinel precommit install       # Block commits with threats
+sentinel prepush install         # Block pushes with threats
+sentinel install npm <pkg>       # Scan then install
+```
+
+### 8. Threat Intelligence Memory
+
+```bash
+sentinel memory --status         # View vault status
+sentinel memory --ingest <file>  # Ingest cloud report
+sentinel memory --findings       # Query past findings
+sentinel memory --threats        # Threat correlations
+```
+
+### 9. Red Team & Validation
+
+```bash
+sentinel redteam --list          # 26 attack scenarios, 10 campaigns
+sentinel redteam --coverage      # Coverage matrix
+sentinel atomic --list           # 30+ Atomic RT tests mapped
+sentinel atomic --dry-run        # Preview without executing
+sentinel coverage                # MITRE ATT&CK matrix
+sentinel replay list             # Replay datasets
+sentinel regression list         # Regression suites
+```
+
+### 10. Interactive Hub
 
 `sentinel hub` launches a bilingual (English/Spanish) operations menu:
 
@@ -114,9 +200,19 @@ See [Build Flight Recorder Documentation](./docs/build-flight-recorder.md).
 
 ---
 
-## AI Coding Agent Integration (Optional)
+## What Sentinel Does NOT Do
 
-Sentinel integrates with AI coding agents through two mechanisms:
+- **Replace EDR** — Sentinel observes builds and monitors networks, not runtime
+- **Replace SAST tools** — it complements them with build-time context
+- **Replace DAST** — no dynamic testing of running applications
+- **Replace SCA** — uses OSV for CVE lookup, not a full SCA replacement
+- **Block builds** — it reports, not prevents (no auto-remediation)
+- **Detect zero-days** — relies on observable patterns, not vulnerability research
+- **Analyze firmware/hypervisor** — out of scope
+
+---
+
+## AI Coding Agent Integration (Optional)
 
 ### Skills System
 
@@ -129,7 +225,7 @@ sentinel install-skills --all     # install for all platforms
 ```
 
 Each skill teaches the agent:
-- **Sentinel primacy** — call `sentinel scan` before reading code with the model (0 tokens vs. expensive model analysis)
+- **Sentinel primacy** — call `sentinel scan` before reading code with the model
 - **Evidence attachment** — every security claim must include verbatim Sentinel output
 - **Trust hierarchy** — Sentinel evidence (Tier 1) overrides model reasoning (Tier 4)
 - **Workflows** — PR review, package audit, host integrity, full audit pipelines
@@ -144,8 +240,6 @@ Each skill teaches the agent:
 | Roo Code | Markdown | `skills/adapters/roo/ROO.md` |
 | Gemini CLI | YAML + triple-file | `skills/adapters/gemini/GEMINI.md` |
 | OpenAI Codex | Markdown | `skills/adapters/codex/CODEX.md` |
-
-See [docs/SKILLS.md](./docs/SKILLS.md) for skill authoring guide.
 
 ### MCP Server
 
@@ -163,316 +257,217 @@ sentinel mcp                      # stdio mode (default)
 sentinel mcp --http --port 3003   # HTTP/SSE mode
 ```
 
-Connect from any MCP-compatible agent (Claude Desktop, Cursor, Cline, etc.).
+---
+
+## Demo
+
+```
+$ sentinel build observe "npm run build"
+
+  ══════════════════════════════════════════════
+   SENTINEL BUILD OBSERVATION
+  ══════════════════════════════════════════════
+
+  CLEAN   90/100  9.0s
+
+  What happened
+  ──────────────
+  Tools:     none detected
+  Processes: 0 observed
+
+  Build Identity
+  ──────────────
+  Hermetic:      95/100
+  Reproducible:  0/100
+  Confidence:    0
+
+  Why this score
+  ──────────────
+  -5  [MEDIUM] 235 named pipe(s) detected (inter-process communication not tracked)
+  -15  No build tools detected (may not be a build)
+  +5  Hermetic build (95/100)
+  +5  No network activity during build
+
+  Nothing requires immediate action.
+```
+
+```
+$ sentinel pr-audit --repo javier20dev25/sentinel-cli --pr 42
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✔ CLEAN  │  PR #42  │  javier20dev25/sentinel-cli
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Title:    feat: add new detection rule
+  Author:   contributor123
+  Files:    3 changed
+  Lines:    +45/-12
+  Rules:    30 SAST rules (code + secrets + filenames)
+  Status:   CLEAN BILL OF HEALTH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 
 ---
 
-## Network Auditor (in detail)
+## Design Philosophy
 
-### Telemetry Sources
+Sentinel exists because of six convictions:
 
-| Source | Mechanism | Coverage |
-|--------|-----------|----------|
-| Process monitor | WMI polling (100ms) | Process creation, command lines, parent-child chains |
-| Git detector | WMI polling (100ms) | Git actions classified by type |
-| Connection inspector | `netstat -ano` (500ms) | TCP connections to external hosts |
-| DNS observer | `ipconfig /displaydns` (2000ms) | DNS queries to known exfiltration domains |
-| HTTP interceptor | MITM (optional) | HTTP request/response inspection |
-| TLS interceptor | Certificate injection (optional) | TLS handshake inspection |
-| WebSocket observer | Process + connection correlation | WebSocket frame inspection |
-| File watcher | Filesystem events | File read/write access patterns |
+1. **Evidence over signatures.** Observe what happened, not what matches a pattern.
+2. **Explainability over opaque scoring.** Every verdict traces to observed evidence.
+3. **Deterministic before probabilistic.** 30 SAST rules before Bayesian inference.
+4. **Replay before repetition.** Capture once, validate many times.
+5. **Observable systems produce better security.** If you can't see it, you can't secure it.
+6. **Offensive thinking improves defensive validation.** Red Team validates Blue Team.
 
-### Behavior Detection (31 Behaviors)
+---
 
-| Behavior | Trigger | MITRE | Stage |
-|----------|---------|-------|-------|
-| `repo_indexed` | Repository indexed by AI agent | T1213 | Collection |
-| `git_history_read` | `git log` / `git rev-list` | T1213 | Collection |
-| `git_objects_read` | `git cat-file` / `git ls-tree` | T1213 | Collection |
-| `git_bundle_created` | `git bundle create` | T1074 | Packaging |
-| `git_bundle_uploaded` | Bundle sent to remote host | T1041 | Exfiltration |
-| `git_archive_created` | `git archive` or `tar` + `.git` | T1560 | Packaging |
-| `secrets_scanned` | Credential store access | T1555 | Collection |
-| `secrets_exfiltrated` | Secrets transmitted remotely | T1041 | Exfiltration |
-| `embeddings_generated` | AI embedding vectors on repo | T1213 | Collection |
-| `full_repo_snapshot` | `git push --mirror` | T1074 | Collection |
-| `canary_exfiltrated` | Decoy file transmitted | T1041 | Exfiltration |
-| `mass_file_read` | Bulk file read | T1005 | Collection |
-| `suspicious_connection` | Connection to exfiltration host | T1071 | C2 |
-| `ai_prompt_sent` | HTTP POST to AI API | T1071 | C2 |
-| `code_upload` | Source code posted externally | T1041 | Exfiltration |
-| `prompt_injection_attempt` | Prompt injection payload | T1567 | Exfiltration |
-| `process_suspicious` | AI agent process | T1059 | Execution |
-| `dns_suspicious` | DNS to exfiltration domain | T1572 | C2 |
-| `tls_suspicious` | Suspicious TLS handshake | T1572 | C2 |
-| `anti_evasion_detected` | Anti-forensic behavior | T1564 | Defense Evasion |
-| `preparation_detected` | Recon commands (whoami, git rev-list) | T1590 | Preparation |
-| `process_chain_detected` | Suspicious parent-child chain | T1059 | Execution |
-| `monitor_awareness_detected` | Probes for monitoring tools | T1497 | Defense Evasion |
-| `monitor_disabled` | Attempt to kill monitoring | T1562 | Defense Evasion |
-| `canary_read` | Decoy file accessed | T1005 | Collection |
-| `canary_modified` | Decoy file modified | T1565 | Impact |
-| `fake_secret_read` | Fake credential accessed | T1555 | Collection |
-| `fake_secret_exfiltrated` | Fake credential transmitted | T1041 | Exfiltration |
-| `contaminated_git_read` | Planted evidence accessed | T1213 | Collection |
-| `evidence_chain_detected` | Evidence chain detected | T1074 | Collection |
-| `pre_operational_snapshot_detected` | Pre-operation snapshot | T1590 | Preparation |
+## How Sentinel Compares
 
-### Evidence Hash Chain
+| Tool | What it does | Sentinel's approach |
+|------|-------------|-------------------|
+| CodeQL | Static analysis (source code patterns) | Observes build behavior, not just code patterns |
+| Snyk | Dependency vulnerability scanning | Multi-layer supply chain + behavioral analysis |
+| Trivy | Container image scanning | Build-time observation, not image scanning |
+| Falco | Runtime security (syscall monitoring) | Build-scoped observation with forensic detail |
+| Sysmon | System telemetry collection | Reconstructs causal chains from telemetry |
+| Sigstore | Artifact signing/verification | Captures provenance during build, verifies post-build |
 
-Every session builds an immutable SHA-256 chain of evidence records:
+**Sentinel is not better than these tools.** It does something different: it observes builds, monitors networks, and explains trust. It complements SAST, SCA, and EDR — it doesn't replace them.
 
-```
-hash = SHA-256(previousHash + index + timestamp + evidenceId + type + summary)
-```
+---
 
-- `verifyEvidenceChain()` recalculates all hashes and reports tampered indices
-- The chain survives JSON export and can be re-verified offline
-- Enables audit integrity, forensic proof, and export verification
+## Use Cases
 
-### MITRE ATT&CK Coverage
+| When | How |
+|------|-----|
+| **Pull Request review** | `sentinel pr-audit` posts findings as PR comment |
+| **Release pipeline** | `sentinel build observe` as quality gate |
+| **Incident investigation** | `sentinel build explain` for causal analysis |
+| **Supply chain audit** | `sentinel audit-deps` for dependency trust |
+| **Red Team validation** | `sentinel redteam` for attack simulation |
+| **Regression detection** | `sentinel regression` for automated validation |
+| **AI agent integration** | `sentinel mcp` for 17 tool calls via MCP protocol |
+| **System integrity** | `sentinel integrity` for chain-of-trust verification |
+| **Package interception** | `sentinel guard enable` for OS-level npm/pip blocking |
+| **Threat history** | `sentinel memory` for local threat intelligence vault |
 
-| Tactic | Techniques | Example Behaviors |
-|--------|------------|-------------------|
-| Reconnaissance | T1590 | preparation_detected |
-| Collection | T1213, T1074, T1560, T1005, T1555 | repo_indexed, secrets_scanned |
-| Credential Access | T1555 | secrets_scanned, fake_secret_read |
-| Execution | T1059 | process_suspicious |
-| Defense Evasion | T1564, T1497, T1562 | anti_evasion, monitor_disabled |
-| Command and Control | T1071, T1572 | suspicious_connection, dns_suspicious |
-| Exfiltration | T1041, T1567 | code_upload, git_bundle_uploaded |
-| Impact | T1565 | canary_modified |
+---
 
-### Risk Engine
+## CLI Commands (70+)
 
-Three-layer scoring:
-1. **Base score** — weighted sum with sequence multipliers (Preparation 1.3× → Exfiltration 2.0×)
-2. **Temporal multiplier** — boosts risk on rapid succession (<30s = 1.5×)
-3. **Confidence** — `computeRiskConfidence()` with behavior count + diversity bonuses
-
-Risk levels: CRITICAL (≥80), HIGH (≥60), MEDIUM (≥40), LOW (<40).
-
-### Session Recording and Replay
-
+### Security Scanning
 ```bash
-# Record a real OS session
-node scripts/record-session.js git-clone 30 "cd /tmp && git clone ..."
-
-# Replay through pipeline
-sentinel network replay run replay-corpus/recorded/session-<id>.json
-
-# Run full campaign
-sentinel network replay campaign replay-corpus/recorded
+sentinel scan <path>               # SAST findings by severity
+sentinel audit-deps                # Dependency audit (lockfile + OSV)
+sentinel verify-pkg <name>         # Single package check
+sentinel sbom                      # CycloneDX v1.5 SBOM
+sentinel deps-tree <path>          # Transitive dependency scan
 ```
 
-15 recorded sessions (6 exfiltration, 9 benign) + 31 synthetic profiles in `replay-corpus/`.
-
-### Corpus Coverage
-
+### Build Intelligence
 ```bash
-sentinel network corpus coverage replay-corpus
+sentinel build observe <cmd>       # Verdict + trust + explanation
+sentinel build explain             # Why the score is what it is
+sentinel inspect                   # Evidence graph, centrality, dominators
+sentinel top                       # Top findings from recent builds
 ```
 
-Reports captured vs missing profiles, environment-dependent profiles, effective coverage.
+### Network & Red Team
+```bash
+sentinel network start             # Start live monitoring
+sentinel network stop              # Stop and get verdict
+sentinel redteam --list            # 26 attacks, 10 campaigns
+sentinel atomic --list             # 30+ Atomic RT tests mapped
+sentinel coverage                  # MITRE ATT&CK matrix
+```
+
+### GitHub Integration
+```bash
+sentinel pr-audit --repo R --pr N  # Audit a single PR
+sentinel workflow full-audit       # Audit ALL PRs in a repo
+```
+
+### Security Guard & Hooks
+```bash
+sentinel guard enable              # Intercept npm/yarn/pip
+sentinel precommit install         # Block commits with threats
+sentinel prepush install           # Block pushes with threats
+sentinel install npm <pkg>         # Scan then install
+```
+
+### Validation
+```bash
+sentinel replay list               # Replay datasets
+sentinel regression list           # Regression suites
+sentinel baseline-pro list         # Baseline profiles
+sentinel stress config             # Stress testing
+```
+
+### AI Integration
+```bash
+sentinel mcp                       # MCP server (17 tools)
+sentinel hub                       # Interactive operations menu
+sentinel install-skills            # Install for 8 AI agents
+```
+
+### System
+```bash
+sentinel integrity                 # Chain-of-trust verification
+sentinel doctor                    # System health check
+sentinel baseline create|diff      # System snapshots
+sentinel permissions <pkg>         # Capability audit
+sentinel memory --status           # Threat vault status
+sentinel token-inspect <token>     # Classify and risk-assess a token
+```
 
 ---
 
 ## Benchmarks
 
-Sentinel includes two independent benchmark systems:
-
-### 1. SAST Benchmark (`sentinel benchmark`)
-
-Measures LiteScanner precision and recall against a curated corpus of known-vulnerable and known-benign fixtures:
-
-| Fixture Type | Count | Examples |
-|-------------|-------|----------|
-| Known-vulnerable | 10 | malware.js, ast-threat.js, secrets.env, supply-chain.yml |
-| Known-benign | 8 | normal.js, normal.py, normal.rs, normal.go |
-
 ```bash
-sentinel benchmark
+sentinel benchmark                 # SAST precision/recall
+sentinel network benchmark history # Detection pipeline metrics
 ```
 
-Reports per-fixture findings, precision, recall, and worst FP/FN offenders.
-
-### 2. Network CI Gate (`sentinel network benchmark history`)
-
-Runs the full detection pipeline against 5 validation layers, recording results to `benchmark-history.json`:
-
-| Layer | Scenarios | Last Run |
-|-------|-----------|----------|
-| Calibrated corpus | 39 scenarios | 79.5% pass (31/39) |
-| Blind corpus #1 | 15 scenarios | 60.0% pass (9/15) |
-| Blind corpus #2 | 14 scenarios | 92.9% pass (13/14) |
-| Blind corpus #3 | 14 scenarios | 85.7% pass (12/14) |
-| Replay corpus | 200 sessions | 80.0% accuracy, 77.8% precision, 100% recall |
-
-```bash
-sentinel network benchmark history
-```
-
-Displays a versioned delta table comparing metrics (pass rates, accuracy, precision, recall, F1, FPR, FNR, latency percentiles) against the previous engine version.
-
-### CI Gate
-
-```bash
-node dist/ci-gate.js
-```
-
-Exit code 0 = all gates pass. Exit code 1 = regression detected. Thresholds: calibrated 100%, blind 60%, replay accuracy ≥75%, recall ≥95%, FPR ≤70%, FNR ≤5%.
+| Layer | Scenarios | Pass Rate |
+|-------|-----------|-----------|
+| Calibrated corpus | 39 | 79.5% |
+| Blind corpus #1 | 15 | 60.0% |
+| Blind corpus #2 | 14 | 92.9% |
+| Blind corpus #3 | 14 | 85.7% |
+| Replay corpus | 200 | 80.0% accuracy, 100% recall |
 
 ---
 
-## Architecture
+## Evidence Trust Hierarchy
 
-```
-sentinel/
-├── skills/                  # Canonical skill specifications
-│   ├── CONSTITUTION.md      # Binding rules (all agents)
-│   ├── GENERIC.md           # Universal adapter-agnostic skill
-│   └── adapters/            # Per-platform skill files
-│       ├── claude/          # CLAUD.md
-│       ├── cursor/          # sentinel.mdc
-│       ├── cline/           # CLINE.md
-│       ├── windsurf/        # .windsurfrules
-│       ├── opencode/        # SKILL.md
-│       ├── roo/             # ROO.md
-│       ├── gemini/          # GEMINI.md
-│       └── codex/           # CODEX.md
-├── docs/
-│   ├── NETWORK_AUDITOR.md   # Network auditor full documentation v2
-│   ├── architecture.md      # Pipeline architecture overview
-│   ├── behavior-engine.md   # Behavior classifiers reference
-│   ├── risk-engine.md       # Risk scoring + hash chain + MITRE
-│   ├── network-monitor.md   # Sensor implementation details
-│   ├── recording-guide.md   # Session recording guide
-│   ├── replay-system.md     # Replay engine and campaign system
-│   ├── corpus.md            # Corpus v1.0 description
-│   ├── ground-truth.md      # Ground truth protocol
-│   ├── limitations.md       # Known limitations (Windows, polling)
-│   ├── ROADMAP.md           # v2 roadmap (ETW, Sysmon, ML)
-│   ├── CI_CD_SECURITY.md    # CI/CD security best practices
-│   ├── SKILLS.md            # Skills system documentation
-│   └── TRUST_MODEL.md       # Evidence trust hierarchy
-├── src/
-│   ├── cli/                 # CLI commands + intelligence modules
-│   │   ├── main.ts          # Commander entry point
-│   │   ├── hub.ts           # Interactive hub menu (12 options)
-│   │   ├── install-skills.ts # Skills installer
-│   │   ├── benchmark.ts     # SAST benchmark runner
-│   │   ├── classify.ts      # Document classification
-│   │   ├── ci_comment.ts    # GitHub CI PR commenting
-│   │   ├── gh_bridge.ts     # GitHub API bridge
-│   │   ├── token_inspect.ts # Token inspection
-│   │   ├── render_benchmark.ts  # SAST benchmark renderer
-│   │   ├── render_teams.ts  # Team rendering
-│   │   ├── intelligence/    # Signal vault, integrity, baselines
-│   │   │   ├── signal_vault.ts         # SQLite threat intel
-│   │   │   ├── supply_chain_shield.ts  # Multi-layer package audit
-│   │   │   ├── integrity_manager.ts    # Chain-of-trust verification
-│   │   │   ├── baseline_manager.ts     # System snapshots
-│   │   │   ├── osv_integrator.ts       # OSV.dev CVE batch query
-│   │   │   ├── typosquat_detector.ts   # Levenshtein + homoglyph
-│   │   │   ├── provenance_verifier.ts  # SLSA attestation
-│   │   │   ├── registry_reputation.ts  # 6-factor scoring
-│   │   │   ├── lockfile_parser.ts      # Lockfile dependency extract
-│   │   │   ├── sbom_generator.ts       # CycloneDX v1.5
-│   │   │   ├── npm_audit_parser.ts     # npm audit result parser
-│   │   │   ├── caps_analyzer.ts        # Capability audit
-│   │   │   ├── behavioral_drift.ts     # Behavioral monitoring
-│   │   │   ├── homoglyph_detector.ts   # Unicode squat detection
-│   │   │   ├── quarantine.ts           # Filesystem isolation
-│   │   │   ├── trust_cache.ts          # Cached verdicts
-│   │   │   └── memory_manager.ts       # Threat intel memory
-│   │   ├── network/         # Network auditor CLI layer
-│   │   │   ├── auditor.ts            # Session lifecycle
-│   │   │   ├── process-monitor.ts    # WMI process polling
-│   │   │   ├── git-detector.ts       # Git command detection
-│   │   │   ├── connection-inspector.ts # netstat monitoring
-│   │   │   ├── dns-observer.ts       # DNS query observer
-│   │   │   ├── http-interceptor.ts   # HTTP MITM
-│   │   │   ├── tls-interceptor.ts    # TLS handshake observer
-│   │   │   ├── websocket-observer.ts # WebSocket frames
-│   │   │   ├── file-watcher.ts       # Filesystem events
-│   │   │   ├── database.ts           # Session persistence
-│   │   │   ├── export-network.ts     # Export (json|markdown)
-│   │   │   ├── render-network.ts     # Console rendering
-│   │   │   ├── legal-consent.ts      # Legal acknowledgment
-│   │   │   ├── notification-provider.ts # Desktop notifications
-│   │   │   ├── corpus-coverage.ts    # Coverage reporting
-│   │   │   └── session-recorder.ts   # Session recording
-│   │   └── export/           # Export formats
-│   │       ├── json.ts, markdown.ts, pdf.ts, policy.ts, sarif.ts
-│   ├── mcp/                 # Standalone MCP server
-│   │   └── server.ts        # 17-tool MCP protocol server
-│   ├── core/
-│   │   ├── lite/            # LiteScanner SAST engine
-│   │   │   ├── lite_scanner.ts         # 30-rule SAST engine
-│   │   │   ├── multi_ast.ts            # Multi-language AST parser
-│   │   │   ├── sandbox.ts              # Safe code evaluation
-│   │   │   └── fixtures/               # Test fixtures
-│   │   │       ├── agents/             # Agent config samples
-│   │   │       └── workflows/          # CI workflow samples
-│   │   ├── network/         # Network auditor core
-│   │   │   ├── pipeline.ts             # Event orchestration
-│   │   │   ├── behavior-engine.ts       # 31 classifiers
-│   │   │   ├── risk-engine.ts           # 3-layer scoring
-│   │   │   ├── anti-evasion-engine.ts   # Anti-forensic detection
-│   │   │   ├── evidence-chain.ts        # Evidence chain builder
-│   │   │   ├── evidence-chain-crypto.ts # SHA-256 hash chain
-│   │   │   ├── mitre-attack.ts          # MITRE ATT&CK + timeline
-│   │   │   ├── canary-system.ts         # Canary decoy management
-│   │   │   ├── network-config.ts        # Config persistence
-│   │   │   ├── replay-engine.ts         # Deterministic replay
-│   │   │   ├── evaluator.ts             # Full evaluation suite
-│   │   │   ├── benchmark-history.ts     # Benchmark persistence
-│   │   │   ├── canonical-sessions.ts    # 31 profile definitions
-│   │   │   ├── scenarios.ts             # 39 synthetic scenarios
-│   │   │   ├── blind-validation.ts      # Blind corpus #1
-│   │   │   ├── blind-validation-2.ts    # Blind corpus #2
-│   │   │   ├── blind-validation-3.ts    # Blind corpus #3
-│   │   │   ├── session-dna.ts           # Session fingerprint
-│   │   │   ├── session-generator.ts     # Session generation
-│   │   │   ├── evidence-builder.ts      # Evidence construction
-│   │   │   ├── providers.ts             # Provider orchestration
-│   │   │   ├── recorder.ts              # Session capture
-│   │   │   ├── replay-campaign.ts       # Campaign runner
-│   │   │   ├── campaign-runner.ts       # Campaign orchestration
-│   │   │   ├── types.ts                 # 70+ interfaces
-│   │   │   └── version.ts               # Version constants
-│   │   ├── agency_graph.ts             # Capability graph
-│   │   ├── agency_score.ts             # Capability scoring
-│   │   ├── attack_scenario.ts          # Attack scenario modeling
-│   │   ├── evidence_card.ts            # Evidence card format
-│   │   ├── evidence_pack.ts            # Evidence packaging
-│   │   ├── graph_persistence.ts        # Graph storage
-│   │   ├── ownership_graph.ts          # Code ownership graph
-│   │   ├── pr_delta.ts                 # PR diff analysis
-│   │   ├── risk_history.ts             # Risk history tracking
-│   │   ├── token_classifier.ts         # Token classification
-│   │   └── vault.ts                    # Encrypted secret store
-│   ├── ci-gate.ts           # Regression gate (5 layers)
-│   ├── install-skills.sh    # Unix standalone installer
-│   └── install-skills.ps1   # Windows standalone installer
-├── replay-corpus/           # Session corpus
-│   ├── corpus-version.json  # Version metadata
-│   ├── recorded/            # Real recorded sessions (15)
-│   └── synthetic/           # Synthetic scenarios + ground truth
-├── scripts/                 # Utilities
-│   ├── record-session.js    # Session acquisition script
-│   ├── benchmark.ts / .test.ts  # Benchmark runner + tests
-│   └── corpus/              # Known-vulnerable + known-benign fixtures
-│       ├── known-vulnerable/    # 10 malicious samples
-│       └── known-benign/        # 8 benign samples
-├── benchmark-history.json   # Network CI gate benchmark history
-├── 705 tests (35 suites)
-└── package.json
-```
+| Tier | Source | Confidence |
+|------|--------|------------|
+| Tier 1 | Sentinel telemetry (ETW, eBPF, auditd) | High |
+| Tier 2 | Sentinel inference (graph, Bayesian, trust) | Medium |
+| Tier 3 | External feeds (OSV, MITRE, registry) | Variable |
+| Tier 4 | Model reasoning (when used via MCP/skills) | Lowest |
 
-## Sentinel Oracle
+Sentinel evidence (Tier 1) overrides model reasoning (Tier 4).
 
-Sentinel Oracle is a physically isolated merge authorization server — maintained in the [sentinel-oracle](https://github.com/javier20dev25/sentinel-oracle) repository.
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](./ARCHITECTURE.md) | 938-line technical architecture |
+| [Build Intelligence](./docs/BUILD_INTELLIGENCE.md) | Complete feature reference |
+| [Network Auditor](./docs/NETWORK_AUDITOR.md) | Behavior-based detection |
+| [Trust Model](./docs/TRUST_MODEL.md) | Evidence hierarchy and calibration |
+| [Skills](./docs/SKILLS.md) | AI agent integration guide |
+| [Classification Policy](./CLASSIFICATION_POLICY.md) | Detection policy contract |
+| [Technical Report](./INFORME_TECNICO_v2.md) | 801-line technical report |
+| [Contributing](./CONTRIBUTING.md) | Development guide |
+| [Security](./SECURITY.md) | Vulnerability reporting |
+| [Roadmap](./ROADMAP.md) | Direction without dates |
+
+---
 
 ## Requirements
 
@@ -480,9 +475,13 @@ Sentinel Oracle is a physically isolated merge authorization server — maintain
 - **npm** >= 9
 - **gh** CLI (for GitHub PR tools — optional)
 
+---
+
 ## License
 
 **Business Source License 1.1** — see [LICENSE](./LICENSE).
+
+Changes to GPL v2.0 on 2030-05-20.
 
 ---
 

@@ -23,7 +23,7 @@ skills/
 
 src/
   mcp/
-    server.ts          # MCP server (standalone, no Oracle dependency)
+    server.ts          # MCP server (standalone, no external dependency)
   cli/
     install-skills.ts  # sentinel install-skills command
 

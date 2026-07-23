@@ -761,7 +761,7 @@ interface NativeEventProvider {
 | `build-explain.test.ts` | — |
 | `build-adv-features.test.ts` | — |
 
-**Total suite:** 901 tests, 47 test files, 0 fallos.
+**Total suite:** 1040 tests, 47 test files, 0 errores.
 
 ---
 

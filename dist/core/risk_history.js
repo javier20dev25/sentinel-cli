@@ -46,6 +46,7 @@ const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const crypto = __importStar(require("crypto"));
 const child_process_1 = require("child_process");
+let _snapshotSeq = 0;
 function getHistoryDir() {
     return path.join(os.homedir(), '.sentinel', 'history');
 }
@@ -68,7 +69,7 @@ function saveSnapshot(repoPath, agency, scenarios, branch) {
     const dir = path.join(getHistoryDir(), repoHash(repoPath));
     if (!fs.existsSync(dir))
         fs.mkdirSync(dir, { recursive: true });
-    const id = Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+    const id = Date.now().toString(36) + '-' + (_snapshotSeq++).toString(36).padStart(4, '0');
     const effectiveBranch = branch !== null && branch !== void 0 ? branch : detectBranch(repoPath);
     const snapshot = {
         id,
@@ -113,7 +114,7 @@ function loadHistory(repoPath) {
     return snapshots;
 }
 function loadBaseline(repoPath) {
-    const history = loadHistory(repoPath);
+    const history = loadHistory(repoPath).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     return history.find(s => s.branch === 'main' || s.branch === 'master') || null;
 }
 function loadHistoryInWindow(repoPath, days) {

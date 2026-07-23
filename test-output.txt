@@ -1,0 +1,21 @@
+﻿
+> @sentinel/cli@4.0.0 pretest
+> npm run build
+
+
+> @sentinel/cli@4.0.0 build
+> tsc
+
+
+> @sentinel/cli@4.0.0 test
+> vitest run
+
+
+ RUN  v4.1.7 C:/Users/sleyt/sentinel-cli
+
+
+ Test Files  53 passed (53)
+      Tests  1040 passed (1040)
+   Start at  02:54:43
+   Duration  75.98s (transform 64.86s, setup 0ms, import 135.86s, tests 129.09s, environment 17ms)
+

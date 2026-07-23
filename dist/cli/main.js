@@ -144,6 +144,383 @@ program
         });
     }
 }));
+const buildCmd = program.command('build')
+    .description('Record, analyze, and explain build processes');
+buildCmd
+    .command('observe <command>')
+    .alias('run')
+    .description('Observe a build process — trust score, highlights, recommendations')
+    .option('--cwd <path>', 'Working directory (default: current)')
+    .option('--timeout <ms>', 'Timeout in milliseconds', '300000')
+    .option('--provenance', 'Print full Build Provenance Report')
+    .option('--verbose', 'Print technical details: evidence graph, Bayesian, dominators')
+    .option('--json', 'Output as JSON for pipelines')
+    .option('--save', 'Save build record for later comparison')
+    .action((cmd, options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { recordBuild } = yield Promise.resolve().then(() => __importStar(require('./build/build-recorder')));
+    const { renderBuildSummary, renderBuildSummaryVerbose, renderBuildSummaryJson } = yield Promise.resolve().then(() => __importStar(require('./build/build-summary')));
+    const { renderBuildProvenance } = yield Promise.resolve().then(() => __importStar(require('./build/build-provenance')));
+    const parts = cmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [cmd];
+    const command = parts[0];
+    const args = parts.slice(1).map((s) => s.replace(/^"(.*)"$/, '$1'));
+    const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd();
+    const timeout = parseInt(options.timeout, 10);
+    const sentinelDir = path.join(os.homedir(), '.sentinel', 'builds');
+    const buildKey = command.replace(/[^a-z0-9]/gi, '_') + '_' + cwd.replace(/[^a-z0-9]/gi, '_');
+    let prevRecord = null;
+    const prevPath = path.join(sentinelDir, `${buildKey}_prev.json`);
+    if (options.provenance || options.save) {
+        if (fs.existsSync(prevPath)) {
+            try {
+                prevRecord = JSON.parse(fs.readFileSync(prevPath, 'utf8'));
+            }
+            catch (_a) { }
+        }
+    }
+    if (!options.json) {
+        console.log(pc.dim(`  Recording: ${cmd}`));
+        console.log(pc.dim(`  CWD:       ${cwd}`));
+        console.log('');
+    }
+    const record = yield recordBuild(command, args, cwd, { timeoutMs: timeout });
+    if (options.json) {
+        console.log(renderBuildSummaryJson(record));
+    }
+    else if (options.verbose) {
+        console.log(renderBuildSummaryVerbose(record));
+    }
+    else if (options.provenance) {
+        console.log(renderBuildProvenance(record, prevRecord || undefined));
+    }
+    else {
+        console.log(renderBuildSummary(record));
+    }
+    if (options.save) {
+        try {
+            fs.mkdirSync(sentinelDir, { recursive: true });
+            const ts = (record.startTime || new Date().toISOString()).replace(/[^0-9]/g, '').substring(0, 14) + '_' + command.replace(/[^a-z0-9]/gi, '_');
+            const savePath = path.join(sentinelDir, `${ts}.json`);
+            fs.writeFileSync(savePath, JSON.stringify(record, null, 2), 'utf8');
+            if (!options.json)
+                console.log(pc.dim(`  Saved to ${savePath}`));
+        }
+        catch (e) {
+            if (!options.json)
+                console.log(pc.red(`  Could not save build record: ${e.message}`));
+        }
+    }
+}));
+buildCmd
+    .command('explain')
+    .description('Explain why a build differs from previous or release baseline')
+    .argument('[build-id]', 'Build ID to explain (defaults to latest)')
+    .option('--current', 'Explain the most recent build')
+    .option('--release', 'Compare against release baseline instead of previous build')
+    .option('--json', 'Output as JSON')
+    .action((buildId, options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { explainBuild } = yield Promise.resolve().then(() => __importStar(require('./build/explain')));
+    const { result, error, output } = yield explainBuild(buildId || (options.current ? undefined : undefined), options.release || false, options.json ? 'json' : 'human');
+    if (error) {
+        console.error(pc.red(error));
+        process.exit(1);
+    }
+    console.log(output);
+}));
+buildCmd
+    .command('mark-release')
+    .description('Mark a build as the current release baseline')
+    .argument('<build-id>', 'Build ID to mark as release')
+    .option('--tag <tag>', 'Release tag (e.g. v1.0.0)', 'release')
+    .option('--force', 'Overwrite existing release baseline')
+    .action((buildId, options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { markRelease, renderReleaseStatus } = yield Promise.resolve().then(() => __importStar(require('./build/release')));
+    const result = markRelease(buildId, options.tag, options.force);
+    if (!result.success) {
+        console.error(pc.red(result.error));
+        process.exit(1);
+    }
+    console.log(pc.green(`Release ${options.tag} set to build ${buildId}`));
+}));
+buildCmd
+    .command('release')
+    .description('Show current release baseline information')
+    .action(() => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { renderReleaseStatus } = yield Promise.resolve().then(() => __importStar(require('./build/release')));
+    console.log(renderReleaseStatus());
+}));
+// ── Top Findings ──────────────────────────────────────────────
+program
+    .command('top')
+    .description('Top findings from recent builds ranked by severity')
+    .option('--limit <n>', 'Number of findings to show', '10')
+    .option('--json', 'Output as JSON')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d, _e, _f;
+    yield preFlightCheck();
+    const { computeTrustScore } = yield Promise.resolve().then(() => __importStar(require('./build/build-summary')));
+    const fsMod = yield Promise.resolve().then(() => __importStar(require('fs')));
+    const pathMod = yield Promise.resolve().then(() => __importStar(require('path')));
+    const osMod = yield Promise.resolve().then(() => __importStar(require('os')));
+    const sentinelDir = pathMod.join(osMod.homedir(), '.sentinel', 'builds');
+    if (!fsMod.existsSync(sentinelDir)) {
+        console.log(pc.yellow('  No builds found. Run `sentinel build observe` first.'));
+        return;
+    }
+    const files = fsMod.readdirSync(sentinelDir)
+        .filter(f => f.endsWith('.json') && f !== 'releases.json')
+        .sort()
+        .reverse()
+        .slice(0, 5);
+    const findings = [];
+    for (const f of files) {
+        try {
+            const record = JSON.parse(fsMod.readFileSync(pathMod.join(sentinelDir, f), 'utf8'));
+            const buildId = ((_a = record.startTime) === null || _a === void 0 ? void 0 : _a.replace(/[^0-9]/g, '').substring(0, 14)) || f.replace('.json', '');
+            // Anomalies
+            for (const a of (((_b = record.summary) === null || _b === void 0 ? void 0 : _b.anomalies) || [])) {
+                const sev = a.includes('exfiltrat') || a.includes('contract') ? 'CRITICAL'
+                    : a.includes('secret') || a.includes('suspicious') || a.includes('unknown') ? 'HIGH'
+                        : a.includes('orphan') || a.includes('response file') ? 'MEDIUM'
+                            : 'LOW';
+                findings.push({ severity: sev, source: 'anomaly', text: a, confidence: 0.9, buildId });
+            }
+            // Contract violations
+            for (const v of (record.buildContractViolations || [])) {
+                const sev = v.severity === 'critical' ? 'CRITICAL' : v.severity === 'high' ? 'HIGH' : 'MEDIUM';
+                findings.push({ severity: sev, source: 'contract', text: `${v.type}: ${v.description || 'violation'}`, confidence: 0.85, buildId });
+            }
+            // Secret exfiltration risks
+            if ((_c = record.secretFlow) === null || _c === void 0 ? void 0 : _c.exfiltrationRisks) {
+                for (const r of record.secretFlow.exfiltrationRisks) {
+                    findings.push({ severity: 'CRITICAL', source: 'secret', text: `Exfiltration risk: ${r.secret || 'unknown'} → ${r.target || 'unknown'}`, confidence: 0.92, buildId });
+                }
+            }
+            // Secret accesses (no exfil)
+            if (((_d = record.secretFlow) === null || _d === void 0 ? void 0 : _d.secretAccesses) && (!record.secretFlow.exfiltrationRisks || record.secretFlow.exfiltrationRisks.length === 0)) {
+                for (const a of record.secretFlow.secretAccesses) {
+                    findings.push({ severity: 'MEDIUM', source: 'secret', text: `Secret accessed: ${a.filePath || a.secret || 'unknown'}`, confidence: 0.8, buildId });
+                }
+            }
+            // Orphan processes
+            for (const o of (record.orphanProcesses || [])) {
+                findings.push({ severity: 'MEDIUM', source: 'process', text: `Orphan process: ${o.name} (${o.reason})`, confidence: 0.75, buildId });
+            }
+            // Response file changes
+            for (const r of (record.responseFileChanges || []).filter((r) => r.changed)) {
+                findings.push({ severity: 'HIGH', source: 'build', text: `Response file modified: ${r.responseFile}`, confidence: 0.88, buildId });
+            }
+            // Network connections
+            if ((((_e = record.summary) === null || _e === void 0 ? void 0 : _e.networkConnections) || 0) > 3) {
+                findings.push({ severity: 'MEDIUM', source: 'network', text: `${record.summary.networkConnections} network connections during build`, confidence: 0.7, buildId });
+            }
+            // Unknown build tools
+            const unknownTools = (((_f = record.summary) === null || _f === void 0 ? void 0 : _f.buildToolsDetected) || []).filter((t) => {
+                const known = ['gcc', 'g++', 'clang', 'make', 'cmake', 'cargo', 'rustc', 'go', 'javac', 'node', 'tsc', 'esbuild', 'webpack', 'rollup', 'vite', 'python', 'pip', 'npm', 'yarn', 'pnpm'];
+                return !known.some(k => t.toLowerCase().includes(k));
+            });
+            for (const t of unknownTools) {
+                findings.push({ severity: 'MEDIUM', source: 'toolchain', text: `Unknown build tool: ${t}`, confidence: 0.7, buildId });
+            }
+            // Trust score
+            const trust = computeTrustScore(record);
+            if (trust.verdict === 'BLOCK') {
+                findings.push({ severity: 'CRITICAL', source: 'trust', text: `Build blocked — trust score ${trust.score}/100`, confidence: 0.95, buildId });
+            }
+            else if (trust.verdict === 'REVIEW') {
+                findings.push({ severity: 'HIGH', source: 'trust', text: `Build requires review — trust score ${trust.score}/100`, confidence: 0.85, buildId });
+            }
+        }
+        catch (_g) { }
+    }
+    // Sort by severity then confidence
+    const sevOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    findings.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity] || b.confidence - a.confidence);
+    const limit = parseInt(options.limit, 10);
+    const topFindings = findings.slice(0, limit);
+    if (options.json) {
+        console.log(JSON.stringify({ totalFindings: findings.length, shown: topFindings.length, findings: topFindings }, null, 2));
+        return;
+    }
+    console.log('');
+    console.log(pc.cyan(pc.bold('  ═══════════════════════════════════════════════')));
+    console.log(pc.cyan(pc.bold('   TOP FINDINGS')));
+    console.log(pc.cyan(pc.bold('  ═══════════════════════════════════════════════')));
+    console.log('');
+    console.log(pc.dim(`  From ${files.length} recent build(s), ${findings.length} finding(s) total`));
+    console.log('');
+    if (topFindings.length === 0) {
+        console.log(pc.green(pc.bold('  No findings detected. Builds look clean.')));
+        console.log('');
+        return;
+    }
+    for (let i = 0; i < topFindings.length; i++) {
+        const f = topFindings[i];
+        const sevColor = f.severity === 'CRITICAL' ? pc.red : f.severity === 'HIGH' ? pc.yellow : pc.dim;
+        const sevBg = f.severity === 'CRITICAL' ? pc.bgRed : f.severity === 'HIGH' ? pc.bgYellow : pc.bgGreen;
+        console.log(`  ${pc.bold(String(i + 1).padStart(2))}. ${sevBg(pc.white(` ${f.severity} `))} ${sevColor(f.text)}`);
+        console.log(`      ${pc.dim('Source:')} ${f.source}  ${pc.dim('Confidence:')} ${(f.confidence * 100).toFixed(0)}%  ${pc.dim('Build:')} ${f.buildId}`);
+        if (i < topFindings.length - 1)
+            console.log(pc.dim('  ────────────────────────────────────────────'));
+    }
+    console.log('');
+}));
+// ── Trust Calibration ──────────────────────────────────────────
+program
+    .command('trust')
+    .description('Trust calibration: corpus stats, feature vectors, model state')
+    .option('--status', 'Show corpus and calibration status (default)')
+    .option('--features', 'Show last extracted feature vector')
+    .option('--labels', 'Show label distribution in corpus')
+    .option('--json', 'Output as JSON')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { getDefaultStore } = yield Promise.resolve().then(() => __importStar(require('../core/network/trust-calibration')));
+    const store = getDefaultStore();
+    const all = store.getAll();
+    const labelCounts = store.countByLabel();
+    if (options.json) {
+        console.log(JSON.stringify({ count: all.length, labels: labelCounts }, null, 2));
+        return;
+    }
+    console.log('');
+    console.log(pc.cyan(pc.bold('  Trust Calibration')));
+    console.log(pc.dim('  ─────────────────'));
+    console.log(`  ${pc.dim('Corpus size:')}      ${pc.white(String(all.length))} vectors`);
+    console.log(`  ${pc.dim('Labeled:')}          ${pc.white(String(all.filter((v) => v.label).length))}`);
+    console.log(`  ${pc.dim('Unlabeled:')}        ${pc.white(String(all.filter((v) => !v.label).length))}`);
+    console.log('');
+    const activeLabels = Object.entries(labelCounts).filter(([, count]) => count > 0);
+    if (activeLabels.length > 0) {
+        console.log(pc.bold('  Label distribution:'));
+        const maxCount = Math.max(...activeLabels.map(([, c]) => c));
+        for (const [label, count] of activeLabels.sort((a, b) => b[1] - a[1])) {
+            const bar = '█'.repeat(Math.min(Math.round(count / maxCount * 20), 20));
+            console.log(`    ${label.padEnd(16)} ${bar} ${count}`);
+        }
+        console.log('');
+    }
+    if (options.features && all.length > 0) {
+        const last = all[all.length - 1];
+        console.log(pc.bold('  Last feature vector:'));
+        console.log(`    Build:    ${last.buildId}`);
+        console.log(`    Label:    ${last.label || '(unlabeled)'}`);
+        console.log(`    Source:   ${last.labelSource || 'none'}`);
+        const featureEntries = [];
+        for (const [key, val] of Object.entries(last.graph || {})) {
+            if (typeof val === 'number' && val !== 0)
+                featureEntries.push([`graph.${key}`, val]);
+        }
+        for (const [key, val] of Object.entries(last.centrality || {})) {
+            if (typeof val === 'number' && val !== 0)
+                featureEntries.push([`centrality.${key}`, val]);
+        }
+        for (const [key, val] of Object.entries(last.temporal || {})) {
+            if (typeof val === 'number' && val !== 0)
+                featureEntries.push([`temporal.${key}`, val]);
+        }
+        for (const [key, val] of Object.entries(last.bayesian || {})) {
+            if (typeof val === 'number' && val !== 0)
+                featureEntries.push([`bayesian.${key}`, val]);
+        }
+        for (const [key, val] of Object.entries(last.dominator || {})) {
+            if (typeof val === 'number' && val !== 0)
+                featureEntries.push([`dominator.${key}`, val]);
+        }
+        const sorted = featureEntries.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+        for (const [key, value] of sorted.slice(0, 15)) {
+            const bar = '█'.repeat(Math.min(Math.round(Math.abs(value) * 20), 20));
+            console.log(`    ${key.padEnd(24)} ${bar} ${value.toFixed(3)}`);
+        }
+        if (sorted.length > 15)
+            console.log(`    ... and ${sorted.length - 15} more features`);
+        console.log('');
+    }
+    if (options.labels) {
+        console.log(pc.bold('  All labels in corpus:'));
+        for (const [label, count] of activeLabels) {
+            console.log(`    ${label}: ${count}`);
+        }
+        console.log('');
+    }
+}));
+// ── Continuous Learning ────────────────────────────────────────
+program
+    .command('learning')
+    .description('Continuous learning pipeline: feedback, model versions, retrain detection')
+    .option('--status', 'Show pipeline status (default)')
+    .option('--feedback', 'Show feedback history')
+    .option('--models', 'Show model version history')
+    .option('--check', 'Check if retraining is needed')
+    .option('--json', 'Output as JSON')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { ContinuousLearner, renderContinuousLearner } = yield Promise.resolve().then(() => __importStar(require('../core/network/graph-analytics')));
+    // Create learner and populate from corpus
+    const learner = new ContinuousLearner();
+    const { getDefaultStore } = yield Promise.resolve().then(() => __importStar(require('../core/network/trust-calibration')));
+    const store = getDefaultStore();
+    const all = store.getAll();
+    // Simulate feedback from labeled corpus entries
+    for (const v of all) {
+        if (v.label) {
+            learner.recordFeedback(v.buildId, v.label, v.label, 0.8);
+        }
+    }
+    const stats = learner.getFeedbackStats();
+    const latest = learner.getLatestModel();
+    const history = learner.getVersionHistory();
+    const shouldRetrain = learner.shouldRetrain();
+    if (options.json) {
+        console.log(JSON.stringify({ stats, latest, history, shouldRetrain }, null, 2));
+        return;
+    }
+    console.log('');
+    console.log(pc.cyan(pc.bold('  Continuous Learning Pipeline')));
+    console.log(pc.dim('  ───────────────────────────'));
+    console.log(`  ${pc.dim('Model versions:')}     ${pc.white(String(history.length))}`);
+    console.log(`  ${pc.dim('Current model:')}      ${pc.white((latest === null || latest === void 0 ? void 0 : latest.version) || 'none')}`);
+    console.log(`  ${pc.dim('Feedback entries:')}   ${pc.white(String(stats.total))}`);
+    const accColor = stats.accuracy >= 0.8 ? pc.green : stats.accuracy >= 0.5 ? pc.yellow : pc.red;
+    console.log(`  ${pc.dim('Accuracy:')}           ${accColor((stats.accuracy * 100).toFixed(1) + '%')}`);
+    console.log('');
+    if (Object.keys(stats.byPredictedLabel).length > 0) {
+        console.log(pc.bold('  By predicted label:'));
+        for (const [label, data] of Object.entries(stats.byPredictedLabel)) {
+            const pct = (data.correct / data.total * 100).toFixed(1);
+            console.log(`    ${label.padEnd(16)} ${data.correct}/${data.total} (${pct}%)`);
+        }
+        console.log('');
+    }
+    if (options.feedback && all.length > 0) {
+        console.log(pc.bold('  Recent corpus entries:'));
+        for (const v of all.slice(-10)) {
+            const labelColor = v.label === 'normal' ? pc.green : v.label === 'malicious' ? pc.red : v.label ? pc.yellow : pc.dim;
+            const featureCount = Object.keys(v.graph || {}).length + Object.keys(v.centrality || {}).length + Object.keys(v.temporal || {}).length + Object.keys(v.bayesian || {}).length + Object.keys(v.dominator || {}).length;
+            console.log(`    ${v.buildId}  ${labelColor(v.label || 'unlabeled')}  features=${featureCount}`);
+        }
+        console.log('');
+    }
+    if (options.models && history.length > 0) {
+        console.log(pc.bold('  Model version history:'));
+        for (const v of history.slice(-5)) {
+            console.log(`    ${v.version}: acc=${(v.accuracy * 100).toFixed(1)}% auc=${(v.auc * 100).toFixed(1)}% n=${v.trainedOnExamples}`);
+        }
+        console.log('');
+    }
+    if (shouldRetrain) {
+        console.log(pc.yellow(pc.bold('  ⚠ RETRAIN RECOMMENDED: accuracy drop detected')));
+        console.log('');
+    }
+    if (all.length < 10) {
+        console.log(pc.dim(`  Corpus has ${all.length} entries. Need 10+ for meaningful learning.`));
+        console.log(pc.dim('  Run more builds to populate the corpus.'));
+        console.log('');
+    }
+}));
 program
     .command('benchmark')
     .description('Run corpus-based benchmark to measure FP/FN')
@@ -741,6 +1118,443 @@ graphCmd
     const current = sorted[sorted.length - 1];
     const previous = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
     console.log((0, render_graph_history_1.renderGraphDiff)(previous, current));
+}));
+// ── Graph Analytics (evidence graph advanced) ──────────────────
+graphCmd
+    .command('analytics')
+    .alias('inspect')
+    .description('Advanced graph analytics: centrality, dominators, Bayesian shifts, critical path')
+    .argument('[build-id]', 'Build ID to analyze (loads from saved builds)')
+    .option('--compare <build-id>', 'Compare against another build')
+    .option('--json', 'Output as JSON')
+    .action((buildId, options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { getDefaultStore } = yield Promise.resolve().then(() => __importStar(require('../core/network/trust-calibration')));
+    const store = getDefaultStore();
+    const all = store.getAll();
+    let record = null;
+    if (buildId) {
+        record = all.find((v) => v.buildId === buildId);
+    }
+    else if (all.length > 0) {
+        record = all[all.length - 1];
+    }
+    if (!record) {
+        console.log(pc.yellow('  No build records found. Run `sentinel build observe` first.'));
+        return;
+    }
+    const fsMod = yield Promise.resolve().then(() => __importStar(require('fs')));
+    const pathMod = yield Promise.resolve().then(() => __importStar(require('path')));
+    const osMod = yield Promise.resolve().then(() => __importStar(require('os')));
+    const sentinelDir = pathMod.join(osMod.homedir(), '.sentinel', 'builds');
+    let fullRecord = null;
+    if (fsMod.existsSync(sentinelDir)) {
+        const files = fsMod.readdirSync(sentinelDir).filter(f => f.endsWith('.json')).sort();
+        for (const f of files) {
+            try {
+                const data = JSON.parse(fsMod.readFileSync(pathMod.join(sentinelDir, f), 'utf8'));
+                if (data.evidenceGraph) {
+                    fullRecord = data;
+                    break;
+                }
+            }
+            catch (_a) { }
+        }
+    }
+    if (!fullRecord || !fullRecord.evidenceGraph) {
+        console.log(pc.yellow('  No evidence graph found in saved builds.'));
+        console.log(pc.dim('  Run `sentinel build observe --save` to save a build with evidence graph.'));
+        return;
+    }
+    const { buildTemporalEvidenceGraph, buildBayesianNetwork, analyzeDominators, computeFullGraphMetrics } = yield Promise.resolve().then(() => __importStar(require('../core/network/temporal-graph')));
+    const { computeGraphStats } = yield Promise.resolve().then(() => __importStar(require('../core/network/evidence-graph')));
+    const { computeGraphDiff, renderGraphDiff: renderDiff } = yield Promise.resolve().then(() => __importStar(require('../core/network/graph-analytics')));
+    const evGraph = fullRecord.evidenceGraph;
+    const teg = buildTemporalEvidenceGraph(evGraph);
+    const bn = buildBayesianNetwork(evGraph);
+    const da = analyzeDominators(evGraph);
+    const metrics = computeFullGraphMetrics(evGraph, teg, bn, da);
+    const graphStats = computeGraphStats(evGraph);
+    if (options.compare) {
+        let compareRecord = null;
+        if (fsMod.existsSync(sentinelDir)) {
+            const files = fsMod.readdirSync(sentinelDir).filter(f => f.endsWith('.json')).sort();
+            for (const f of files) {
+                try {
+                    const data = JSON.parse(fsMod.readFileSync(pathMod.join(sentinelDir, f), 'utf8'));
+                    if (data.evidenceGraph && data.buildId === options.compare) {
+                        compareRecord = data;
+                        break;
+                    }
+                }
+                catch (_b) { }
+            }
+        }
+        if (!compareRecord || !compareRecord.evidenceGraph) {
+            console.log(pc.red(`  Build ${options.compare} not found or has no evidence graph.`));
+            return;
+        }
+        const diff = computeGraphDiff(evGraph, compareRecord.evidenceGraph);
+        const diffLines = renderDiff(diff);
+        console.log('');
+        for (const line of diffLines) {
+            if (line.includes('Risk score')) {
+                const riskColor = diff.riskScore > 0.5 ? pc.red : diff.riskScore > 0.2 ? pc.yellow : pc.green;
+                console.log(`  ${riskColor(pc.bold(line))}`);
+            }
+            else if (line.startsWith('    ⚠')) {
+                console.log(pc.yellow(`  ${line}`));
+            }
+            else if (line.startsWith('    +')) {
+                console.log(pc.green(`  ${line}`));
+            }
+            else if (line.startsWith('    -')) {
+                console.log(pc.red(`  ${line}`));
+            }
+            else {
+                console.log(`  ${line}`);
+            }
+        }
+        console.log('');
+        return;
+    }
+    if (options.json) {
+        console.log(JSON.stringify({ graphStats, metrics, temporal: { paths: teg.paths.length, avgLatency: teg.avgEdgeLatencyMs, criticalPathMs: teg.criticalPath.causalDelayMs }, bayesian: { globalPrior: bn.globalPrior, overallPosterior: bn.overallPosterior }, dominator: { dominant: da.dominantProcess, hijackRisk: da.hijackRiskScore, shift: da.toolchainShiftDetected } }, null, 2));
+        return;
+    }
+    console.log('');
+    console.log(pc.cyan(pc.bold('  Evidence Graph Analytics')));
+    console.log(pc.dim('  ───────────────────────'));
+    console.log(`  ${pc.dim('Build:')} ${fullRecord.buildId || 'unknown'}`);
+    console.log(`  ${pc.dim('Nodes:')} ${graphStats.nodeCount}  |  ${pc.dim('Edges:')} ${graphStats.edgeCount}  |  ${pc.dim('Components:')} ${graphStats.componentCount}`);
+    console.log(`  ${pc.dim('Confidence:')} avg=${graphStats.avgConfidence} min=${graphStats.minConfidence} max=${graphStats.maxConfidence}`);
+    console.log('');
+    console.log(pc.bold('  Graph Metrics:'));
+    console.log(`    Density:      ${metrics.graphDensity}`);
+    console.log(`    Entropy:      ${metrics.graphEntropy}`);
+    console.log(`    Max depth:    ${metrics.maxDepth}`);
+    console.log(`    Is DAG:       ${metrics.isDag}`);
+    console.log(`    SCC count:    ${metrics.sccCount}`);
+    console.log(`    IDom count:   ${metrics.idomCount}`);
+    console.log('');
+    console.log(pc.bold('  Temporal:'));
+    console.log(`    Paths:            ${teg.paths.length}`);
+    console.log(`    Avg edge latency: ${teg.avgEdgeLatencyMs}ms`);
+    console.log(`    Max edge latency: ${teg.maxEdgeLatencyMs}ms`);
+    console.log(`    Critical path:    ${teg.criticalPath.causalDelayMs}ms (${teg.criticalPath.nodes.length} nodes)`);
+    console.log(`    Longest chain:    ${teg.longestCausalChain.nodes.length} nodes`);
+    console.log('');
+    console.log(pc.bold('  Bayesian:'));
+    console.log(`    Global prior:     ${bn.globalPrior}`);
+    console.log(`    Overall posterior: ${bn.overallPosterior}`);
+    const sortedRels = [...bn.relations].sort((a, b) => b.posteriorGivenEvidence - a.posteriorGivenEvidence);
+    for (const r of sortedRels.slice(0, 5)) {
+        const delta = r.posteriorGivenEvidence - r.priorP;
+        const deltaStr = delta >= 0 ? `+${delta.toFixed(3)}` : delta.toFixed(3);
+        console.log(`    ${r.relation.padEnd(24)} prior=${r.priorP} posterior=${r.posteriorGivenEvidence} (Δ${deltaStr})`);
+    }
+    console.log('');
+    console.log(pc.bold('  Dominator:'));
+    const domNode = evGraph.nodes.find((n) => n.id === da.dominantProcess);
+    console.log(`    Dominant:         ${(domNode === null || domNode === void 0 ? void 0 : domNode.label) || da.dominantProcess || 'none'}`);
+    console.log(`    Hijack risk:      ${(da.hijackRiskScore * 100).toFixed(1)}%`);
+    if (da.toolchainShiftDetected) {
+        console.log(pc.red(pc.bold(`    ⚠ TOOLCHAIN SHIFT DETECTED`)));
+    }
+    if (da.anomalySignals.length > 0) {
+        for (const s of da.anomalySignals) {
+            console.log(pc.yellow(`    ⚠ ${s}`));
+        }
+    }
+    if (da.dominantPath.length > 0) {
+        console.log(`    Path: ${da.dominantPath.join(' → ')}`);
+    }
+    console.log('');
+}));
+// ── Inspect (top-level alias for graph analytics) ──────────────
+program
+    .command('inspect')
+    .description('Investigate a build: evidence graph, centrality, dominators, Bayesian shifts')
+    .argument('[build-id]', 'Build ID to analyze (loads from saved builds)')
+    .option('--compare <build-id>', 'Compare against another build')
+    .option('--json', 'Output as JSON')
+    .action((buildId, options) => __awaiter(void 0, void 0, void 0, function* () {
+    // Delegate to graph analytics
+    yield preFlightCheck();
+    const { getDefaultStore } = yield Promise.resolve().then(() => __importStar(require('../core/network/trust-calibration')));
+    const store = getDefaultStore();
+    const all = store.getAll();
+    let record = null;
+    if (buildId) {
+        record = all.find((v) => v.buildId === buildId);
+    }
+    else if (all.length > 0) {
+        record = all[all.length - 1];
+    }
+    if (!record) {
+        console.log(pc.yellow('  No build records found. Run `sentinel build observe` first.'));
+        return;
+    }
+    const fsMod = yield Promise.resolve().then(() => __importStar(require('fs')));
+    const pathMod = yield Promise.resolve().then(() => __importStar(require('path')));
+    const osMod = yield Promise.resolve().then(() => __importStar(require('os')));
+    const sentinelDir = pathMod.join(osMod.homedir(), '.sentinel', 'builds');
+    let fullRecord = null;
+    if (fsMod.existsSync(sentinelDir)) {
+        const files = fsMod.readdirSync(sentinelDir).filter(f => f.endsWith('.json')).sort();
+        for (const f of files) {
+            try {
+                const data = JSON.parse(fsMod.readFileSync(pathMod.join(sentinelDir, f), 'utf8'));
+                if (data.evidenceGraph) {
+                    fullRecord = data;
+                    break;
+                }
+            }
+            catch (_a) { }
+        }
+    }
+    if (!fullRecord || !fullRecord.evidenceGraph) {
+        console.log(pc.yellow('  No evidence graph found in saved builds.'));
+        console.log(pc.dim('  Run `sentinel build observe --save` to save a build with evidence graph.'));
+        return;
+    }
+    const { buildTemporalEvidenceGraph, buildBayesianNetwork, analyzeDominators, computeFullGraphMetrics } = yield Promise.resolve().then(() => __importStar(require('../core/network/temporal-graph')));
+    const { computeGraphStats } = yield Promise.resolve().then(() => __importStar(require('../core/network/evidence-graph')));
+    const { computeGraphDiff, renderGraphDiff: renderDiff } = yield Promise.resolve().then(() => __importStar(require('../core/network/graph-analytics')));
+    const evGraph = fullRecord.evidenceGraph;
+    const teg = buildTemporalEvidenceGraph(evGraph);
+    const bn = buildBayesianNetwork(evGraph);
+    const da = analyzeDominators(evGraph);
+    const metrics = computeFullGraphMetrics(evGraph, teg, bn, da);
+    const graphStats = computeGraphStats(evGraph);
+    if (options.compare) {
+        let compareRecord = null;
+        if (fsMod.existsSync(sentinelDir)) {
+            const files = fsMod.readdirSync(sentinelDir).filter(f => f.endsWith('.json')).sort();
+            for (const f of files) {
+                try {
+                    const data = JSON.parse(fsMod.readFileSync(pathMod.join(sentinelDir, f), 'utf8'));
+                    if (data.evidenceGraph && data.buildId === options.compare) {
+                        compareRecord = data;
+                        break;
+                    }
+                }
+                catch (_b) { }
+            }
+        }
+        if (!compareRecord || !compareRecord.evidenceGraph) {
+            console.log(pc.red(`  Build ${options.compare} not found or has no evidence graph.`));
+            return;
+        }
+        const diff = computeGraphDiff(evGraph, compareRecord.evidenceGraph);
+        const diffLines = renderDiff(diff);
+        console.log('');
+        for (const line of diffLines) {
+            if (line.includes('Risk score')) {
+                const riskColor = diff.riskScore > 0.5 ? pc.red : diff.riskScore > 0.2 ? pc.yellow : pc.green;
+                console.log(`  ${riskColor(pc.bold(line))}`);
+            }
+            else if (line.startsWith('    ⚠')) {
+                console.log(pc.yellow(`  ${line}`));
+            }
+            else if (line.startsWith('    +')) {
+                console.log(pc.green(`  ${line}`));
+            }
+            else if (line.startsWith('    -')) {
+                console.log(pc.red(`  ${line}`));
+            }
+            else {
+                console.log(`  ${line}`);
+            }
+        }
+        console.log('');
+        return;
+    }
+    if (options.json) {
+        console.log(JSON.stringify({ graphStats, metrics, temporal: { paths: teg.paths.length, avgLatency: teg.avgEdgeLatencyMs, criticalPathMs: teg.criticalPath.causalDelayMs }, bayesian: { globalPrior: bn.globalPrior, overallPosterior: bn.overallPosterior }, dominator: { dominant: da.dominantProcess, hijackRisk: da.hijackRiskScore, shift: da.toolchainShiftDetected } }, null, 2));
+        return;
+    }
+    console.log('');
+    console.log(pc.cyan(pc.bold('  Build Investigation')));
+    console.log(pc.dim('  ───────────────────'));
+    console.log(`  ${pc.dim('Build:')} ${fullRecord.buildId || 'unknown'}`);
+    console.log(`  ${pc.dim('Nodes:')} ${graphStats.nodeCount}  |  ${pc.dim('Edges:')} ${graphStats.edgeCount}  |  ${pc.dim('Components:')} ${graphStats.componentCount}`);
+    console.log(`  ${pc.dim('Confidence:')} avg=${graphStats.avgConfidence} min=${graphStats.minConfidence} max=${graphStats.maxConfidence}`);
+    console.log('');
+    console.log(pc.bold('  Graph Metrics:'));
+    console.log(`    Density:      ${metrics.graphDensity}`);
+    console.log(`    Entropy:      ${metrics.graphEntropy}`);
+    console.log(`    Max depth:    ${metrics.maxDepth}`);
+    console.log(`    Is DAG:       ${metrics.isDag}`);
+    console.log(`    SCC count:    ${metrics.sccCount}`);
+    console.log(`    IDom count:   ${metrics.idomCount}`);
+    console.log('');
+    console.log(pc.bold('  Temporal:'));
+    console.log(`    Paths:            ${teg.paths.length}`);
+    console.log(`    Avg edge latency: ${teg.avgEdgeLatencyMs}ms`);
+    console.log(`    Max edge latency: ${teg.maxEdgeLatencyMs}ms`);
+    console.log(`    Critical path:    ${teg.criticalPath.causalDelayMs}ms (${teg.criticalPath.nodes.length} nodes)`);
+    console.log(`    Longest chain:    ${teg.longestCausalChain.nodes.length} nodes`);
+    console.log('');
+    console.log(pc.bold('  Bayesian:'));
+    console.log(`    Global prior:     ${bn.globalPrior}`);
+    console.log(`    Overall posterior: ${bn.overallPosterior}`);
+    const sortedRels = [...bn.relations].sort((a, b) => b.posteriorGivenEvidence - a.posteriorGivenEvidence);
+    for (const r of sortedRels.slice(0, 5)) {
+        const delta = r.posteriorGivenEvidence - r.priorP;
+        const deltaStr = delta >= 0 ? `+${delta.toFixed(3)}` : delta.toFixed(3);
+        console.log(`    ${r.relation.padEnd(24)} prior=${r.priorP} posterior=${r.posteriorGivenEvidence} (Δ${deltaStr})`);
+    }
+    console.log('');
+    console.log(pc.bold('  Dominator:'));
+    const domNode = evGraph.nodes.find((n) => n.id === da.dominantProcess);
+    console.log(`    Dominant:         ${(domNode === null || domNode === void 0 ? void 0 : domNode.label) || da.dominantProcess || 'none'}`);
+    console.log(`    Hijack risk:      ${(da.hijackRiskScore * 100).toFixed(1)}%`);
+    if (da.toolchainShiftDetected) {
+        console.log(pc.red(pc.bold(`    ⚠ TOOLCHAIN SHIFT DETECTED`)));
+    }
+    if (da.anomalySignals.length > 0) {
+        for (const s of da.anomalySignals) {
+            console.log(pc.yellow(`    ⚠ ${s}`));
+        }
+    }
+    if (da.dominantPath.length > 0) {
+        console.log(`    Path: ${da.dominantPath.join(' → ')}`);
+    }
+    console.log('');
+}));
+// ── Red Team Campaign Runner ──────────────────────────────────
+program
+    .command('redteam')
+    .description('Run Red Team attack scenarios and measure detection rates')
+    .option('--campaign <id>', 'Run specific campaign (sensor-evasion, identity-evasion, etc.)')
+    .option('--list', 'List all attack scenarios')
+    .option('--coverage', 'Show coverage matrix')
+    .option('--json', 'Output as JSON')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { runAllCampaigns, runCampaign, computeCoverageMatrix, renderRedTeamReport, renderCoverageMatrix } = yield Promise.resolve().then(() => __importStar(require('../core/network/redteam-runner')));
+    const { ALL_ATTACKS } = yield Promise.resolve().then(() => __importStar(require('../core/network/redteam-attacks')));
+    if (options.list) {
+        console.log('');
+        console.log(pc.cyan(pc.bold('  Red Team Attack Scenarios')));
+        console.log(pc.dim('  ─────────────────────────'));
+        for (const attack of ALL_ATTACKS) {
+            const sevColor = attack.severity === 'critical' ? pc.red : attack.severity === 'high' ? pc.yellow : pc.dim;
+            console.log(`  ${sevColor(attack.severity.toUpperCase().padEnd(8))} ${attack.id}  ${attack.name}`);
+            console.log(`  ${pc.dim(attack.description)}`);
+            if (attack.mitreId)
+                console.log(`  ${pc.dim('MITRE:')} ${attack.mitreId}`);
+            console.log('');
+        }
+        return;
+    }
+    // Load build records
+    const fsMod = yield Promise.resolve().then(() => __importStar(require('fs')));
+    const pathMod = yield Promise.resolve().then(() => __importStar(require('path')));
+    const osMod = yield Promise.resolve().then(() => __importStar(require('os')));
+    const sentinelDir = pathMod.join(osMod.homedir(), '.sentinel', 'builds');
+    const records = [];
+    if (fsMod.existsSync(sentinelDir)) {
+        const files = fsMod.readdirSync(sentinelDir).filter(f => f.endsWith('.json')).sort();
+        for (const f of files) {
+            try {
+                records.push(JSON.parse(fsMod.readFileSync(pathMod.join(sentinelDir, f), 'utf8')));
+            }
+            catch (_a) { }
+        }
+    }
+    if (records.length === 0) {
+        console.log(pc.yellow('  No build records found. Run `sentinel build observe --save` first.'));
+        return;
+    }
+    if (options.campaign) {
+        const campaign = runCampaign(options.campaign, records);
+        console.log(`\n  Campaign: ${campaign.name}`);
+        console.log(pc.dim(`  ${campaign.description}`));
+        console.log(`  Detection rate: ${(campaign.detectionRate * 100).toFixed(1)}%\n`);
+        for (const attack of campaign.attacks) {
+            const icon = attack.actualOutcome === 'detected' ? pc.green('✓') : attack.actualOutcome === 'partial' ? pc.yellow('⚠') : pc.red('✗');
+            console.log(`  ${icon} ${attack.name} (${attack.actualOutcome})`);
+            if (attack.missedIndicators && attack.missedIndicators.length > 0) {
+                for (const mi of attack.missedIndicators) {
+                    console.log(`    ${pc.red('missed:')} ${mi}`);
+                }
+            }
+        }
+        console.log('');
+        return;
+    }
+    if (options.coverage) {
+        const matrix = computeCoverageMatrix(records);
+        console.log(renderCoverageMatrix(matrix));
+        return;
+    }
+    // Full report
+    const report = runAllCampaigns(records);
+    if (options.json) {
+        console.log(JSON.stringify(report, null, 2));
+    }
+    else {
+        console.log(renderRedTeamReport(report));
+    }
+}));
+// ── Atomic Red Team Integration ────────────────────────────────
+program
+    .command('atomic')
+    .description('Run Atomic Red Team tests and measure detection rates')
+    .option('--dry-run', 'Show what would be executed without running')
+    .option('--priority <n>', 'Max priority level to execute (1-4)', '4')
+    .option('--timeout <ms>', 'Timeout per test in milliseconds', '30000')
+    .option('--list', 'List all mapped Atomic RT tests')
+    .option('--script', 'Generate integration bash script')
+    .option('--json', 'Output as JSON')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    yield preFlightCheck();
+    const { ALL_ATOMIC_TESTS, EXECUTION_ORDER } = yield Promise.resolve().then(() => __importStar(require('../core/network/atomic-redteam-map')));
+    const { executeAllAtomicTests, renderAtomicCampaignResult, generateIntegrationScript } = yield Promise.resolve().then(() => __importStar(require('../core/network/atomic-redteam-runner')));
+    if (options.script) {
+        console.log(generateIntegrationScript());
+        return;
+    }
+    if (options.list) {
+        console.log('');
+        console.log(pc.cyan(pc.bold('  Atomic Red Team → Sentinel Mapping')));
+        console.log(pc.dim('  ─────────────────────────────────'));
+        for (const test of ALL_ATOMIC_TESTS) {
+            const sevColor = test.gapSeverity === 'critical' ? pc.red : test.gapSeverity === 'high' ? pc.yellow : pc.dim;
+            console.log(`  ${sevColor(test.gapSeverity.toUpperCase().padEnd(8))} P${test.priority}  ${test.sentinelAttackId}  ${test.techniqueName}`);
+            console.log(`  ${pc.dim(test.atomicTestName)} (${test.techniqueId})`);
+            console.log(`  ${pc.dim('Platform:')} ${test.platform.join(', ')}`);
+            console.log('');
+        }
+        console.log(pc.bold('  Execution Order'));
+        console.log(pc.dim('  ──────────────'));
+        for (const group of EXECUTION_ORDER) {
+            console.log(`  ${pc.bold('Priority ' + group.priority + ':')} ${group.description}`);
+            console.log(`  ${pc.dim('Attacks:')} ${group.attacks.join(', ')}`);
+            console.log('');
+        }
+        return;
+    }
+    const maxPriority = parseInt(options.priority, 10);
+    const timeout = parseInt(options.timeout, 10);
+    if (!options.json) {
+        console.log(pc.dim('  Executing Atomic Red Team tests...'));
+        console.log(pc.dim(`  Max priority: ${maxPriority}, Timeout: ${timeout}ms`));
+        console.log('');
+    }
+    const result = executeAllAtomicTests({
+        dryRun: options.dryRun,
+        timeout,
+        maxPriority,
+    });
+    if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+    }
+    else {
+        console.log(renderAtomicCampaignResult(result));
+    }
 }));
 program
     .command('verify-pkg')
@@ -1908,6 +2722,70 @@ ${b('16. TRUST-CACHE — Package verdict cache')}
    ${d('   clear:  reset the cache')}
    ${d('   prune:  remove entries older than 7 days')}
 
+${b('17. TRUST — Trust calibration & corpus')}
+   ${w('$ sentinel trust [--status] [--features] [--labels] [--json]')}
+   ${d('   --status:  show corpus and calibration status (default)')}
+   ${d('   --features: show last extracted feature vector')}
+   ${d('   --labels:  show label distribution in corpus')}
+   ${d('   --json:    JSON output for pipelines')}
+   ${g('   ex: sentinel trust')}
+   ${g('   ex: sentinel trust --features')}
+
+${b('18. INSPECT — Investigate a build')}
+   ${w('$ sentinel inspect [build-id] [--compare <id>] [--json]')}
+   ${d('   Investigate build: evidence graph, centrality, dominators, Bayesian shifts.')}
+   ${d('   --compare: diff two builds')}
+   ${d('   --json:    JSON output for pipelines')}
+   ${g('   ex: sentinel inspect')}
+   ${g('   ex: sentinel inspect --compare build-123')}
+
+${b('19. LEARNING — Continuous learning pipeline')}
+   ${w('$ sentinel learning [--status] [--feedback] [--models] [--check] [--json]')}
+   ${d('   --status:   show pipeline status (default)')}
+   ${d('   --feedback: show feedback history')}
+   ${d('   --models:   show model version history')}
+   ${d('   --check:    check if retraining is needed')}
+   ${d('   --json:     JSON output for pipelines')}
+   ${g('   ex: sentinel learning')}
+   ${g('   ex: sentinel learning --feedback --models')}
+
+${b('20. TOP — Top findings from recent builds')}
+   ${w('$ sentinel top [--limit <n>] [--json]')}
+   ${d('   --limit: max findings to show (default 10)')}
+   ${d('   --json:  JSON output for pipelines')}
+   ${g('   ex: sentinel top')}
+   ${g('   ex: sentinel top --limit 5')}
+
+${b('21. REDTEAM — Attack resilience testing')}
+   ${w('$ sentinel redteam [options]')}
+   ${d('   --list:           list all 15 attack scenarios')}
+   ${d('   --campaign <id>:  run specific campaign')}
+   ${d('   --coverage:       show coverage matrix')}
+   ${d('   --json:           JSON output for pipelines')}
+   ${d('   Campaigns: sensor-evasion, identity-evasion, secret-exfiltration,')}
+   ${d('              toolchain-hijack, graph-poisoning, ml-poisoning, timeline-confusion')}
+   ${g('   ex: sentinel redteam --list')}
+   ${g('   ex: sentinel redteam --campaign sensor-evasion')}
+   ${g('   ex: sentinel redteam --coverage')}
+   ${g('   ex: sentinel redteam')}
+
+${b('22. ATOMIC — Atomic Red Team integration')}
+   ${w('$ sentinel atomic [options]')}
+   ${d('   --list:           list all mapped Atomic RT tests')}
+   ${d('   --dry-run:        show what would be executed')}
+   ${d('   --priority <n>:   max priority (1-4, default 4)')}
+   ${d('   --timeout <ms>:   timeout per test (default 30000)')}
+   ${d('   --script:         generate integration bash script')}
+   ${d('   --json:           JSON output for pipelines')}
+   ${d('   Maps Atomic RT techniques to Sentinel attack scenarios:')}
+   ${d('   P1: ETW bypass, LD_PRELOAD, DLL injection, corpus poisoning')}
+   ${d('   P2: Identity evasion, named pipes, DoH, response file')}
+   ${d('   P3: LOLBins, temp file destruction')}
+   ${d('   P4: Adversarial features, fragmentation, sensor confusion')}
+   ${g('   ex: sentinel atomic --list')}
+   ${g('   ex: sentinel atomic --dry-run --priority 1')}
+   ${g('   ex: sentinel atomic --script > run-attacks.sh')}
+
 ${c(b('══════════════════════════════════════════════════════════════════════'))}
 ${b('TEST RESULTS  —  Verificados Mayo 2026:')}
 ${g('  ✔')} ${d('verify-pkg utilz --details       → SAFE       | 2 findings con evidencia')}
@@ -2227,6 +3105,257 @@ networkCmd
     const auditor = new NetworkAuditor();
     auditor.corpus(action, corpus_dir);
 }));
+// --- Replay System CLI ---
+program
+    .command('replay')
+    .description('Replay datasets for regression testing')
+    .argument('[action]', 'list|run|compare|create', 'list')
+    .argument('[args...]', 'Dataset ID, platform, or command')
+    .option('--platform <platform>', 'Filter by platform')
+    .option('--campaign <campaign>', 'Filter by campaign')
+    .option('--json', 'Output as JSON')
+    .action((action, args, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { listReplayDatasets, loadReplayDataset, generateReplayReport, renderReplayReport, createReplayDatasetFromRecord } = yield Promise.resolve().then(() => __importStar(require('../core/network/replay-system')));
+    if (action === 'list') {
+        const datasets = listReplayDatasets(options.platform, options.campaign);
+        if (options.json) {
+            console.log(JSON.stringify(datasets, null, 2));
+        }
+        else {
+            console.log('');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('  REPLAY DATASETS');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('');
+            console.log(`  Total: ${datasets.length}`);
+            console.log('');
+            for (const ds of datasets) {
+                console.log(`  ${ds.id}`);
+                console.log(`    Name:     ${ds.name}`);
+                console.log(`    Attack:   ${ds.attackId || 'N/A'}`);
+                console.log(`    Platform: ${ds.platform}`);
+                console.log(`    Severity: ${ds.severity}`);
+                console.log(`    Expected: ${ds.expectedVerdict}`);
+                console.log('');
+            }
+            console.log('════════════════════════════════════════════════════════════');
+        }
+    }
+    else if (action === 'run') {
+        const datasetId = args[0];
+        if (!datasetId) {
+            console.error('Usage: sentinel replay run <dataset-id>');
+            process.exit(1);
+        }
+        const dataset = loadReplayDataset(datasetId);
+        if (!dataset) {
+            console.error(`Dataset not found: ${datasetId}`);
+            process.exit(1);
+        }
+        console.log(`Running replay for dataset: ${dataset.name}`);
+        console.log(`Expected verdict: ${dataset.expectedVerdict}`);
+        console.log('');
+        console.log('Note: This requires running the actual build and analyzing it.');
+        console.log('Use: sentinel build observe <command> --json');
+        console.log('Then compare the output with the expected results.');
+    }
+}));
+// --- Regression Suite CLI ---
+program
+    .command('regression')
+    .description('Regression testing suite')
+    .argument('[action]', 'list|run|create|coverage', 'list')
+    .argument('[args...]', 'Suite ID or test name')
+    .option('--json', 'Output as JSON')
+    .action((action, args, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { listRegressionSuites, loadRegressionSuite, createDefaultRegressionSuite, createRegressionSuite, renderRegressionCoverage } = yield Promise.resolve().then(() => __importStar(require('../core/network/regression-suite')));
+    if (action === 'list') {
+        let suites = listRegressionSuites();
+        if (suites.length === 0) {
+            console.log('No regression suites found. Creating default suite...');
+            const defaultSuite = createDefaultRegressionSuite();
+            createRegressionSuite(defaultSuite);
+            suites = [defaultSuite];
+        }
+        if (options.json) {
+            console.log(JSON.stringify(suites, null, 2));
+        }
+        else {
+            console.log('');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('  REGRESSION SUITES');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('');
+            for (const suite of suites) {
+                console.log(`  ${suite.id}`);
+                console.log(`    Name:   ${suite.name}`);
+                console.log(`    Tests:  ${suite.tests.length}`);
+                console.log(`    Version: ${suite.version}`);
+                console.log('');
+            }
+            console.log('════════════════════════════════════════════════════════════');
+        }
+    }
+    else if (action === 'coverage') {
+        const suiteId = args[0] || 'sentinel-default';
+        const suite = loadRegressionSuite(suiteId);
+        if (!suite) {
+            console.error(`Suite not found: ${suiteId}`);
+            process.exit(1);
+        }
+        console.log(renderRegressionCoverage(suite));
+    }
+    else if (action === 'create') {
+        const suite = createDefaultRegressionSuite();
+        createRegressionSuite(suite);
+        console.log(`Created default regression suite: ${suite.id}`);
+        console.log(`Tests: ${suite.tests.length}`);
+    }
+}));
+// --- ATT&CK Coverage CLI ---
+program
+    .command('coverage')
+    .description('MITRE ATT&CK coverage matrix')
+    .argument('[action]', 'show|generate|stats', 'show')
+    .option('--json', 'Output as JSON')
+    .option('--save', 'Save coverage matrix to file')
+    .action((action, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { generateCoverageMatrix, saveCoverageMatrix, loadCoverageMatrix, renderCoverageMatrix } = yield Promise.resolve().then(() => __importStar(require('../core/network/attack-coverage')));
+    let matrix = loadCoverageMatrix();
+    if (!matrix || action === 'generate') {
+        matrix = generateCoverageMatrix();
+        if (options.save) {
+            saveCoverageMatrix(matrix);
+            console.log('Coverage matrix saved to attack-coverage.json');
+        }
+    }
+    if (options.json) {
+        console.log(JSON.stringify(matrix, null, 2));
+    }
+    else {
+        console.log(renderCoverageMatrix(matrix));
+    }
+}));
+// --- Baseline Pro CLI ---
+program
+    .command('baseline-pro')
+    .description('Advanced build baseline management with anomaly detection')
+    .argument('[action]', 'list|create|show|add|diff', 'list')
+    .argument('[args...]', 'Profile ID or command')
+    .option('--json', 'Output as JSON')
+    .action((action, args, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { listBaselineProfiles, loadBaselineProfile, createBaselineProfile, renderBaselineProfile, addBaselineEntry, detectBaselineDeviation } = yield Promise.resolve().then(() => __importStar(require('../core/network/baseline-system')));
+    if (action === 'list') {
+        const profiles = listBaselineProfiles();
+        if (options.json) {
+            console.log(JSON.stringify(profiles, null, 2));
+        }
+        else {
+            console.log('');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('  BASELINE PROFILES');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('');
+            console.log(`  Total: ${profiles.length}`);
+            console.log('');
+            for (const profile of profiles) {
+                console.log(`  ${profile.id}`);
+                console.log(`    Name:      ${profile.name}`);
+                console.log(`    Entries:   ${profile.entries.length}`);
+                console.log(`    Trust:     ${profile.stats.meanTrustScore.toFixed(1)} ± ${profile.stats.stdTrustScore.toFixed(1)}`);
+                console.log('');
+            }
+            console.log('════════════════════════════════════════════════════════════');
+        }
+    }
+    else if (action === 'create') {
+        const id = args[0] || `baseline-${Date.now()}`;
+        const name = args[1] || 'New Baseline';
+        const profile = createBaselineProfile(id, name, 'Created via CLI');
+        console.log(`Created baseline profile: ${profile.id}`);
+    }
+    else if (action === 'show') {
+        const profileId = args[0];
+        if (!profileId) {
+            console.error('Usage: sentinel baseline show <profile-id>');
+            process.exit(1);
+        }
+        const profile = loadBaselineProfile(profileId);
+        if (!profile) {
+            console.error(`Profile not found: ${profileId}`);
+            process.exit(1);
+        }
+        console.log(renderBaselineProfile(profile));
+    }
+}));
+// --- Stress Testing CLI ---
+program
+    .command('stress')
+    .description('Stress testing and performance benchmarks')
+    .argument('[action]', 'run|config|results|compare', 'config')
+    .argument('[args...]', 'Config ID or build command')
+    .option('--builds <n>', 'Number of builds to process', '200')
+    .option('--malicious <ratio>', 'Ratio of malicious builds (0-1)', '0.1')
+    .option('--concurrency <n>', 'Concurrent analysis', '10')
+    .option('--json', 'Output as JSON')
+    .action((action, args, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const { createDefaultStressConfig, saveStressConfig, loadStressConfig, listStressResults, renderStressResult, renderStressComparison } = yield Promise.resolve().then(() => __importStar(require('../core/network/stress-testing')));
+    if (action === 'config') {
+        const config = createDefaultStressConfig();
+        config.totalBuilds = parseInt(options.builds) || 200;
+        config.maliciousRatio = parseFloat(options.malicious) || 0.1;
+        config.concurrency = parseInt(options.concurrency) || 10;
+        saveStressConfig(config);
+        if (options.json) {
+            console.log(JSON.stringify(config, null, 2));
+        }
+        else {
+            console.log('');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('  STRESS TEST CONFIG');
+            console.log('════════════════════════════════════════════════════════════');
+            console.log('');
+            console.log(`  Config:     ${config.id}`);
+            console.log(`  Builds:     ${config.totalBuilds}`);
+            console.log(`  Malicious:  ${(config.maliciousRatio * 100).toFixed(0)}%`);
+            console.log(`  Concurrency: ${config.concurrency}`);
+            console.log('');
+            console.log('  Run: sentinel stress run');
+            console.log('');
+            console.log('════════════════════════════════════════════════════════════');
+        }
+    }
+    else if (action === 'results') {
+        const configId = args[0];
+        if (!configId) {
+            console.error('Usage: sentinel stress results <config-id>');
+            process.exit(1);
+        }
+        const results = listStressResults(configId);
+        if (results.length === 0) {
+            console.log('No results found for this config.');
+        }
+        else {
+            for (const result of results) {
+                console.log(renderStressResult(result));
+            }
+        }
+    }
+    else if (action === 'compare') {
+        const configId = args[0];
+        if (!configId) {
+            console.error('Usage: sentinel stress compare <config-id>');
+            process.exit(1);
+        }
+        const results = listStressResults(configId);
+        if (results.length < 2) {
+            console.log('Need at least 2 results for comparison.');
+        }
+        else {
+            console.log(renderStressComparison(results));
+        }
+    }
+}));
 // --- Token Inspector CLI (Fase 1C) ---
 program
     .command('token-inspect')
@@ -2258,6 +3387,11 @@ program.on('--help', () => {
     console.log(pc.magenta('  ───────────────────────────────────────────'));
     console.log(w(`${cmd('sentinel workflow full-audit --repo R')}    — ${desc('Audit ALL PRs in one repo')}`));
     console.log(w(`${cmd('sentinel pr-audit --repo R --pr N')}        — ${desc('Audit a single PR')}`));
+    console.log(w(`${cmd('sentinel build observe <cmd>')}              — ${desc('Observe build: trust score, highlights, verdict')}`));
+    console.log(w(`${cmd('sentinel build observe <cmd> --verbose')}    — ${desc('Build with technical details: graph, Bayesian, dominators')}`));
+    console.log(w(`${cmd('sentinel build observe <cmd> --json')}       — ${desc('Build output as JSON for pipelines')}`));
+    console.log(w(`${cmd('sentinel build explain')}                   — ${desc('Why is the trust score what it is?')}`));
+    console.log(w(`${cmd('sentinel top')}                              — ${desc('Top findings from recent builds')}`));
     console.log(w(`${cmd('sentinel scan <path>')}                      — ${desc('SAST scan (30 rules)')}`));
     console.log(w(`${cmd('sentinel verify-pkg <pkg> --details')}       — ${desc('Audit npm package')}`));
     console.log(w(`${cmd('sentinel doctor --deep')}                    — ${desc('Full system health + deps')}`));
@@ -2279,6 +3413,35 @@ program.on('--help', () => {
     console.log(w(`${cmd('sentinel check-classified <path>')}          — ${desc('Classified data check')}`));
     console.log(w(`${cmd('sentinel token-inspect <token>')}            — ${desc('Classify and risk-assess a token')}`));
     console.log(w(`${cmd('sentinel token-inspect <token> --check')}    — ${desc('Verify GitHub token scopes via API')}`));
+    console.log(w(`${cmd('sentinel trust')}                            — ${desc('Trust calibration: corpus, features, labels')}`));
+    console.log(w(`${cmd('sentinel trust --features')}                 — ${desc('Show last extracted feature vector')}`));
+    console.log(w(`${cmd('sentinel inspect')}                          — ${desc('Investigate build: graph, dominators, Bayesian')}`));
+    console.log(w(`${cmd('sentinel inspect --compare <id>')}           — ${desc('Diff two builds')}`));
+    console.log(w(`${cmd('sentinel learning')}                         — ${desc('Continuous learning: feedback, models, retrain')}`));
+    console.log(w(`${cmd('sentinel learning --feedback')}              — ${desc('Show feedback history')}`));
+    console.log(w(`${cmd('sentinel top')}                              — ${desc('Top findings from recent builds')}`));
+    console.log(w(`${cmd('sentinel top --limit 5')}                    — ${desc('Top 5 findings')}`));
+    console.log(w(`${cmd('sentinel redteam')}                          — ${desc('Run Red Team attack scenarios')}`));
+    console.log(w(`${cmd('sentinel redteam --list')}                    — ${desc('List all 26 attack scenarios')}`));
+    console.log(w(`${cmd('sentinel redteam --coverage')}                — ${desc('Show coverage matrix')}`));
+    console.log(w(`${cmd('sentinel atomic')}                            — ${desc('Run Atomic Red Team tests')}`));
+    console.log(w(`${cmd('sentinel atomic --list')}                      — ${desc('List mapped Atomic RT tests')}`));
+    console.log(w(`${cmd('sentinel atomic --dry-run')}                   — ${desc('Preview what would execute')}`));
+    console.log(w(`${cmd('sentinel atomic --script')}                    — ${desc('Generate integration bash script')}`));
+    console.log(w(`${cmd('sentinel replay')}                            — ${desc('Replay datasets for regression testing')}`));
+    console.log(w(`${cmd('sentinel replay list')}                         — ${desc('List all replay datasets')}`));
+    console.log(w(`${cmd('sentinel replay run <id>')}                     — ${desc('Run replay for specific dataset')}`));
+    console.log(w(`${cmd('sentinel regression')}                         — ${desc('Regression testing suite')}`));
+    console.log(w(`${cmd('sentinel regression list')}                      — ${desc('List regression suites')}`));
+    console.log(w(`${cmd('sentinel regression coverage')}                 — ${desc('Show test coverage')}`));
+    console.log(w(`${cmd('sentinel coverage')}                           — ${desc('MITRE ATT&CK coverage matrix')}`));
+    console.log(w(`${cmd('sentinel coverage --save')}                     — ${desc('Save coverage matrix to file')}`));
+    console.log(w(`${cmd('sentinel baseline-pro')}                        — ${desc('Advanced baseline management')}`));
+    console.log(w(`${cmd('sentinel baseline-pro list')}                     — ${desc('List baseline profiles')}`));
+    console.log(w(`${cmd('sentinel baseline-pro show <id>')}                 — ${desc('Show baseline profile details')}`));
+    console.log(w(`${cmd('sentinel stress')}                             — ${desc('Stress testing and benchmarks')}`));
+    console.log(w(`${cmd('sentinel stress config')}                        — ${desc('Configure stress test')}`));
+    console.log(w(`${cmd('sentinel stress results <id>')}                   — ${desc('Show stress test results')}`));
     console.log(w(`${cmd('sentinel network start')}                    — ${desc('Start AI agent network audit')}`));
     console.log(w(`${cmd('sentinel network stop')}                     — ${desc('Stop audit and get verdict')}`));
     console.log(w(`${cmd('sentinel network status')}                   — ${desc('Show audit status')}`));

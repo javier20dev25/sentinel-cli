@@ -40,6 +40,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const crypto = __importStar(require("crypto"));
+let _graphSeq = 0;
 function getGraphDir(repoPath) {
     const hash = crypto.createHash('sha256').update(path.resolve(repoPath)).digest('hex').substring(0, 12);
     return path.join(os.homedir(), '.sentinel', 'graphs', hash);
@@ -48,7 +49,7 @@ function saveGraphSnapshot(repoPath, graph) {
     const dir = getGraphDir(repoPath);
     if (!fs.existsSync(dir))
         fs.mkdirSync(dir, { recursive: true });
-    const id = Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+    const id = Date.now().toString(36) + '-' + (_graphSeq++).toString(36).padStart(4, '0');
     const hash = crypto.createHash('sha256').update(path.resolve(repoPath)).digest('hex').substring(0, 12);
     const snapshot = {
         id,
@@ -96,9 +97,9 @@ function computeGraphTrend(repoPath) {
     if (snapshots.length < 2) {
         return { chainCountDelta: 0, scoreDelta: 0 };
     }
-    const sorted = [...snapshots].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-    const current = sorted[sorted.length - 1];
-    const previous = sorted[sorted.length - 2];
+    const sorted = [...snapshots].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    const current = sorted[0];
+    const previous = sorted[1];
     const currentTopScore = (_b = (_a = current.topChains[0]) === null || _a === void 0 ? void 0 : _a.score) !== null && _b !== void 0 ? _b : 0;
     const previousTopScore = (_d = (_c = previous.topChains[0]) === null || _c === void 0 ? void 0 : _c.score) !== null && _d !== void 0 ? _d : 0;
     return {

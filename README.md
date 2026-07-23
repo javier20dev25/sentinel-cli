@@ -70,6 +70,20 @@ sentinel network export <id>   # Export (json|markdown)
 
 See [Network Auditor Documentation](./docs/NETWORK_AUDITOR.md).
 
+### Build Flight Recorder
+
+Captures a complete forensic record of any build command: process tree (filtered to build descendants), file artifacts created during the build, and a SHA-256 integrity chain. Outputs a `CLEAN`/`REVIEW` verdict based on anomalous processes.
+
+```bash
+sentinel build "npm run build"
+sentinel build "make -j4" --timeout 60000
+sentinel build "go build ./..." --provenance   # full report
+sentinel build "gcc -O2 *.c -o app" --save     # save for diff
+sentinel build "gcc -O2 *.c -o app" --provenance --save  # second run shows diff
+```
+
+See [Build Flight Recorder Documentation](./docs/build-flight-recorder.md).
+
 ### System Integrity
 
 | Command | Description |

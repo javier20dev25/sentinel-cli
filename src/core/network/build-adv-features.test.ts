@@ -64,9 +64,13 @@ describe('Build Identity', () => {
     }
   })
 
-  it('ciProvider is null when not in CI', () => {
+  it('ciProvider is null or string depending on environment', () => {
     const id = captureBuildIdentity()
-    expect(id.ciProvider).toBeNull()
+    if (process.env.CI) {
+      expect(typeof id.ciProvider).toBe('string')
+    } else {
+      expect(id.ciProvider).toBeNull()
+    }
   })
 
   it('container detection returns null or string', () => {

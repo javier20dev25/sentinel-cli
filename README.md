@@ -167,7 +167,71 @@ sentinel-cli memory --findings       # Query past findings
 sentinel-cli memory --threats        # Threat correlations
 ```
 
-### 9. Red Team & Validation
+### 9. Token Intelligence
+
+Classifies and risk-assesses any token string — GitHub PATs, AWS keys, Stripe secrets, Slack tokens, and more. Produces risk scores, scope analysis, and actionable recommendations.
+
+```bash
+sentinel-cli token-inspect <token>    # Full classification + risk assessment
+```
+
+### 10. Export (JSON, Markdown, PDF, SARIF)
+
+Export scan findings and reports in multiple formats for integration with external tools, CI pipelines, and compliance systems.
+
+```bash
+sentinel-cli export json              # Machine-readable JSON
+sentinel-cli export markdown          # Human-readable Markdown
+sentinel-cli export pdf               # Printable PDF report
+sentinel-cli export sarif             # SARIF for GitHub Code Scanning
+sentinel-cli export policy            # Policy configuration export
+```
+
+### 11. Data Protection
+
+```bash
+sentinel-cli check-classified <path>  # Pre-commit classified data check
+sentinel-cli env-encrypt <file>       # AES-256-CBC encryption for .env files
+sentinel-cli env-decrypt <file>       # Decrypt .env.enc back to plaintext
+```
+
+### 12. Policy & Drift Detection
+
+Configure security policies and track behavioral drift of package capabilities across versions.
+
+```bash
+sentinel-cli policy                   # ci-mode, fail-closed, quarantine settings
+sentinel-cli drift                    # Track capability drift across versions
+sentinel-cli baseline create|diff     # System snapshots and drift detection
+```
+
+### 13. Graph Analytics
+
+Advanced analysis of build process graphs: centrality measures, dominator trees, Bayesian inference shifts, and critical path detection.
+
+```bash
+sentinel-cli graph history            # Snapshot history with chain count trend
+sentinel-cli graph diff               # Diff between latest two snapshots
+sentinel-cli graph analytics          # Centrality, dominators, Bayesian, critical path
+sentinel-cli inspect                  # Evidence graph investigation
+```
+
+### 14. Network Intelligence Deep Dive
+
+Extended network auditor capabilities for advanced threat analysis:
+
+```bash
+sentinel-cli network trusted          # Manage trusted agent allowlist
+sentinel-cli network doctor           # Health check, coverage, sensor drift
+sentinel-cli network blindspots       # Record and manage detection failures
+sentinel-cli network campaign         # Run validation campaigns
+sentinel-cli network benchmark        # Benchmark history across engine versions
+sentinel-cli network replay           # Replay sessions through detection pipeline
+sentinel-cli network record           # Record real OS session
+sentinel-cli network corpus           # Inspect corpus coverage
+```
+
+### 15. Red Team & Validation
 
 ```bash
 sentinel-cli redteam --list          # 26 attack scenarios, 10 campaigns
@@ -184,18 +248,18 @@ sentinel-cli regression list         # Regression suites
 `sentinel-cli hub` launches a bilingual (English/Spanish) operations menu:
 
 ```
-  0. PR Bot — Auto-Analyze All Open PRs
-  1. Select Workspaces & Run Audits
-  2. System Doctor (Health Check)
-  3. Integrity Check
-  4. Permissions Audit
-  5. Scan Directory/File
-  6. Sentinel Guard & Configuration
-  7. Classified Documents
-  8. Manage Signal Vault (Memory)
-  9. Security — Integrity & Trust Policy
- 10. Network Auditor
- 11. Exit
+   0. PR Bot — Auto-Analyze All Open PRs
+   1. Select Workspaces & Run Audits
+   2. System Doctor (Health Check)
+   3. Integrity Check
+   4. Permissions Audit
+   5. Scan Directory/File
+   6. Sentinel Guard & Configuration
+   7. Classified Documents
+   8. Manage Signal Vault (Memory)
+   9. Security — Integrity & Trust Policy
+  10. Network Auditor
+  11. Exit
 ```
 
 ---
@@ -206,7 +270,7 @@ sentinel-cli regression list         # Regression suites
 - **Replace SAST tools** — it complements them with build-time context
 - **Replace DAST** — no dynamic testing of running applications
 - **Replace SCA** — uses OSV for CVE lookup, not a full SCA replacement
-- **Block builds** — it reports, not prevents (no auto-remediation)
+- **Auto-remediate** — it reports and blocks (via guard/precommit), but does not fix code
 - **Detect zero-days** — relies on observable patterns, not vulnerability research
 - **Analyze firmware/hypervisor** — out of scope
 
@@ -248,8 +312,8 @@ Model Context Protocol server (`sentinel-cli mcp`) exposing 17 tools as standard
 | Category | Tools |
 |----------|-------|
 | SAST + Analysis | scan, verify-pkg, doctor, integrity, audit-deps, deps-tree, sbom |
-| Security Gate | install, guard, trust-cache, policy |
-| Intelligence | memory, check-classified, baseline, permissions |
+| Security Gate | check-classified, trust-cache, policy |
+| Intelligence | memory, threat-query, threat-correlate |
 | GitHub PR Tools | gh-pr-list, gh-pr-view, gh-pr-diff, gh-repo-list |
 
 ```bash
@@ -350,14 +414,21 @@ Sentinel exists because of six convictions:
 | **System integrity** | `sentinel-cli integrity` for chain-of-trust verification |
 | **Package interception** | `sentinel-cli guard enable` for OS-level npm/pip blocking |
 | **Threat history** | `sentinel-cli memory` for local threat intelligence vault |
+| **Token risk assessment** | `sentinel-cli token-inspect` to classify any token |
+| **Data protection** | `sentinel-cli env-encrypt` for .env file encryption |
+| **Graph analysis** | `sentinel-cli graph analytics` for build process insights |
+| **Network forensics** | `sentinel-cli network record` + `replay` for session analysis |
+| **Policy enforcement** | `sentinel-cli policy` for ci-mode, fail-closed, quarantine |
+| **SARIF integration** | `sentinel-cli export sarif` for GitHub Code Scanning |
 
 ---
 
-## CLI Commands (70+)
+## CLI Commands (90+)
 
 ### Security Scanning
 ```bash
 sentinel-cli scan <path>               # SAST findings by severity
+sentinel-cli scan --staged             # Scan staged git changes
 sentinel-cli audit-deps                # Dependency audit (lockfile + OSV)
 sentinel-cli verify-pkg <name>         # Single package check
 sentinel-cli sbom                      # CycloneDX v1.5 SBOM
@@ -368,6 +439,17 @@ sentinel-cli deps-tree <path>          # Transitive dependency scan
 ```bash
 sentinel-cli build observe <cmd>       # Verdict + trust + explanation
 sentinel-cli build explain             # Why the score is what it is
+sentinel-cli build mark-release        # Mark current build as release baseline
+sentinel-cli build release             # Show current release baseline info
+sentinel-cli build trust               # Trust calibration: corpus stats, model state
+sentinel-cli build learning            # Continuous learning pipeline, model versions
+```
+
+### Graph Analytics
+```bash
+sentinel-cli graph history             # Graph snapshot history with chain count trend
+sentinel-cli graph diff                # Diff between latest two graph snapshots
+sentinel-cli graph analytics           # Centrality, dominators, Bayesian shifts, critical path
 sentinel-cli inspect                   # Evidence graph, centrality, dominators
 sentinel-cli top                       # Top findings from recent builds
 ```
@@ -376,6 +458,18 @@ sentinel-cli top                       # Top findings from recent builds
 ```bash
 sentinel-cli network start             # Start live monitoring
 sentinel-cli network stop              # Stop and get verdict
+sentinel-cli network status            # Current session status
+sentinel-cli network history -l N      # Last N sessions
+sentinel-cli network session <id>      # Session detail
+sentinel-cli network export <id>       # Export session (json|markdown)
+sentinel-cli network trusted           # Manage trusted agents
+sentinel-cli network doctor            # Health check, coverage, sensor drift
+sentinel-cli network blindspots        # Record detection failures
+sentinel-cli network campaign          # Run validation campaigns
+sentinel-cli network benchmark         # Benchmark history across engine versions
+sentinel-cli network replay            # Replay recorded sessions
+sentinel-cli network record            # Record real OS session for replay
+sentinel-cli network corpus            # Inspect corpus coverage vs canonical profiles
 sentinel-cli redteam --list            # 26 attacks, 10 campaigns
 sentinel-cli atomic --list             # 30+ Atomic RT tests mapped
 sentinel-cli coverage                  # MITRE ATT&CK matrix
@@ -385,14 +479,38 @@ sentinel-cli coverage                  # MITRE ATT&CK matrix
 ```bash
 sentinel-cli pr-audit --repo R --pr N  # Audit a single PR
 sentinel-cli workflow full-audit       # Audit ALL PRs in a repo
+sentinel-cli workflow pr-review        # Audit + post results as PR comment
 ```
 
 ### Security Guard & Hooks
 ```bash
 sentinel-cli guard enable              # Intercept npm/yarn/pip
+sentinel-cli guard status              # Check guard status
 sentinel-cli precommit install         # Block commits with threats
 sentinel-cli prepush install           # Block pushes with threats
 sentinel-cli install npm <pkg>         # Scan then install
+```
+
+### Data Protection
+```bash
+sentinel-cli check-classified <path>   # Verify files for classified data
+sentinel-cli env-encrypt <file>        # Encrypt .env with AES-256-CBC
+sentinel-cli env-decrypt <file>        # Decrypt .env.enc back to plaintext
+```
+
+### Token Intelligence
+```bash
+sentinel-cli token-inspect <token>     # Classify and risk-assess any token
+                                      # (GitHub PAT, AWS key, Stripe, Slack, etc.)
+```
+
+### Export
+```bash
+sentinel-cli export json               # Export findings as JSON
+sentinel-cli export markdown           # Export findings as Markdown
+sentinel-cli export pdf                # Export findings as PDF
+sentinel-cli export sarif              # Export findings as SARIF
+sentinel-cli export policy             # Export policy configuration
 ```
 
 ### Validation
@@ -403,21 +521,29 @@ sentinel-cli baseline-pro list         # Baseline profiles
 sentinel-cli stress config             # Stress testing
 ```
 
+### Policy & Drift
+```bash
+sentinel-cli policy                    # Configure security policies
+                                      # (ci-mode, fail-closed, quarantine)
+sentinel-cli drift                     # Track behavioral drift across versions
+sentinel-cli baseline create|diff      # System snapshots and drift detection
+```
+
 ### AI Integration
 ```bash
 sentinel-cli mcp                       # MCP server (17 tools)
 sentinel-cli hub                       # Interactive operations menu
 sentinel-cli install-skills            # Install for 8 AI agents
+sentinel-cli guide                     # Interactive user guide
+sentinel-cli policies                  # Show security policy & guidelines
 ```
 
 ### System
 ```bash
 sentinel-cli integrity                 # Chain-of-trust verification
 sentinel-cli doctor                    # System health check
-sentinel-cli baseline create|diff      # System snapshots
 sentinel-cli permissions <pkg>         # Capability audit
 sentinel-cli memory --status           # Threat vault status
-sentinel-cli token-inspect <token>     # Classify and risk-assess a token
 ```
 
 ---
@@ -458,11 +584,21 @@ Sentinel evidence (Tier 1) overrides model reasoning (Tier 4).
 |----------|-------------|
 | [Architecture](./ARCHITECTURE.md) | 938-line technical architecture |
 | [Build Intelligence](./docs/BUILD_INTELLIGENCE.md) | Complete feature reference |
+| [Build Flight Recorder](./docs/build-flight-recorder.md) | Build observation system |
 | [Network Auditor](./docs/NETWORK_AUDITOR.md) | Behavior-based detection |
+| [Behavior Engine](./docs/behavior-engine.md) | 31 behavior classifiers |
+| [Risk Engine](./docs/risk-engine.md) | Risk scoring methodology |
 | [Trust Model](./docs/TRUST_MODEL.md) | Evidence hierarchy and calibration |
 | [Skills](./docs/SKILLS.md) | AI agent integration guide |
+| [CI/CD Security](./docs/CI_CD_SECURITY.md) | CI pipeline security |
+| [Corpus](./docs/corpus.md) | Canonical profile system |
+| [Replay System](./docs/replay-system.md) | Session replay architecture |
+| [Recording Guide](./docs/recording-guide.md) | How to record sessions |
+| [Ground Truth](./docs/ground-truth.md) | Validation methodology |
+| [Limitations](./docs/limitations.md) | Known limitations |
 | [Classification Policy](./CLASSIFICATION_POLICY.md) | Detection policy contract |
 | [Technical Report](./INFORME_TECNICO_v2.md) | 801-line technical report |
+| [Legal](./LEGAL.md) | Legal notices and attributions |
 | [Contributing](./CONTRIBUTING.md) | Development guide |
 | [Security](./SECURITY.md) | Vulnerability reporting |
 | [Roadmap](./ROADMAP.md) | Direction without dates |

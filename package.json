@@ -1,10 +1,10 @@
 {
-  "name": "@sentinel/cli",
+  "name": "sntnl-cli",
   "version": "4.0.0",
   "description": "Sentinel Security Intelligence — SAST, supply chain, threat intel, and Skills/MCP for AI coding agents.",
   "main": "dist/cli/main.js",
   "bin": {
-    "sentinel-cli": "dist/cli/main.js"
+    "sntnl": "dist/cli/main.js"
   },
   "scripts": {
     "build": "tsc",

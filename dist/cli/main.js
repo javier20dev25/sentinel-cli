@@ -934,7 +934,7 @@ program
     .option('--teams', 'Group findings by CODEOWNERS team')
     .option('--ci-comment', 'Post results as PR comment (auto-detects CI env)')
     .action((targetPath, options) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
     const host = yield preFlightCheck();
     const live = new live_1.LiveIndicator();
     live.start(options.staged ? 'Scanning staged files...' : `Scanning ${targetPath}...`, 'bars');
@@ -1002,6 +1002,32 @@ program
         }
     }
     live.stop();
+    // Semantic false-positive filter for staged scans: the regex scanner
+    // flags attack patterns inside test fixtures, string literals, comments
+    // and its own detector rule definitions. Drop those before the policy
+    // gate so the pre-commit hook never blocks over data instead of
+    // execution. Secrets and filename-based findings are never dropped.
+    // Run `scan --staged --json` to see the skippedFalsePositives count.
+    let skippedFalsePositives = 0;
+    if (options.staged && findings.length > 0) {
+        const { classifyFinding, loadFileLines } = require('./semantic_filter');
+        const lineCache = new Map();
+        const kept = [];
+        for (const f of findings) {
+            let srcLines = null;
+            if (f.file && f.line) {
+                if (!lineCache.has(f.file))
+                    lineCache.set(f.file, loadFileLines(path.resolve(f.file)));
+                srcLines = (_a = lineCache.get(f.file)) !== null && _a !== void 0 ? _a : null;
+            }
+            const verdict = classifyFinding(f, srcLines);
+            if (verdict.keep)
+                kept.push(f);
+            else
+                skippedFalsePositives++;
+        }
+        findings = kept;
+    }
     const skippedNodeModules = !!coverageMeta && coverageMeta.mode === 'source_only';
     const nmWarning = skippedNodeModules
         ? pc.yellow('\n  ⚠  WARNING: node_modules skipped — installed packages run lifecycle scripts on install.\n     Run: sentinel scan . --audit-node-modules  (or: sentinel permissions) to audit installed packages.\n')
@@ -1018,6 +1044,8 @@ program
             const payload = { host, findings };
             if (coverageMeta)
                 payload.coverage = coverageMeta;
+            if (options.staged)
+                payload.skippedFalsePositives = skippedFalsePositives;
             if (nmWarning)
                 payload.warning = nmWarning.replace(/\x1b\[[0-9;]*m/g, '').replace(/\n\s*/g, ' ').trim();
             console.log(JSON.stringify(payload, null, 2));
@@ -1044,6 +1072,9 @@ program
                 console.log(pc.dim(`    Evidence: ${f.snippet}`));
             });
             console.log(pc.cyan(`\n(Heuristic pass complete. ${findings.length} threats found locally.)`));
+            if (skippedFalsePositives > 0) {
+                console.log(pc.dim(`\n  (${skippedFalsePositives} false positives dropped by semantic context — run \`sentinel scan --staged --json\` for the raw count.)`));
+            }
             if (coverageMeta && coverageMeta.mode === 'node_modules') {
                 const lifecycle = findings.filter(f => f.type === 'LIFECYCLE_CURL_BASH');
                 if (lifecycle.length > 0) {
@@ -1160,19 +1191,19 @@ program
         ? options.failOnVerdict.toUpperCase()
         : undefined;
     const policyResult = (0, policy_1.evaluatePolicy)(findings, {
-        agencyScore: (_a = agency === null || agency === void 0 ? void 0 : agency.agencyScore) !== null && _a !== void 0 ? _a : 0,
-        blastRadius: (_b = agency === null || agency === void 0 ? void 0 : agency.blastRadius) !== null && _b !== void 0 ? _b : 'LOW',
-        verdict: (_c = agency === null || agency === void 0 ? void 0 : agency.verdict) !== null && _c !== void 0 ? _c : 'PASS',
-        drivers: (_d = agency === null || agency === void 0 ? void 0 : agency.drivers) !== null && _d !== void 0 ? _d : [],
-        totalFindings: (_e = agency === null || agency === void 0 ? void 0 : agency.totalFindings) !== null && _e !== void 0 ? _e : findings.length,
-        criticalCount: (_f = agency === null || agency === void 0 ? void 0 : agency.criticalCount) !== null && _f !== void 0 ? _f : findings.filter(f => f.severity === 'CRITICAL').length,
-        highCount: (_g = agency === null || agency === void 0 ? void 0 : agency.highCount) !== null && _g !== void 0 ? _g : findings.filter(f => f.severity === 'HIGH').length,
-        correlations: (_h = agency === null || agency === void 0 ? void 0 : agency.correlations) !== null && _h !== void 0 ? _h : [],
-        recommendation: (_j = agency === null || agency === void 0 ? void 0 : agency.recommendation) !== null && _j !== void 0 ? _j : '',
+        agencyScore: (_b = agency === null || agency === void 0 ? void 0 : agency.agencyScore) !== null && _b !== void 0 ? _b : 0,
+        blastRadius: (_c = agency === null || agency === void 0 ? void 0 : agency.blastRadius) !== null && _c !== void 0 ? _c : 'LOW',
+        verdict: (_d = agency === null || agency === void 0 ? void 0 : agency.verdict) !== null && _d !== void 0 ? _d : 'PASS',
+        drivers: (_e = agency === null || agency === void 0 ? void 0 : agency.drivers) !== null && _e !== void 0 ? _e : [],
+        totalFindings: (_f = agency === null || agency === void 0 ? void 0 : agency.totalFindings) !== null && _f !== void 0 ? _f : findings.length,
+        criticalCount: (_g = agency === null || agency === void 0 ? void 0 : agency.criticalCount) !== null && _g !== void 0 ? _g : findings.filter(f => f.severity === 'CRITICAL').length,
+        highCount: (_h = agency === null || agency === void 0 ? void 0 : agency.highCount) !== null && _h !== void 0 ? _h : findings.filter(f => f.severity === 'HIGH').length,
+        correlations: (_j = agency === null || agency === void 0 ? void 0 : agency.correlations) !== null && _j !== void 0 ? _j : [],
+        recommendation: (_k = agency === null || agency === void 0 ? void 0 : agency.recommendation) !== null && _k !== void 0 ? _k : '',
     }, {
         failOnScore: options.failOnScore,
-        failOnCritical: (_k = options.failOnCritical) !== null && _k !== void 0 ? _k : false,
-        failOnHigh: (_l = options.failOnHigh) !== null && _l !== void 0 ? _l : false,
+        failOnCritical: (_l = options.failOnCritical) !== null && _l !== void 0 ? _l : false,
+        failOnHigh: (_m = options.failOnHigh) !== null && _m !== void 0 ? _m : false,
         failOnVerdict: failVerdict,
     });
     if (policyResult.shouldFail) {

@@ -998,6 +998,30 @@ program
 
         live.stop();
 
+        // Semantic false-positive filter for staged scans: the regex scanner
+        // flags attack patterns inside test fixtures, string literals, comments
+        // and its own detector rule definitions. Drop those before the policy
+        // gate so the pre-commit hook never blocks over data instead of
+        // execution. Secrets and filename-based findings are never dropped.
+        // Run `scan --staged --json` to see the skippedFalsePositives count.
+        let skippedFalsePositives = 0;
+        if (options.staged && findings.length > 0) {
+            const { classifyFinding, loadFileLines } = require('./semantic_filter');
+            const lineCache = new Map<string, string[] | null>();
+            const kept: LiteFinding[] = [];
+            for (const f of findings) {
+                let srcLines: string[] | null = null;
+                if (f.file && f.line) {
+                    if (!lineCache.has(f.file)) lineCache.set(f.file, loadFileLines(path.resolve(f.file)));
+                    srcLines = lineCache.get(f.file) ?? null;
+                }
+                const verdict = classifyFinding(f, srcLines);
+                if (verdict.keep) kept.push(f);
+                else skippedFalsePositives++;
+            }
+            findings = kept;
+        }
+
         const skippedNodeModules = !!coverageMeta && coverageMeta.mode === 'source_only';
         const nmWarning = skippedNodeModules
             ? pc.yellow('\n  ⚠  WARNING: node_modules skipped — installed packages run lifecycle scripts on install.\n     Run: sentinel scan . --audit-node-modules  (or: sentinel permissions) to audit installed packages.\n')
@@ -1014,6 +1038,7 @@ program
             } else {
                 const payload: Record<string, unknown> = { host, findings };
                 if (coverageMeta) payload.coverage = coverageMeta;
+                if (options.staged) payload.skippedFalsePositives = skippedFalsePositives;
                 if (nmWarning) payload.warning = nmWarning.replace(/\x1b\[[0-9;]*m/g, '').replace(/\n\s*/g, ' ').trim();
                 console.log(JSON.stringify(payload, null, 2));
             }
@@ -1033,6 +1058,10 @@ program
                     console.log(pc.dim(`    Evidence: ${f.snippet}`));
                 });
                 console.log(pc.cyan(`\n(Heuristic pass complete. ${findings.length} threats found locally.)`));
+
+                if (skippedFalsePositives > 0) {
+                    console.log(pc.dim(`\n  (${skippedFalsePositives} false positives dropped by semantic context — run \`sentinel scan --staged --json\` for the raw count.)`));
+                }
 
                 if (coverageMeta && coverageMeta.mode === 'node_modules') {
                     const lifecycle = findings.filter(f => f.type === 'LIFECYCLE_CURL_BASH');

@@ -85,6 +85,24 @@ export function hasAttackKeyword(masked: string): boolean {
 }
 
 /**
+ * Exec-family sinks. Used to fail CLOSED: when a file contains any of these,
+ * a string literal holding an attack keyword may be the operand of that call
+ * (even on a different line), so the finding is kept rather than dropped as
+ * "data".
+ */
+const EXEC_FAMILY_RE =
+  /\b(?:exec(?:Sync|File(?:Sync|Async)?|Async)?|eval|spawn(?:Sync|Async)?|popen|system|child_process|subprocess)\b/i;
+
+export function hasExecFamilyInFile(srcLines: string[]): boolean {
+  for (const l of srcLines) {
+    // Sinks are code, not data: mask strings/comments so a keyword list like
+    // ['exec', 'eval'] never counts as a sink.
+    if (EXEC_FAMILY_RE.test(maskStringsAndComments(l))) return true;
+  }
+  return false;
+}
+
+/**
  * Replace string/comment characters with spaces, preserving length. Handles
  * line comments, block comments, single/double quotes, backtick templates (per
  * line) and `#` YAML comments at line start.
@@ -142,7 +160,15 @@ export function classifyFinding(f: SemanticFinding, srcLines: string[] | null): 
 
   if (isContentSignal(f.type)) {
     const masked = maskStringsAndComments(line);
-    if (!hasAttackKeyword(masked)) return { keep: false, reason: 'attack keyword only inside string/comment' };
+    if (!hasAttackKeyword(masked)) {
+      // Fail-closed: an exec-family sink anywhere in this file makes a string
+      // literal that holds an attack keyword a potential operand (the sink may
+      // live on another line, e.g. `const cmd = "curl ..."; exec(cmd)`).
+      if (hasAttackKeyword(line) && hasExecFamilyInFile(srcLines)) {
+        return { keep: true, reason: 'string may be operand of exec-family sink in file' };
+      }
+      return { keep: false, reason: 'attack keyword only inside string/comment' };
+    }
   }
   return { keep: true, reason: 'code context' };
 }

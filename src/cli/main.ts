@@ -761,6 +761,83 @@ function walkDir(dir: string): string[] {
     return results;
 }
 
+const MAX_PACKAGES_AUDITED = 120;
+const MAX_FILES_PER_PACKAGE = 300;
+
+function countInstalledPackages(root: string): number {
+    const nm = path.join(root, 'node_modules');
+    if (!fs.existsSync(nm)) return 0;
+    let count = 0;
+    try {
+        for (const entry of fs.readdirSync(nm)) {
+            if (entry.startsWith('.') || entry === '.bin') continue;
+            const pkgDir = path.join(nm, entry);
+            if (!fs.statSync(pkgDir).isDirectory()) continue;
+            if (entry.startsWith('@')) {
+                try {
+                    for (const sub of fs.readdirSync(pkgDir)) {
+                        if (fs.statSync(path.join(pkgDir, sub)).isDirectory()) count++;
+                    }
+                } catch {}
+            } else {
+                count++;
+            }
+        }
+    } catch {}
+    return count;
+}
+
+/**
+ * Permissions-grade audit of installed node_modules packages. Scans each
+ * top-level package's code files through the LiteScanner with paths prefixed
+ * node_modules/... so a payload that shipped inside a tarball (ChainDrop) is
+ * caught the same way `sentinel permissions` catches it.
+ */
+function scanInstalledPackages(root: string): LiteFinding[] {
+    const out: LiteFinding[] = [];
+    const nm = path.join(root, 'node_modules');
+    if (!fs.existsSync(nm)) return out;
+
+    let scanned = 0;
+    const visit = (pkgRoot: string): void => {
+        if (scanned >= MAX_PACKAGES_AUDITED) return;
+        scanned++;
+        let files: string[] = [];
+        try {
+            files = walkDir(pkgRoot).filter(f => f.endsWith('package.json') || /\.(js|ts|mjs|cjs)$/.test(f));
+        } catch {}
+        const capped = files.slice(0, MAX_FILES_PER_PACKAGE);
+        for (const file of capped) {
+            try {
+                const content = fs.readFileSync(file, 'utf8');
+                const rel = path.relative(root, file).replace(/\\/g, '/');
+                const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
+                out.push(...scanner.scanPatch(rel, patch));
+            } catch (_) {}
+        }
+    };
+
+    try {
+        for (const entry of fs.readdirSync(nm)) {
+            if (scanned >= MAX_PACKAGES_AUDITED) break;
+            if (entry.startsWith('.') || entry === '.bin') continue;
+            const pkgDir = path.join(nm, entry);
+            if (!fs.statSync(pkgDir).isDirectory()) continue;
+            if (entry.startsWith('@')) {
+                try {
+                    for (const sub of fs.readdirSync(pkgDir)) {
+                        const subPath = path.join(pkgDir, sub);
+                        if (fs.statSync(subPath).isDirectory()) visit(subPath);
+                    }
+                } catch {}
+            } else {
+                visit(pkgDir);
+            }
+        }
+    } catch {}
+    return out;
+}
+
 program
     .command('policy')
     .description('Configure Sentinel security policies (ci-mode, fail-closed, quarantine).')
@@ -833,6 +910,7 @@ program
     .argument('[path]', 'Path to scan', '.')
     .option('--json', 'Output findings in JSON format')
     .option('--staged', 'Scan only files staged in git (git diff --cached)')
+    .option('--audit-node-modules', 'Also scan installed node_modules packages (permissions-grade audit)')
     .option('--cards', 'Show evidence cards with agency score report')
     .option('--sarif', 'Output results in SARIF 2.1.0 format')
     .option('--md', 'Output results as Markdown report')
@@ -857,6 +935,12 @@ program
         live.start(options.staged ? 'Scanning staged files...' : `Scanning ${targetPath}...`, 'bars');
         
         let findings: LiteFinding[] = [];
+
+        // node_modules coverage disclosure: installed packages run lifecycle
+        // scripts on install, so silently skipping them hid the ChainDrop-class
+        // payload. Default scan is source-only with an explicit warning; the
+        // --audit-node_modules flag promotes node_modules to a real scan.
+        let coverageMeta: { mode: string; skipped?: string[]; nodeModulesScanned?: number } | null = null;
 
         if (options.staged) {
             const { getStagedFiles } = require('./classify');
@@ -899,10 +983,25 @@ program
                         findings.push(...fnds);
                     } catch (_) {}
                 }
+
+                const nodeModulesPath = path.join(fullPath, 'node_modules');
+                const hasNodeModules = fs.existsSync(nodeModulesPath);
+                if (options.auditNodeModules) {
+                    live.update(`Auditing installed node_modules packages...`);
+                    findings.push(...scanInstalledPackages(fullPath));
+                    coverageMeta = { mode: 'node_modules', nodeModulesScanned: countInstalledPackages(fullPath) };
+                } else if (hasNodeModules) {
+                    coverageMeta = { mode: 'source_only', skipped: ['node_modules'] };
+                }
             }
         }
 
         live.stop();
+
+        const skippedNodeModules = !!coverageMeta && coverageMeta.mode === 'source_only';
+        const nmWarning = skippedNodeModules
+            ? pc.yellow('\n  ⚠  WARNING: node_modules skipped — installed packages run lifecycle scripts on install.\n     Run: sentinel scan . --audit-node-modules  (or: sentinel permissions) to audit installed packages.\n')
+            : '';
 
         // Compute agency + cards once if any flag needs them
         const needsAgency = options.cards || options.sarif || options.md || options.graph || options.scenarios || options.execReport || options.saveHistory || options.diffMain || options.failOnScore !== undefined || options.failOnVerdict || options.ciComment;
@@ -913,13 +1012,17 @@ program
             if (options.cards && agency) {
                 console.log(renderEnrichedJson(findings, agency, cards, { host: String(host.level || 'unknown'), scanTimeMs: 0, memoryMB: 0 }));
             } else {
-                console.log(JSON.stringify({ host, findings }, null, 2));
+                const payload: Record<string, unknown> = { host, findings };
+                if (coverageMeta) payload.coverage = coverageMeta;
+                if (nmWarning) payload.warning = nmWarning.replace(/\x1b\[[0-9;]*m/g, '').replace(/\n\s*/g, ' ').trim();
+                console.log(JSON.stringify(payload, null, 2));
             }
         } else if (options.sarif && agency) {
             console.log(renderSarif(findings, agency, cards));
         } else if (options.md && agency) {
             console.log(renderMarkdown(findings.length, agency, cards));
         } else {
+            if (nmWarning) console.log(nmWarning);
             if (findings.length === 0) {
                 console.log(pc.green('✔ No threats detected locally.'));
             } else if (options.cards && agency) {
@@ -930,6 +1033,19 @@ program
                     console.log(pc.dim(`    Evidence: ${f.snippet}`));
                 });
                 console.log(pc.cyan(`\n(Heuristic pass complete. ${findings.length} threats found locally.)`));
+
+                if (coverageMeta && coverageMeta.mode === 'node_modules') {
+                    const lifecycle = findings.filter(f => f.type === 'LIFECYCLE_CURL_BASH');
+                    if (lifecycle.length > 0) {
+                        const names = [...new Set(lifecycle.map(f => {
+                            const m = (f.file || '').split('node_modules/')[1];
+                            return m ? m.split('/').slice(0, m.startsWith('@') ? 2 : 1).join('/') : '';
+                        }).filter(Boolean))];
+                        if (names.length > 0) {
+                            console.log(pc.dim(`  Deep audit: sentinel verify-pkg ${names.join(' ')} — signed tarball scan of the actual published package.`));
+                        }
+                    }
+                }
             }
         }
 
@@ -1616,11 +1732,26 @@ program
     .argument('<package>', 'Package name or name@version')
     .option('--details', 'Show detailed evidence for each finding')
     .option('--summary', 'Condensed output — counts only, no evidence')
+    .option('--json', 'Emit the full scan result incl. signed attestation as JSON')
     .action(async (pkg, options) => {
         const live = new LiveIndicator();
         live.start(`Downloading and analyzing ${pkg}...`, 'dots');
         const result = await shield.analyzePackage(pkg);
         live.stop();
+
+        if (options.json) {
+            console.log(JSON.stringify({
+                pkg: result.pkg,
+                verdict: result.verdict,
+                fileCount: result.fileCount,
+                sizeBytes: result.sizeBytes,
+                scanTimeMs: result.scanTimeMs,
+                lifecycleHooks: result.lifecycleHooks,
+                attestation: result.attestation ?? null,
+                findings: result.findings,
+            }, null, 2));
+            return;
+        }
 
         // Package metadata
         console.log(pc.cyan('\n📦 Package Metadata'));
@@ -1671,6 +1802,25 @@ program
                              result.verdict === 'SUSPICIOUS' ? pc.bgYellow(pc.black(' SUSPICIOUS ')) :
                              pc.bgGreen(pc.black(' SAFE '));
         console.log(`\n  Verdict:   ${verdictColor}\n`);
+
+        // Lifecycle scripts (ChainDrop install vector)
+        if (result.lifecycleHooks.length > 0) {
+            console.log(pc.bold('  Lifecycle scripts:'));
+            for (const h of result.lifecycleHooks) {
+                const flag = h.dangerous ? pc.red('  ⚠ DANGEROUS') : pc.dim('');
+                console.log(`    ${h.script.padEnd(14)} → ${pc.dim(h.command)}${flag}`);
+                if (h.dangerous) console.log(pc.dim(`      (${h.reason})`));
+            }
+            console.log('');
+        }
+
+        // Signed attestation (tamper-evident report)
+        if (result.attestation) {
+            const sig = result.attestation.signature.substring(0, 16);
+            console.log(pc.dim(`  Report signed (HMAC-SHA256): ${sig}… ` +
+                `(${result.attestation.input.findingCount} findings, ${result.attestation.input.criticalCount} critical)`));
+            console.log('');
+        }
 
         // Findings
         if (result.findings.length === 0) {
@@ -2631,9 +2781,10 @@ ${b('B. MCP SERVER — Model Context Protocol')}
    ${d('   gh-pr-diff, gh-repo-list')}
 
 ${b('1. SCAN — LiteScanner SAST')}
-   ${w('$ sentinel scan [path] [--json]')}
+   ${w('$ sentinel scan [path] [--json] [--audit-node-modules]')}
    ${d('   path: file or directory (default .)')}
-   ${d('   --json: JSON output for pipelines')}
+   ${d('   --json: JSON output for pipelines (includes coverage/skipped disclosure)')}
+   ${d('   --audit-node-modules: also scan installed packages (permissions-grade)')}
    ${d('   Scans JS/TS with 30 SAST rules (injection, XSS, eval, secrets, etc).')}
    ${g('   ex: sentinel scan ./src/myfile.js')}
 

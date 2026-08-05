@@ -9,6 +9,17 @@ import { LiteFinding } from '../../core/lite/lite_scanner';
 import { OSVResult } from './osv_integrator';
 import { TyposquatResult } from './typosquat_detector';
 import { CacheResult } from './trust_cache';
+import { ScanAttestation } from './scan_attestation';
+/**
+ * A lifecycle script extracted structurally from package.json (ChainDrop vector:
+ * a malicious tarball publishes a `preinstall`/`install` script that runs a dropper).
+ */
+export interface LifecycleHook {
+    script: string;
+    command: string;
+    dangerous: boolean;
+    reason: string;
+}
 export interface PackageAnalysis {
     pkg: string;
     findings: LiteFinding[];
@@ -17,6 +28,8 @@ export interface PackageAnalysis {
     memoryMB: number;
     sizeBytes: number;
     verdict: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS';
+    lifecycleHooks: LifecycleHook[];
+    attestation?: ScanAttestation;
     osvResult?: OSVResult;
     typosquat?: TyposquatResult;
     cacheResult?: CacheResult;
@@ -46,5 +59,11 @@ export declare class SupplyChainShield {
         success: boolean;
         results: PackageAnalysis[];
     }>;
+    /**
+     * Read package.json from the extracted tarball and report every lifecycle
+     * script structurally (ChainDrop publishes a preinstall dropper). Common
+     * build scripts (tsc, vite, jest) are listed but not flagged dangerous.
+     */
+    private extractLifecycleHooks;
     private walkDir;
 }

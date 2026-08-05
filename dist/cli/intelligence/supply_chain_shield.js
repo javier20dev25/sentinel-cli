@@ -59,6 +59,24 @@ const child_process_1 = require("child_process");
 const osv_integrator_1 = require("./osv_integrator");
 const typosquat_detector_1 = require("./typosquat_detector");
 const trust_cache_1 = require("./trust_cache");
+const scan_attestation_1 = require("./scan_attestation");
+const LIFECYCLE_SCRIPT_NAMES = new Set([
+    'preinstall', 'install', 'postinstall', 'prepare', 'prepublish',
+    'prepublishOnly', 'postinstall', 'prepack', 'postpack', 'rebuild',
+]);
+/** Classify a lifecycle command as a supply-chain risk (download + exec dropper). */
+function classifyLifecycleHook(script, command) {
+    if (!LIFECYCLE_SCRIPT_NAMES.has(script))
+        return { dangerous: false, reason: 'not a lifecycle script' };
+    const lower = command.toLowerCase();
+    if (/curl|wget|\bbash\b|\bsh\s|powershell|\bcmd\s|iwr|invoke-webrequest/.test(lower)) {
+        return { dangerous: true, reason: 'downloads or shells out during install' };
+    }
+    if (/node\s+[\w./'-]+\.(mjs|js|cjs|ts)/.test(lower)) {
+        return { dangerous: true, reason: 'runs a bundled script during install' };
+    }
+    return { dangerous: false, reason: 'no download/exec pattern' };
+}
 class SupplyChainShield {
     constructor() {
         this.scanner = new lite_scanner_1.LiteScanner();
@@ -88,6 +106,7 @@ class SupplyChainShield {
                     memoryMB: 0,
                     sizeBytes: 0,
                     verdict: entry.verdict,
+                    lifecycleHooks: [],
                     cacheResult
                 };
             }
@@ -135,6 +154,8 @@ class SupplyChainShield {
                 if (!fs.existsSync(pkgDir)) {
                     throw new Error('Extracted package has no package/ directory');
                 }
+                // Structural lifecycle-hook scan (the ChainDrop install vector)
+                const lifecycleHooks = this.extractLifecycleHooks(pkgDir);
                 // Gather all JS/TS/MJS files
                 const allFiles = [];
                 this.walkDir(pkgDir, allFiles);
@@ -185,6 +206,7 @@ class SupplyChainShield {
                 }
                 // Cache the result
                 const criticalCount = allFindings.filter(f => f.severity === 'CRITICAL').length;
+                const highCount = allFindings.filter(f => f.severity === 'HIGH').length;
                 this.trustCache.set(pkgName, pkgVersion, verdict, allFindings.length, criticalCount);
                 // Cleanup tarball
                 try {
@@ -199,6 +221,21 @@ class SupplyChainShield {
                     memoryMB: Math.max(memoryMB, 0.1),
                     sizeBytes,
                     verdict,
+                    lifecycleHooks,
+                    attestation: (0, scan_attestation_1.signScanAttestation)({
+                        pkg: pkgSpec,
+                        name: pkgName,
+                        version: pkgVersion,
+                        verdict,
+                        fileCount: jsFiles.length,
+                        findingCount: allFindings.length,
+                        criticalCount,
+                        highCount,
+                        findingShas: allFindings
+                            .map(f => (0, scan_attestation_1.findingSha)(f.type, f.severity, f.file))
+                            .sort(),
+                        sizeBytes,
+                    }),
                     osvResult,
                     typosquat,
                     cacheResult
@@ -232,7 +269,8 @@ class SupplyChainShield {
                         scanTimeMs: 0,
                         memoryMB: 0,
                         sizeBytes: 0,
-                        verdict: 'SAFE'
+                        verdict: 'SAFE',
+                        lifecycleHooks: []
                     });
                     console.error(pc.red(`  ✖ Error analyzing ${pkg}: ${err.message}`));
                 }
@@ -268,6 +306,27 @@ class SupplyChainShield {
             console.log(pc.green(`\n✔ All packages passed Sentinel verification.`));
             return { success: true, results };
         });
+    }
+    /**
+     * Read package.json from the extracted tarball and report every lifecycle
+     * script structurally (ChainDrop publishes a preinstall dropper). Common
+     * build scripts (tsc, vite, jest) are listed but not flagged dangerous.
+     */
+    extractLifecycleHooks(pkgDir) {
+        var _a;
+        const hooks = [];
+        try {
+            const pkgJson = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
+            const scripts = (_a = pkgJson === null || pkgJson === void 0 ? void 0 : pkgJson.scripts) !== null && _a !== void 0 ? _a : {};
+            for (const [script, command] of Object.entries(scripts)) {
+                if (typeof command !== 'string')
+                    continue;
+                const { dangerous, reason } = classifyLifecycleHook(script, command);
+                hooks.push({ script, command, dangerous, reason });
+            }
+        }
+        catch (_) { }
+        return hooks;
     }
     walkDir(dir, results, depth = 0) {
         if (!fs.existsSync(dir) || depth > 10)

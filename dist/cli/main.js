@@ -100,6 +100,7 @@ const osv_integrator_1 = require("./intelligence/osv_integrator");
 const pc = __importStar(require("picocolors"));
 const hub_1 = require("./hub");
 const live_1 = require("./live");
+const cloud_client_1 = require("./cloud/cloud_client");
 const program = new commander_1.Command();
 const scanner = new lite_scanner_1.LiteScanner();
 const memory = new memory_manager_1.MemoryManager();
@@ -3569,6 +3570,115 @@ program
         process.exit(1);
     }
 }));
+// --- Sentinel Cloud: Login & Capabilities ---
+const CLOUD_CAPABILITY_LABELS = {
+    content_intel_lookup: 'Content Intel Lookup',
+    remote_scan: 'Remote Scan',
+    oracle_integration: 'Oracle Integration',
+    offline_sync: 'Offline Sync',
+    sbom: 'SBOM',
+    ai_review: 'AI Review',
+};
+function enabledCapabilityKeys(capabilities) {
+    return Object.keys(capabilities).filter((k) => capabilities[k]);
+}
+function enabledCapabilityLabels(capabilities) {
+    return enabledCapabilityKeys(capabilities).map((k) => CLOUD_CAPABILITY_LABELS[k]);
+}
+function printSession(session, json) {
+    const enabled = enabledCapabilityKeys(session.capabilities);
+    if (json) {
+        console.log(JSON.stringify({
+            user: session.user,
+            subjectId: session.subjectId,
+            plan: session.plan,
+            planLabel: session.planLabel,
+            capabilities: enabled,
+            expiresAt: session.expiresAt,
+            fetchedAt: session.fetchedAt,
+            limits: session.limits,
+        }, null, 2));
+        return;
+    }
+    console.log(pc.green(`\n✔ Logged in as ${pc.bold(session.user || session.subjectId)} (${session.planLabel})`));
+    console.log(pc.white(`  Plan:          ${session.plan} — ${session.planLabel}`));
+    console.log(pc.white(`  Expires:       ${session.expiresAt}`));
+    console.log(pc.white(`  Capabilities:  ${enabledCapabilityLabels(session.capabilities).join(', ') || '(none)'}`));
+    console.log('');
+}
+program
+    .command('login')
+    .description('Log in to Sentinel Cloud with an API token.')
+    .option('--token <token>', 'Sentinel Cloud API token (or set SENTINEL_CLOUD_API_TOKEN)')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    let baseUrl;
+    try {
+        baseUrl = (0, cloud_client_1.getResolvedBaseUrl)(options.api);
+    }
+    catch (err) {
+        console.error(pc.red(`Error: ${err instanceof Error ? err.message : err}`));
+        console.error(pc.yellow('Set SENTINEL_CLOUD_URL or pass --api <url>'));
+        process.exit(1);
+    }
+    const token = (0, cloud_client_1.resolveToken)(options.token);
+    if (!token) {
+        console.error(pc.red('No token found. Pass --token <token> or set SENTINEL_CLOUD_API_TOKEN.'));
+        process.exit(1);
+    }
+    const result = yield (0, cloud_client_1.loginWithToken)(token, baseUrl);
+    if (!result.ok) {
+        console.error(pc.red(result.error));
+        process.exit(1);
+    }
+    printSession(result.session, false);
+}));
+program
+    .command('whoami')
+    .description('Show the currently logged-in Sentinel Cloud account.')
+    .option('--refresh', 'Re-fetch capabilities from Sentinel Cloud')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--json', 'Emit output as JSON')
+    .action((options) => __awaiter(void 0, void 0, void 0, function* () {
+    let session = (0, cloud_client_1.loadSession)();
+    if (!session) {
+        console.error(pc.red('Not logged in. Run "sentinel login".'));
+        process.exit(1);
+    }
+    if (options.refresh) {
+        let baseUrl;
+        try {
+            baseUrl = (0, cloud_client_1.getResolvedBaseUrl)(options.api);
+        }
+        catch (_a) {
+            console.warn(pc.yellow('Warning: SENTINEL_CLOUD_URL not set; using cached session data.'));
+            baseUrl = '';
+        }
+        if (baseUrl) {
+            const result = yield (0, cloud_client_1.fetchCapabilities)(session.token, baseUrl);
+            if (result.ok) {
+                session = Object.assign(Object.assign({}, session), { user: result.data.user, subjectId: result.data.subjectId, plan: result.data.plan, planLabel: result.data.planLabel, expiresAt: result.data.expiresAt, capabilities: result.data.capabilities, limits: result.data.limits, fetchedAt: new Date().toISOString() });
+                (0, cloud_client_1.saveSession)(session);
+            }
+            else if (result.status === 401) {
+                (0, cloud_client_1.clearSession)();
+                console.error(pc.red('Session expired. Run "sentinel login".'));
+                process.exit(1);
+            }
+            else {
+                console.warn(pc.yellow(`Warning: ${result.error} — using cached session data.`));
+            }
+        }
+    }
+    printSession(session, options.json);
+}));
+program
+    .command('logout')
+    .description('Log out of Sentinel Cloud.')
+    .action(() => {
+    (0, cloud_client_1.clearSession)();
+    console.log(pc.green('Logged out.'));
+});
 // --- AI Workflows Help Section ---
 // Appended to --help so AI agents see recommended workflows immediately
 program.on('--help', () => {

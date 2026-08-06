@@ -9,6 +9,7 @@ import {
     clearSession,
     getResolvedBaseUrl,
     resolveToken,
+    fetchLookup,
 } from './cloud_client';
 import type { CapabilitiesEnvelope, Session } from './cloud_client';
 
@@ -346,5 +347,165 @@ describe('cloud_client config resolution', () => {
         vi.stubEnv('SENTINEL_CLOUD_API_TOKEN', 'proc-token');
         expect(getResolvedBaseUrl(undefined)).toBe('https://proc.example.com');
         expect(resolveToken(undefined)).toBe('proc-token');
+    });
+});
+
+describe('cloud_client fetchLookup', () => {
+    let fetchMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    const VALID_ID = `sha512:${'a'.repeat(128)}`;
+
+    function lookupBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+        return {
+            found: true,
+            usable: true,
+            contentId: VALID_ID,
+            verdict: 'KNOWN_SAFE',
+            confidence: 0.98,
+            ...overrides,
+        };
+    }
+
+    function mockResponse(status: number, body: unknown): void {
+        fetchMock.mockResolvedValue({
+            ok: status >= 200 && status < 300,
+            status,
+            json: () => Promise.resolve(body),
+        });
+    }
+
+    it('parses a usable hit and POSTs to /api/intelligence/query', async () => {
+        mockResponse(200, lookupBody({ signature: 'a'.repeat(64) }));
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com', {
+            maxAgeMs: 3600000,
+            scannerVersion: '4.0.0',
+        });
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.data.found).toBe(true);
+            expect(result.data.usable).toBe(true);
+            expect(result.data.contentId).toBe(VALID_ID);
+            expect(result.data.verdict).toBe('KNOWN_SAFE');
+        }
+
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(url).toBe('https://cloud.example.com/api/intelligence/query');
+        const headers = (init as { headers: Record<string, string> }).headers;
+        expect(headers.Authorization).toBe('Bearer tok-1');
+        expect(headers['Content-Type']).toBe('application/json');
+        const sentBody = JSON.parse((init as { body: string }).body);
+        expect(sentBody.contentId).toBe(VALID_ID);
+        expect(sentBody.maxAgeMs).toBe(3600000);
+        expect(sentBody.scannerVersion).toBe('4.0.0');
+    });
+
+    it('omits maxAgeMs and scannerVersion from the body when not provided', async () => {
+        mockResponse(200, lookupBody());
+
+        await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        const init = fetchMock.mock.calls[0][1] as { body: string };
+        const sentBody = JSON.parse(init.body);
+        expect(sentBody.contentId).toBe(VALID_ID);
+        expect('maxAgeMs' in sentBody).toBe(false);
+        expect('scannerVersion' in sentBody).toBe(false);
+    });
+
+    it('maps 401 to kind auth', async () => {
+        mockResponse(401, { error: 'Invalid or expired API token.' });
+
+        const result = await fetchLookup(VALID_ID, 'bad-token', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.kind).toBe('auth');
+            expect(result.status).toBe(401);
+        }
+    });
+
+    it('maps 403 to kind forbidden with the server error', async () => {
+        mockResponse(403, { error: 'Your plan does not include content intelligence lookup.' });
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.kind).toBe('forbidden');
+            expect(result.status).toBe(403);
+            expect(result.error).toContain('content intelligence');
+        }
+    });
+
+    it('rejects a 200 body with a malformed signature as bad_response', async () => {
+        mockResponse(200, lookupBody({ signature: 'zz' }));
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.kind).toBe('bad_response');
+    });
+
+    it('accepts a 200 body with a valid 64-hex signature', async () => {
+        mockResponse(200, lookupBody({ signature: 'b'.repeat(64) }));
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.data.signature).toBe('b'.repeat(64));
+    });
+
+    it('accepts a 200 body without a signature (older records omit it)', async () => {
+        mockResponse(200, lookupBody());
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(true);
+    });
+
+    it('rejects a 200 body missing required fields as bad_response', async () => {
+        mockResponse(200, { found: true });
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.kind).toBe('bad_response');
+    });
+
+    it('maps network failure to kind network without throwing', async () => {
+        fetchMock.mockRejectedValue(new Error('fetch failed: ECONNREFUSED'));
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.kind).toBe('network');
+    });
+
+    it('maps 503 to kind network', async () => {
+        mockResponse(503, { error: 'Content-intel is disabled on this server.' });
+
+        const result = await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.kind).toBe('network');
+    });
+
+    it('strips trailing slashes from the base URL', async () => {
+        mockResponse(200, lookupBody());
+
+        await fetchLookup(VALID_ID, 'tok-1', 'https://cloud.example.com///');
+
+        const [url] = fetchMock.mock.calls[0];
+        expect(url).toBe('https://cloud.example.com/api/intelligence/query');
     });
 });

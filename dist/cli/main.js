@@ -101,6 +101,7 @@ const pc = __importStar(require("picocolors"));
 const hub_1 = require("./hub");
 const live_1 = require("./live");
 const cloud_client_1 = require("./cloud/cloud_client");
+const lookup_1 = require("./cloud/lookup");
 const program = new commander_1.Command();
 const scanner = new lite_scanner_1.LiteScanner();
 const memory = new memory_manager_1.MemoryManager();
@@ -3679,6 +3680,32 @@ program
     (0, cloud_client_1.clearSession)();
     console.log(pc.green('Logged out.'));
 });
+program
+    .command('lookup')
+    .description('Look up a content identity in Sentinel Cloud content intelligence.')
+    .argument('<contentId>', 'sha512:<hex> identity or registry SRI')
+    .option('--json', 'Emit the validated Cloud lookup result as JSON')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--timeout <ms>', 'Request timeout in milliseconds', '5000')
+    .action((contentId, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsedTimeout = parseInt(options.timeout, 10);
+    const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+    const result = yield (0, lookup_1.runLookup)({
+        contentId,
+        json: options.json,
+        api: options.api,
+        timeoutMs,
+    }, {});
+    for (const line of result.lines) {
+        if (line.stream === 'stderr') {
+            console.error(pc.red(line.text));
+        }
+        else {
+            console.log(line.text);
+        }
+    }
+    process.exitCode = result.exitCode;
+}));
 // --- AI Workflows Help Section ---
 // Appended to --help so AI agents see recommended workflows immediately
 program.on('--help', () => {
@@ -3716,6 +3743,7 @@ program.on('--help', () => {
     console.log(w(`${cmd('sentinel check-classified <path>')}          — ${desc('Classified data check')}`));
     console.log(w(`${cmd('sentinel token-inspect <token>')}            — ${desc('Classify and risk-assess a token')}`));
     console.log(w(`${cmd('sentinel token-inspect <token> --check')}    — ${desc('Verify GitHub token scopes via API')}`));
+    console.log(w(`${cmd('sentinel lookup <contentId>')}                    — ${desc('Cloud content intelligence lookup')}`));
     console.log(w(`${cmd('sentinel trust')}                            — ${desc('Trust calibration: corpus, features, labels')}`));
     console.log(w(`${cmd('sentinel trust --features')}                 — ${desc('Show last extracted feature vector')}`));
     console.log(w(`${cmd('sentinel inspect')}                          — ${desc('Investigate build: graph, dominators, Bayesian')}`));

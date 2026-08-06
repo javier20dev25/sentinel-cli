@@ -64,6 +64,10 @@ const LIMIT_KEYS: ReadonlyArray<keyof CapabilityLimits> = [
 
 const DEFAULT_TIMEOUT_MS = 10000;
 
+const LOOKUP_TIMEOUT_MS = 5000;
+
+const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
 }
@@ -180,6 +184,108 @@ export async function fetchCapabilities(
         return { ok: true, data };
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+export interface LookupResult {
+    found: boolean;
+    usable: boolean;
+    reason?: 'invalid' | 'revoked' | 'not_decisive' | 'scanner_mismatch' | 'ttl_expired';
+    contentId: string;
+    state?: string;
+    verdict?: 'KNOWN_SAFE' | 'SUSPICIOUS' | 'MALICIOUS';
+    confidence?: number;
+    signature?: string;
+    historyLength?: number;
+    scannerVersion?: string;
+    firstSeen?: number;
+    lastSeen?: number;
+    stateSince?: number;
+    seenInRepoCount?: number;
+    risk?: string;
+    alertCount?: number;
+    deltaCount?: number;
+    critical?: number;
+    high?: number;
+    medium?: number;
+    low?: number;
+    takeover?: boolean;
+    verified?: boolean;
+}
+
+export type LookupFetchResult =
+    | { ok: true; data: LookupResult }
+    | {
+          ok: false;
+          kind: 'auth' | 'forbidden' | 'bad_response' | 'network';
+          status?: number;
+          error?: string;
+      };
+
+function validateLookupResult(value: unknown): LookupResult | null {
+    if (!isRecord(value)) return null;
+    if (typeof value.found !== 'boolean') return null;
+    if (typeof value.usable !== 'boolean') return null;
+    if (!isString(value.contentId)) return null;
+    if (value.signature !== undefined && value.signature !== null) {
+        if (!isString(value.signature) || !SIGNATURE_PATTERN.test(value.signature)) {
+            return null;
+        }
+    }
+    return value as unknown as LookupResult;
+}
+
+export async function fetchLookup(
+    contentId: string,
+    token: string,
+    baseUrl: string,
+    opts?: {
+        timeoutMs?: number;
+        maxAgeMs?: number;
+        scannerVersion?: string;
+        env?: NodeJS.ProcessEnv;
+    }
+): Promise<LookupFetchResult> {
+    const url = baseUrl.replace(/\/+$/, '') + '/api/intelligence/query';
+    const timeoutMs = opts?.timeoutMs ?? LOOKUP_TIMEOUT_MS;
+    const body: Record<string, unknown> = { contentId };
+    if (opts?.maxAgeMs !== undefined) body.maxAgeMs = opts.maxAgeMs;
+    if (opts?.scannerVersion !== undefined) body.scannerVersion = opts.scannerVersion;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+        if (res.status === 401) {
+            return { ok: false, kind: 'auth', status: 401 };
+        }
+        if (res.status === 403) {
+            const errBody: unknown = await res.json().catch(() => null);
+            const error = isRecord(errBody) && isString(errBody.error) ? errBody.error : undefined;
+            return { ok: false, kind: 'forbidden', status: 403, error };
+        }
+        if (!res.ok) {
+            return { ok: false, kind: 'network', status: res.status };
+        }
+        const responseBody: unknown = await res.json();
+        const data = validateLookupResult(responseBody);
+        if (!data) {
+            return { ok: false, kind: 'bad_response', status: res.status };
+        }
+        return { ok: true, data };
+    } catch {
+        return { ok: false, kind: 'network' };
     } finally {
         clearTimeout(timer);
     }

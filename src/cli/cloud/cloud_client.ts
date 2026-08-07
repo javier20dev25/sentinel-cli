@@ -291,6 +291,139 @@ export async function fetchLookup(
     }
 }
 
+export type RemoteScanVerdict = 'KNOWN_SAFE' | 'SUSPICIOUS' | 'MALICIOUS' | 'UNKNOWN';
+export type RemoteScanRisk = 'low' | 'medium' | 'high' | 'critical';
+
+export interface RemoteScanFinding {
+    severity: string;
+    title: string;
+    description?: string;
+    message?: string;
+    evidence?: string;
+}
+
+export interface RemoteScanResult {
+    status: string;
+    verdict: RemoteScanVerdict;
+    risk: RemoteScanRisk;
+    riskScore: number;
+    confidence: number;
+    findings: RemoteScanFinding[];
+    engineVersion?: string;
+    summary?: string;
+}
+
+export type RemoteScanFetchResult =
+    | { ok: true; data: RemoteScanResult }
+    | {
+          ok: false;
+          kind: 'auth' | 'forbidden' | 'quota' | 'busy' | 'bad_request' | 'network';
+          status?: number;
+          error?: string;
+      };
+
+const REMOTE_SCAN_TIMEOUT_MS = 20000;
+
+const REMOTE_SCAN_VERDICTS: ReadonlyArray<string> = [
+    'KNOWN_SAFE',
+    'SUSPICIOUS',
+    'MALICIOUS',
+    'UNKNOWN',
+];
+
+const REMOTE_SCAN_RISKS: ReadonlyArray<string> = ['low', 'medium', 'high', 'critical'];
+
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+
+async function readErrorBody(res: Response): Promise<string | undefined> {
+    try {
+        const body: unknown = await res.json();
+        if (isRecord(body) && isString(body.error)) return body.error;
+    } catch {
+        // never throw
+    }
+    return undefined;
+}
+
+export function validateRemoteScanResult(value: unknown): RemoteScanResult | null {
+    if (!isRecord(value)) return null;
+    if (value.status !== 'complete') return null;
+    if (!isString(value.verdict) || !REMOTE_SCAN_VERDICTS.includes(value.verdict)) return null;
+    if (!isString(value.risk) || !REMOTE_SCAN_RISKS.includes(value.risk)) return null;
+    if (!isFiniteNumber(value.riskScore) || value.riskScore < 0 || value.riskScore > 100) {
+        return null;
+    }
+    if (!isFiniteNumber(value.confidence) || value.confidence < 0 || value.confidence > 1) {
+        return null;
+    }
+    if (!Array.isArray(value.findings)) return null;
+    for (const finding of value.findings) {
+        if (!isRecord(finding)) return null;
+        if (!isString(finding.severity) || !isString(finding.title)) return null;
+    }
+    return value as unknown as RemoteScanResult;
+}
+
+export async function fetchRemoteScan(
+    manifest: string,
+    format: string,
+    token: string,
+    baseUrl: string,
+    opts?: { timeoutMs?: number }
+): Promise<RemoteScanFetchResult> {
+    const url = baseUrl.replace(/\/+$/, '') + '/api/scan/remote';
+    const timeoutMs = opts?.timeoutMs ?? REMOTE_SCAN_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ manifest, format }),
+            signal: controller.signal,
+        });
+        if (res.status === 401) {
+            return { ok: false, kind: 'auth', status: 401 };
+        }
+        if (res.status === 403) {
+            return { ok: false, kind: 'forbidden', status: 403, error: await readErrorBody(res) };
+        }
+        if (res.status === 429) {
+            return { ok: false, kind: 'quota', status: 429, error: await readErrorBody(res) };
+        }
+        if (res.status === 503) {
+            return { ok: false, kind: 'busy', status: 503, error: await readErrorBody(res) };
+        }
+        if (res.status === 400 || res.status === 413) {
+            return {
+                ok: false,
+                kind: 'bad_request',
+                status: res.status,
+                error: await readErrorBody(res),
+            };
+        }
+        if (!res.ok) {
+            return { ok: false, kind: 'network', status: res.status };
+        }
+        const responseBody: unknown = await res.json();
+        const data = validateRemoteScanResult(responseBody);
+        if (!data) {
+            return { ok: false, kind: 'network', status: res.status };
+        }
+        return { ok: true, data };
+    } catch {
+        return { ok: false, kind: 'network' };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 export function saveSession(session: Session, opts?: { sessionDir?: string }): void {
     const sessionPath = resolveSessionPath(opts);
     const dir = path.dirname(sessionPath);

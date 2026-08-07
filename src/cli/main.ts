@@ -53,6 +53,7 @@ import { LiveIndicator } from './live';
 import { fetchCapabilities, loginWithToken, loadSession, saveSession, clearSession, getResolvedBaseUrl, resolveToken } from './cloud/cloud_client';
 import type { CapabilityMap, Session } from './cloud/cloud_client';
 import { runLookup } from './cloud/lookup';
+import { runRemoteScan } from './cloud/remote-scan';
 
 const program = new Command();
 const scanner = new LiteScanner();
@@ -3746,6 +3747,37 @@ program
         process.exitCode = result.exitCode;
     });
 
+program
+    .command('remote-scan')
+    .description('Submit a package manifest to Sentinel Cloud for engine-level remote scanning.')
+    .argument('<path>', 'Path to package.json or a directory containing it')
+    .option('--json', 'Emit the raw Cloud scan result as JSON')
+    .option('--format <format>', 'Manifest format (default: npm)', 'npm')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--timeout <ms>', 'Request timeout in milliseconds', '20000')
+    .action(async (targetPath, options) => {
+        const parsedTimeout = parseInt(options.timeout, 10);
+        const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+        const result = await runRemoteScan(
+            {
+                targetPath,
+                json: options.json,
+                format: options.format,
+                api: options.api,
+                timeoutMs,
+            },
+            {}
+        );
+        for (const line of result.lines) {
+            if (line.stream === 'stderr') {
+                console.error(pc.red(line.text));
+            } else {
+                console.log(line.text);
+            }
+        }
+        process.exitCode = result.exitCode;
+    });
+
 // --- AI Workflows Help Section ---
 // Appended to --help so AI agents see recommended workflows immediately
 program.on('--help', () => {
@@ -3784,6 +3816,7 @@ program.on('--help', () => {
   console.log(w(`${cmd('sentinel token-inspect <token>')}            — ${desc('Classify and risk-assess a token')}`));
   console.log(w(`${cmd('sentinel token-inspect <token> --check')}    — ${desc('Verify GitHub token scopes via API')}`));
   console.log(w(`${cmd('sentinel lookup <contentId>')}                    — ${desc('Cloud content intelligence lookup')}`));
+  console.log(w(`${cmd('sentinel remote-scan <path>')}                     — ${desc('Cloud engine remote scan of a manifest')}`));
   console.log(w(`${cmd('sentinel trust')}                            — ${desc('Trust calibration: corpus, features, labels')}`));
   console.log(w(`${cmd('sentinel trust --features')}                 — ${desc('Show last extracted feature vector')}`));
   console.log(w(`${cmd('sentinel inspect')}                          — ${desc('Investigate build: graph, dominators, Bayesian')}`));

@@ -11,6 +11,7 @@ export interface CapabilityMap {
     offline_sync: boolean;
     sbom: boolean;
     ai_review: boolean;
+    contribute?: boolean;
 }
 
 export interface CapabilityLimits {
@@ -424,6 +425,140 @@ export async function fetchRemoteScan(
         }
         const responseBody: unknown = await res.json();
         const data = validateRemoteScanResult(responseBody);
+        if (!data) {
+            return { ok: false, kind: 'network', status: res.status };
+        }
+        return { ok: true, data };
+    } catch {
+        return { ok: false, kind: 'network' };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+export type ContributeState = 'KNOWN_SAFE' | 'SUSPICIOUS' | 'MALICIOUS';
+export type ContributeRisk = 'low' | 'medium' | 'high' | 'critical';
+export type ContributeAlertSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'WARNING' | 'INFO';
+
+export interface ContributeAlert {
+    type: string;
+    severity: ContributeAlertSeverity;
+    riskLevel: number;
+    message: string;
+    evidence?: string;
+    script?: string;
+    category?: string;
+}
+
+export interface ContributeEvidence {
+    risk: ContributeRisk;
+    manifestHash: string;
+    alerts: ContributeAlert[];
+    deltas: never[];
+}
+
+export interface ContributePayload {
+    manifest: string;
+    contentId: string;
+    state: ContributeState;
+    scannerVersion: string;
+    evidence: ContributeEvidence;
+}
+
+export interface ContributeResult {
+    applied: boolean;
+    contentId: string;
+    state: ContributeState;
+    previousState?: string | null;
+    reason: string | null;
+    scannerVersion: string;
+    verified: false;
+}
+
+export type ContributeFetchResult =
+    | { ok: true; data: ContributeResult }
+    | {
+          ok: false;
+          kind: 'auth' | 'forbidden' | 'quota' | 'disabled' | 'bad_request' | 'network';
+          status?: number;
+          error?: string;
+          retryAfterSeconds?: number;
+      };
+
+const CONTRIBUTE_TIMEOUT_MS = 20000;
+
+const CONTRIBUTE_STATES: ReadonlyArray<string> = ['KNOWN_SAFE', 'SUSPICIOUS', 'MALICIOUS'];
+
+const CONTRIBUTE_CONTENT_ID_PATTERN = /^sha512:[0-9a-f]{128}$/;
+
+export function validateContributeResult(value: unknown): ContributeResult | null {
+    if (!isRecord(value)) return null;
+    if (typeof value.applied !== 'boolean') return null;
+    if (!isString(value.contentId) || !CONTRIBUTE_CONTENT_ID_PATTERN.test(value.contentId)) {
+        return null;
+    }
+    if (!isString(value.state) || !CONTRIBUTE_STATES.includes(value.state)) return null;
+    if (value.reason !== null && !isString(value.reason)) return null;
+    if (value.verified !== false) return null;
+    return value as unknown as ContributeResult;
+}
+
+export async function fetchContribute(
+    payload: ContributePayload,
+    token: string,
+    baseUrl: string,
+    opts?: { timeoutMs?: number }
+): Promise<ContributeFetchResult> {
+    const url = baseUrl.replace(/\/+$/, '') + '/api/intelligence/contribute';
+    const timeoutMs = opts?.timeoutMs ?? CONTRIBUTE_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+        });
+        if (res.status === 401) {
+            return { ok: false, kind: 'auth', status: 401 };
+        }
+        if (res.status === 403) {
+            return { ok: false, kind: 'forbidden', status: 403, error: await readErrorBody(res) };
+        }
+        if (res.status === 429) {
+            const retryHeader = res.headers?.get?.('retry-after');
+            const retryAfterSeconds = retryHeader ? parseInt(retryHeader, 10) : undefined;
+            return {
+                ok: false,
+                kind: 'quota',
+                status: 429,
+                error: await readErrorBody(res),
+                retryAfterSeconds: Number.isFinite(retryAfterSeconds)
+                    ? retryAfterSeconds
+                    : undefined,
+            };
+        }
+        if (res.status === 503) {
+            return { ok: false, kind: 'disabled', status: 503, error: await readErrorBody(res) };
+        }
+        if (res.status === 400 || res.status === 413) {
+            return {
+                ok: false,
+                kind: 'bad_request',
+                status: res.status,
+                error: await readErrorBody(res),
+            };
+        }
+        if (!res.ok) {
+            return { ok: false, kind: 'network', status: res.status };
+        }
+        const responseBody: unknown = await res.json();
+        const data = validateContributeResult(responseBody);
         if (!data) {
             return { ok: false, kind: 'network', status: res.status };
         }

@@ -54,6 +54,7 @@ import { fetchCapabilities, loginWithToken, loadSession, saveSession, clearSessi
 import type { CapabilityMap, Session } from './cloud/cloud_client';
 import { runLookup } from './cloud/lookup';
 import { runRemoteScan } from './cloud/remote-scan';
+import { runContribute } from './cloud/contribute';
 
 const program = new Command();
 const scanner = new LiteScanner();
@@ -3604,6 +3605,7 @@ const CLOUD_CAPABILITY_LABELS: Record<keyof CapabilityMap, string> = {
     offline_sync: 'Offline Sync',
     sbom: 'SBOM',
     ai_review: 'AI Review',
+    contribute: 'Intelligence Contribution',
 };
 
 function enabledCapabilityKeys(capabilities: CapabilityMap): Array<keyof CapabilityMap> {
@@ -3778,6 +3780,37 @@ program
         process.exitCode = result.exitCode;
     });
 
+program
+    .command('contribute')
+    .description('Contribute a package manifest to Sentinel Cloud content intelligence.')
+    .argument('<path>', 'Path to package.json or a directory containing it')
+    .option('--json', 'Emit the raw Cloud contribution result as JSON')
+    .option('--format <format>', 'Manifest format (default: npm)', 'npm')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--timeout <ms>', 'Request timeout in milliseconds', '20000')
+    .action(async (targetPath, options) => {
+        const parsedTimeout = parseInt(options.timeout, 10);
+        const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+        const result = await runContribute(
+            {
+                targetPath,
+                json: options.json,
+                format: options.format,
+                api: options.api,
+                timeoutMs,
+            },
+            {}
+        );
+        for (const line of result.lines) {
+            if (line.stream === 'stderr') {
+                console.error(pc.red(line.text));
+            } else {
+                console.log(line.text);
+            }
+        }
+        process.exitCode = result.exitCode;
+    });
+
 // --- AI Workflows Help Section ---
 // Appended to --help so AI agents see recommended workflows immediately
 program.on('--help', () => {
@@ -3817,6 +3850,7 @@ program.on('--help', () => {
   console.log(w(`${cmd('sentinel token-inspect <token> --check')}    — ${desc('Verify GitHub token scopes via API')}`));
   console.log(w(`${cmd('sentinel lookup <contentId>')}                    — ${desc('Cloud content intelligence lookup')}`));
   console.log(w(`${cmd('sentinel remote-scan <path>')}                     — ${desc('Cloud engine remote scan of a manifest')}`));
+  console.log(w(`${cmd('sentinel contribute <path>')}                     — ${desc('Contribute a manifest to Cloud content intelligence')}`));
   console.log(w(`${cmd('sentinel trust')}                            — ${desc('Trust calibration: corpus, features, labels')}`));
   console.log(w(`${cmd('sentinel trust --features')}                 — ${desc('Show last extracted feature vector')}`));
   console.log(w(`${cmd('sentinel inspect')}                          — ${desc('Investigate build: graph, dominators, Bayesian')}`));

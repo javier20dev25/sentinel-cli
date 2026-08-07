@@ -320,6 +320,7 @@ export type RemoteScanFetchResult =
           kind: 'auth' | 'forbidden' | 'quota' | 'busy' | 'bad_request' | 'network';
           status?: number;
           error?: string;
+          retryAfterSeconds?: number;
       };
 
 const REMOTE_SCAN_TIMEOUT_MS = 20000;
@@ -395,7 +396,17 @@ export async function fetchRemoteScan(
             return { ok: false, kind: 'forbidden', status: 403, error: await readErrorBody(res) };
         }
         if (res.status === 429) {
-            return { ok: false, kind: 'quota', status: 429, error: await readErrorBody(res) };
+            const retryHeader = res.headers?.get?.('retry-after');
+            const retryAfterSeconds = retryHeader ? parseInt(retryHeader, 10) : undefined;
+            return {
+                ok: false,
+                kind: 'quota',
+                status: 429,
+                error: await readErrorBody(res),
+                retryAfterSeconds: Number.isFinite(retryAfterSeconds)
+                    ? retryAfterSeconds
+                    : undefined,
+            };
         }
         if (res.status === 503) {
             return { ok: false, kind: 'busy', status: 503, error: await readErrorBody(res) };

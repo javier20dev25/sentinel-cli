@@ -171,7 +171,10 @@ export async function runRemoteScan(
             return fail(result.error || 'Your plan does not include remote scanning.', 1);
         case 'quota': {
             const suffix = result.error ? ` (${result.error})` : '';
-            return fail(`Cloud limit reached (quota or rate). Retry later.${suffix}`, 1);
+            const retry = result.retryAfterSeconds
+                ? ` Retry in ${result.retryAfterSeconds}s.`
+                : '';
+            return fail(`Cloud limit reached (quota or rate).${suffix}${retry}`, 1);
         }
         case 'busy':
             return fail('Scan engine is busy. Retry shortly.', 1);

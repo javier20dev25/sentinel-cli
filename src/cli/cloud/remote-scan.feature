@@ -48,7 +48,7 @@ Feature: Remote scan
     And the Cloud rejects the request with 429
     When I run "sentinel remote-scan <path>"
     Then it exits 1
-    And the output contains "Cloud limit reached (quota or rate). Retry later."
+    And the output contains "Cloud limit reached (quota or rate)."
 
   Scenario: Scan engine busy
     Given an active session

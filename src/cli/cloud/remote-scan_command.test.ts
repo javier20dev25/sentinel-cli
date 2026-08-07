@@ -68,11 +68,22 @@ function scanBody(overrides: Record<string, unknown> = {}): Record<string, unkno
     };
 }
 
-function mockResponse(status: number, body: unknown): void {
+function mockResponse(
+    status: number,
+    body: unknown,
+    headers: Record<string, string> = {}
+): void {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const normalized: Record<string, string> = {};
+    for (const [name, value] of Object.entries(headers)) {
+        normalized[name.toLowerCase()] = value;
+    }
     fetchMock.mockResolvedValue({
         ok: status >= 200 && status < 300,
         status,
+        headers: {
+            get: (name: string) => normalized[name.toLowerCase()] ?? null,
+        },
         json: () => Promise.resolve(body),
     });
 }
@@ -216,7 +227,27 @@ describe('sentinel remote-scan command (runRemoteScan)', () => {
         }
     });
 
-    it('Given the Cloud rejects with 429 when I run remote-scan then it exits 1 and shows the quota message and server error', async () => {
+    it('Given the Cloud rejects with 429 when I run remote-scan then it exits 1 and shows the quota message, server error and retry-after', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir);
+            mockResponse(429, { error: 'Rate limit exceeded. Retry shortly.' }, { 'Retry-After': '60' });
+            const result = await runRemoteScan(
+                { targetPath: dir, api: 'https://cloud.example.com' },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(1);
+            const text = outputText(result);
+            expect(text).toContain('Cloud limit reached (quota or rate).');
+            expect(text).toContain('Rate limit exceeded. Retry shortly.');
+            expect(text).toContain('Retry in 60s.');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('Given the Cloud rejects with 429 and no Retry-After when I run remote-scan then it still exits 1 with a usable message', async () => {
         const dir = makeTempDir();
         try {
             saveSession(buildSession('tok-1'), { sessionDir: dir });
@@ -228,7 +259,7 @@ describe('sentinel remote-scan command (runRemoteScan)', () => {
             );
             expect(result.exitCode).toBe(1);
             const text = outputText(result);
-            expect(text).toContain('Cloud limit reached (quota or rate). Retry later.');
+            expect(text).toContain('Cloud limit reached (quota or rate).');
             expect(text).toContain('Monthly quota exhausted.');
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });

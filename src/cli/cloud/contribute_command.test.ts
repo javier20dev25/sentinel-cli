@@ -119,6 +119,18 @@ describe('sentinel contribute command (runContribute)', () => {
             expect(sentBody.evidence.manifestHash).toMatch(/^[0-9a-f]{24}$/);
             expect(sentBody.evidence.deltas).toEqual([]);
             expect(sentBody.evidence.alerts.length).toBeGreaterThan(0);
+            expect(sentBody.identity).toEqual({
+                ecosystem: 'npm',
+                package: 'evil-pkg',
+                version: '1.0.0',
+            });
+            expect(sentBody.evidence.signals).toEqual(
+                expect.arrayContaining(['install_script', 'network', 'download'])
+            );
+            expect(sentBody.evidence.signals.length).toBeLessThanOrEqual(32);
+            expect(sentBody.evidence.manifestHash).toBe(
+                computeManifestHash(sentBody.evidence.alerts)
+            );
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
         }
@@ -565,6 +577,74 @@ describe('sentinel contribute command (runContribute)', () => {
             expect(result.exitCode).toBe(1);
             expect(outputText(result)).toContain('Set SENTINEL_CLOUD_URL or pass --api <url>.');
             expect(fetchMock).not.toHaveBeenCalled();
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('Given a manifest with a name but no findings when I run contribute then identity is sent and signals are omitted', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir, { name: 'benign-pkg', version: '1.0.0' });
+            mockResponse(200, contributeBody({ state: 'KNOWN_SAFE' }));
+            const result = await runContribute(
+                { targetPath: dir, api: 'https://cloud.example.com' },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(0);
+            const sentBody = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+            expect(sentBody.state).toBe('KNOWN_SAFE');
+            expect(sentBody.identity).toEqual({
+                ecosystem: 'npm',
+                package: 'benign-pkg',
+                version: '1.0.0',
+            });
+            expect(sentBody.evidence.signals).toBeUndefined();
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('Given a manifest without a name when I run contribute then identity is omitted from the payload', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir, { version: '1.0.0' });
+            mockResponse(200, contributeBody({ state: 'KNOWN_SAFE' }));
+            const result = await runContribute(
+                { targetPath: dir, api: 'https://cloud.example.com' },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(0);
+            const sentBody = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+            expect(sentBody.identity).toBeUndefined();
+            expect(sentBody.evidence.signals).toBeUndefined();
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('Given a malicious manifest when I run contribute then manifestHash stays a pure function of alerts regardless of signals/identity', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir);
+            mockResponse(200, contributeBody());
+            const result = await runContribute(
+                { targetPath: dir, api: 'https://cloud.example.com' },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(0);
+            const sentBody = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+            const expected = require('crypto')
+                .createHash('sha256')
+                .update(
+                    JSON.stringify({ alerts: sentBody.evidence.alerts, deltas: [] })
+                )
+                .digest('hex')
+                .slice(0, 24);
+            expect(sentBody.evidence.manifestHash).toBe(expected);
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
         }

@@ -1,6 +1,7 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import type { ContributeSignal } from './contribute_signals';
 
 export const SESSION_PATH = path.join(os.homedir(), '.sentinel', 'auth.json');
 
@@ -450,11 +451,19 @@ export interface ContributeAlert {
     category?: string;
 }
 
+export interface ContributeIdentity {
+    ecosystem: string;
+    package: string;
+    version?: string;
+    packageHash?: string;
+}
+
 export interface ContributeEvidence {
     risk: ContributeRisk;
     manifestHash: string;
     alerts: ContributeAlert[];
     deltas: never[];
+    signals?: ContributeSignal[];
 }
 
 export interface ContributePayload {
@@ -463,6 +472,7 @@ export interface ContributePayload {
     state: ContributeState;
     scannerVersion: string;
     evidence: ContributeEvidence;
+    identity?: ContributeIdentity;
 }
 
 export interface ContributeResult {

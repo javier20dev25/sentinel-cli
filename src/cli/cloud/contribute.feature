@@ -16,6 +16,14 @@ Feature: Contribute
     And the output contains "State: MALICIOUS"
     And the output contains "Verified: false"
 
+  Scenario: Contribution payload carries dependency identity and normalized signals
+    Given a package.json with a malicious postinstall script
+    When I run "sentinel contribute <path>"
+    Then the contribution payload includes an npm identity for the package name and version
+    And the contribution payload includes install_script and download signals
+    And the evidence manifestHash is unaffected by signals and identity
+    And a package.json without a name still produces a contract-valid contribution with no identity
+
   Scenario: Contribution downgraded and not applied
     Given a package.json with a malicious postinstall script
     And the Cloud returns applied false with reason "downgrade-rejected"

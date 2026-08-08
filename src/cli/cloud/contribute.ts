@@ -9,11 +9,14 @@ import {
 import type {
     ContributeAlert,
     ContributeAlertSeverity,
+    ContributeEvidence,
+    ContributeIdentity,
     ContributePayload,
     ContributeResult,
     ContributeRisk,
     ContributeState,
 } from './cloud_client';
+import { findingsToSignals } from './contribute_signals';
 import { resolveManifestPath } from './remote-scan';
 import { LiteScanner } from '../../core/lite/lite_scanner';
 import type { LiteFinding } from '../../core/lite/lite_scanner';
@@ -80,6 +83,39 @@ function toRiskLevel(finding: LiteFinding): number {
 
 export function analyzeManifest(manifest: string): LiteFinding[] {
     return scanner.scanFileContent(MANIFEST_FILENAME, manifest).findings;
+}
+
+const MAX_PACKAGE_NAME_LENGTH = 128;
+
+/**
+ * Extracts the N3.2 dependency identity from a package.json manifest.
+ * Present only when `name` is a non-empty string; otherwise omitted entirely.
+ * Values are trimmed (and capped per contract). `packageHash` is deliberately
+ * not set: the CLI has no reliable registry hash from a raw manifest.
+ */
+export function extractIdentity(manifest: string): ContributeIdentity | undefined {
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(manifest);
+    } catch {
+        return undefined;
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        return undefined;
+    }
+    const name = (parsed as Record<string, unknown>).name;
+    if (typeof name !== 'string') return undefined;
+    const packageName = name.trim().slice(0, MAX_PACKAGE_NAME_LENGTH);
+    if (packageName === '') return undefined;
+    const identity: ContributeIdentity = {
+        ecosystem: 'npm',
+        package: packageName,
+    };
+    const version = (parsed as Record<string, unknown>).version;
+    if (typeof version === 'string' && version.trim() !== '') {
+        identity.version = version.trim();
+    }
+    return identity;
 }
 
 export function toAlert(finding: LiteFinding): ContributeAlert {
@@ -218,19 +254,31 @@ export async function runContribute(
         return fail('Set SENTINEL_CLOUD_URL or pass --api <url>.', 1);
     }
 
-    const alerts = capAlerts(analyzeManifest(manifest).map(toAlert));
+    const findings = analyzeManifest(manifest);
+    const alerts = capAlerts(findings.map(toAlert));
+    const signals = findingsToSignals(findings);
+    const identity = extractIdentity(manifest);
+
+    const evidence: ContributeEvidence = {
+        risk: deriveRisk(alerts),
+        manifestHash: computeManifestHash(alerts),
+        alerts,
+        deltas: [],
+    };
+    if (signals.length > 0) {
+        evidence.signals = signals;
+    }
+
     const payload: ContributePayload = {
         manifest,
         contentId: computeContentId(Buffer.from(manifest, 'utf8')),
         state: deriveState(alerts),
         scannerVersion: SCANNER_VERSION,
-        evidence: {
-            risk: deriveRisk(alerts),
-            manifestHash: computeManifestHash(alerts),
-            alerts,
-            deltas: [],
-        },
+        evidence,
     };
+    if (identity) {
+        payload.identity = identity;
+    }
 
     const result = await fetchContribute(payload, session.token, baseUrl, {
         timeoutMs: options.timeoutMs,

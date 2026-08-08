@@ -194,6 +194,15 @@ describe('cloud_client contribute contract (static source guards)', () => {
         expect(validateContributeResult(contributeBody({ verified: true }))).toBeNull();
         expect(validateContributeResult(contributeBody({ applied: 'yes' }))).toBeNull();
     });
+
+    it('validateContributeResult also enforces previousState and scannerVersion per the contract response', () => {
+        expect(validateContributeResult(contributeBody({ previousState: null }))).not.toBeNull();
+        expect(validateContributeResult(contributeBody({ previousState: 'UNKNOWN' }))).not.toBeNull();
+        expect(validateContributeResult(contributeBody({ previousState: undefined }))).toBeNull();
+        expect(validateContributeResult(contributeBody({ previousState: 5 }))).toBeNull();
+        expect(validateContributeResult(contributeBody({ scannerVersion: undefined }))).toBeNull();
+        expect(validateContributeResult(contributeBody({ scannerVersion: '' }))).toBeNull();
+    });
 });
 
 describe('cloud_client fetchContribute', () => {
@@ -261,6 +270,31 @@ describe('cloud_client fetchContribute', () => {
             expect(result.status).toBe(429);
             expect(result.error).toBe('Monthly API quota exhausted.');
             expect(result.retryAfterSeconds).toBe(120);
+        }
+    });
+
+    it('ignores a malformed negative Retry-After instead of surfacing "Retry in -Ns."', async () => {
+        mockResponse(fetchMock, 429, { error: 'Rate limited.' }, { 'Retry-After': '-5' });
+        const result = await fetchContribute(buildPayload(), 'tok-1', 'https://cloud.example.com');
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.kind).toBe('quota');
+            expect(result.retryAfterSeconds).toBeUndefined();
+        }
+    });
+
+    it('ignores a non-numeric Retry-After (RFC 7231 HTTP-date) without crashing', async () => {
+        mockResponse(
+            fetchMock,
+            429,
+            { error: 'Rate limited.' },
+            { 'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT' }
+        );
+        const result = await fetchContribute(buildPayload(), 'tok-1', 'https://cloud.example.com');
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.kind).toBe('quota');
+            expect(result.retryAfterSeconds).toBeUndefined();
         }
     });
 

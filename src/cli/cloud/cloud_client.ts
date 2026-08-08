@@ -498,7 +498,9 @@ export function validateContributeResult(value: unknown): ContributeResult | nul
         return null;
     }
     if (!isString(value.state) || !CONTRIBUTE_STATES.includes(value.state)) return null;
+    if (value.previousState !== null && !isString(value.previousState)) return null;
     if (value.reason !== null && !isString(value.reason)) return null;
+    if (!isString(value.scannerVersion) || value.scannerVersion.length === 0) return null;
     if (value.verified !== false) return null;
     return value as unknown as ContributeResult;
 }
@@ -533,14 +535,18 @@ export async function fetchContribute(
         if (res.status === 429) {
             const retryHeader = res.headers?.get?.('retry-after');
             const retryAfterSeconds = retryHeader ? parseInt(retryHeader, 10) : undefined;
+            const validRetryAfter =
+                retryAfterSeconds !== undefined &&
+                Number.isFinite(retryAfterSeconds) &&
+                retryAfterSeconds >= 0
+                    ? retryAfterSeconds
+                    : undefined;
             return {
                 ok: false,
                 kind: 'quota',
                 status: 429,
                 error: await readErrorBody(res),
-                retryAfterSeconds: Number.isFinite(retryAfterSeconds)
-                    ? retryAfterSeconds
-                    : undefined,
+                retryAfterSeconds: validRetryAfter,
             };
         }
         if (res.status === 503) {

@@ -24,6 +24,20 @@ Feature: Contribute
     And the output contains "Contribution not applied"
     And the output contains "downgrade-rejected"
 
+  Scenario: Contribution is a known verified record and not re-applied
+    Given a package.json with a malicious postinstall script
+    And the Cloud returns applied false with reason "verified-record"
+    When I run "sentinel contribute <path>"
+    Then it exits 0
+    And the output contains "Contribution not applied"
+    And the output contains "verified-record"
+
+  Scenario: Manifest with more than 100 local findings is capped to the contract limit
+    Given a package.json that triggers more than 100 LiteScanner findings
+    When I run "sentinel contribute <path>"
+    Then it exits 0
+    And exactly 100 alerts are sent in the contribution payload
+
   Scenario: Contribute with --json
     Given a valid package.json
     And the Cloud accepts the contribution
@@ -59,6 +73,20 @@ Feature: Contribute
     Then it exits 1
     And the output contains "Cloud limit reached (quota or rate)."
     And the output contains "Retry in 60s."
+
+  Scenario: Cloud limit reached without Retry-After
+    Given an active session
+    And the Cloud rejects the request with 429 and no Retry-After
+    When I run "sentinel contribute <path>"
+    Then it exits 1
+    And the output contains "Cloud limit reached (quota or rate)."
+
+  Scenario: Contribution rejected as too large
+    Given an active session
+    And the Cloud rejects the request with 413
+    When I run "sentinel contribute <path>"
+    Then it exits 1
+    And the output contains "Contribution rejected:"
 
   Scenario: Content intelligence disabled
     Given an active session

@@ -15,6 +15,9 @@ const config: CanaryConfig = {
   autoDeploy: false,
 };
 
+const SYSTEM_DIR = process.platform === 'win32' ? 'C:\\Windows\\system32' : path.parse(process.cwd()).root;
+const DRIVE_OR_FS_ROOT = process.platform === 'win32' ? 'C:\\' : path.parse(process.cwd()).root;
+
 function cleanWorkspace(): void {
   if (fs.existsSync(TEST_WORKSPACE)) fs.rmSync(TEST_WORKSPACE, { recursive: true, force: true });
   fs.mkdirSync(TEST_WORKSPACE, { recursive: true });
@@ -33,19 +36,19 @@ describe('canary-system root resolution', () => {
   });
 
   it('falls back to ~/.sentinel/canaries when the workspace is a system directory', () => {
-    const resolved = resolveCanaryRoot('C:\\Windows\\system32');
+    const resolved = resolveCanaryRoot(SYSTEM_DIR);
     expect(resolved.fallback).toBe(true);
     expect(resolved.root).toBe(path.join(os.homedir(), '.sentinel', 'canaries'));
   });
 
-  it('falls back when the workspace is a drive root', () => {
-    const resolved = resolveCanaryRoot('C:\\');
+  it('falls back when the workspace is a drive or filesystem root', () => {
+    const resolved = resolveCanaryRoot(DRIVE_OR_FS_ROOT);
     expect(resolved.fallback).toBe(true);
   });
 
   it('deployCanaries never throws on a system directory and reports the fallback', () => {
     const system = new CanarySystem(config);
-    expect(() => system.deployCanaries('C:\\Windows\\system32')).not.toThrow();
+    expect(() => system.deployCanaries(SYSTEM_DIR)).not.toThrow();
     const info = system.getDeployedRootInfo();
     expect(info).not.toBeNull();
     expect(info!.fallback).toBe(true);

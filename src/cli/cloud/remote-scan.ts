@@ -5,8 +5,10 @@ import {
     clearSession,
     getResolvedBaseUrl,
     fetchRemoteScan,
+    fetchUsage,
 } from './cloud_client';
-import type { RemoteScanResult } from './cloud_client';
+import type { RemoteScanResult, CloudUsage } from './cloud_client';
+import { savePulseResult } from './pulse_store';
 
 export interface RemoteScanCommandOptions {
     targetPath: string;
@@ -14,11 +16,14 @@ export interface RemoteScanCommandOptions {
     format?: string;
     api?: string;
     timeoutMs?: number;
+    // Commercial framing: one full-engine API call = one "pulso" consumed.
+    pulse?: boolean;
 }
 
 export interface RemoteScanRunContext {
     sessionDir?: string;
     env?: NodeJS.ProcessEnv;
+    pulseResultsDir?: string;
 }
 
 export interface RemoteScanOutputLine {
@@ -74,9 +79,9 @@ export function summaryLine(data: RemoteScanResult): string {
     return `Summary: ${parts.join(', ')}.`;
 }
 
-export function renderRemoteScan(data: RemoteScanResult): string {
+export function renderRemoteScan(data: RemoteScanResult, pulse?: boolean): string {
     const lines: string[] = [];
-    lines.push(`Remote scan (${data.engineVersion ?? 'unknown'})`);
+    lines.push(`Remote scan (${data.engineVersion ?? 'unknown'})${pulse ? ' — 1 pulso consumido' : ''}`);
     lines.push(`Verdict: ${data.verdict}`);
     lines.push(`Risk: ${data.risk} (score ${data.riskScore})`);
     lines.push(`Confidence: ${data.confidence}`);
@@ -93,6 +98,21 @@ export function renderRemoteScan(data: RemoteScanResult): string {
     }
     lines.push(summaryLine(data));
     return lines.join('\n');
+}
+
+/** Monthly pulse wallet line shown after a full-engine (pulse) scan. */
+export function renderPulseUsage(usage: CloudUsage): string {
+    if (usage.limit <= 0) {
+        return 'Pulse usage: not available for this plan.';
+    }
+    const pct = Math.round(usage.ratio * 100);
+    const remaining = usage.remaining.toLocaleString('en-US');
+    const limit = usage.limit.toLocaleString('en-US');
+    const used = usage.used.toLocaleString('en-US');
+    if (usage.remaining === 0) {
+        return `Pulse usage (${usage.period}): EXHAUSTED — ${used} of ${limit} used. Upgrade or wait for the monthly reset.`;
+    }
+    return `Pulse usage (${usage.period}): ${remaining} of ${limit} remaining (${used} used, ${pct}%).`;
 }
 
 export async function runRemoteScan(
@@ -158,7 +178,23 @@ export async function runRemoteScan(
             out(JSON.stringify(result.data, null, 2));
             return { exitCode: 0, lines };
         }
-        out(renderRemoteScan(result.data));
+        out(renderRemoteScan(result.data, options.pulse));
+        if (options.pulse) {
+            // Best effort: a usage fetch or a local-store failure never changes
+            // the exit code.
+            const usage = await fetchUsage(session.token, baseUrl, {
+                timeoutMs: options.timeoutMs,
+            });
+            if (usage.ok) {
+                out(renderPulseUsage(usage.data));
+            }
+            try {
+                const storedPath = savePulseResult(result.data, { dir: ctx.pulseResultsDir });
+                out(`Stored: ${storedPath}`);
+            } catch {
+                // storage is best effort
+            }
+        }
         return { exitCode: 0, lines };
     }
 
@@ -174,7 +210,8 @@ export async function runRemoteScan(
             const retry = result.retryAfterSeconds
                 ? ` Retry in ${result.retryAfterSeconds}s.`
                 : '';
-            return fail(`Cloud limit reached (quota or rate).${suffix}${retry}`, 1);
+            const label = options.pulse ? 'pulse' : 'Cloud';
+            return fail(`${label} limit reached (quota or rate).${suffix}${retry}`, 1);
         }
         case 'busy':
             return fail('Scan engine is busy. Retry shortly.', 1);

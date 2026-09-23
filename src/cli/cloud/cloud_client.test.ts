@@ -334,6 +334,21 @@ describe('cloud_client config resolution', () => {
         expect(getResolvedBaseUrl('https://flag.example.com', env)).toBe('https://flag.example.com');
     });
 
+    it('rejects non-TLS base URLs outside loopback (token would go in clear)', () => {
+        expect(() => getResolvedBaseUrl('http://cloud.example.com', {})).toThrow(/https/);
+        expect(() => getResolvedBaseUrl(undefined, { SENTINEL_CLOUD_URL: 'http://evil.example.com' })).toThrow(/https/);
+        expect(() => getResolvedBaseUrl('ws://cloud.example.com', {})).toThrow(/https/);
+        expect(() => getResolvedBaseUrl('not-a-url', {})).toThrow(/Invalid|https/);
+    });
+
+    it('allows https and loopback http (local development only)', () => {
+        expect(getResolvedBaseUrl('https://api.example.com', {})).toBe('https://api.example.com');
+        expect(getResolvedBaseUrl('https://cloud.example.com///', {})).toBe('https://cloud.example.com///');
+        expect(getResolvedBaseUrl('http://localhost:8787', {})).toBe('http://localhost:8787');
+        expect(getResolvedBaseUrl('http://127.0.0.1:8787', {})).toBe('http://127.0.0.1:8787');
+        expect(getResolvedBaseUrl('http://[::1]:8787', {})).toBe('http://[::1]:8787');
+    });
+
     it('resolveToken prefers flag over env and returns null when both are missing', () => {
         expect(resolveToken(undefined, {})).toBeNull();
 

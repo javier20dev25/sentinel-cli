@@ -451,3 +451,125 @@ describe('remote-scan render helpers', () => {
         expect(summary).toBe('Summary: 1 critical, 1 medium.');
     });
 });
+
+describe('remote-scan pulse mode (usage + local persistence)', () => {
+    let fetchMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    function usageBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+        return {
+            subjectId: 'sub_123',
+            plan: 'ENTERPRISE',
+            period: '2026-09',
+            used: 3,
+            limit: 100000,
+            remaining: 99997,
+            ratio: 0.00003,
+            ...overrides,
+        };
+    }
+
+    it('persists the raw result and prints usage + stored line after a pulse scan', async () => {
+        const dir = makeTempDir();
+        const pulseDir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir);
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: () => Promise.resolve(scanBody({ jobId: 'pulse-fixed-id-001' })),
+            });
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: () => Promise.resolve(usageBody()),
+            });
+
+            const result = await runRemoteScan(
+                { targetPath: dir, api: 'https://cloud.example.com', pulse: true },
+                { sessionDir: dir, pulseResultsDir: pulseDir }
+            );
+            expect(result.exitCode).toBe(0);
+            const text = outputText(result);
+            expect(text).toContain('Pulse usage (2026-09): 99,997 of 100,000 remaining (3 used, 0%).');
+            expect(text).toContain('Stored:');
+
+            const files = fs.readdirSync(pulseDir);
+            expect(files).toHaveLength(1);
+            expect(files[0]).toBe('pulse-fixed-id-001.json');
+            const stored = JSON.parse(fs.readFileSync(path.join(pulseDir, files[0]), 'utf8'));
+            expect(stored.jobId).toBe('pulse-fixed-id-001');
+            expect(stored.verdict).toBe('MALICIOUS');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+            fs.rmSync(pulseDir, { recursive: true, force: true });
+        }
+    });
+
+    it('prints an exhausted usage line when remaining hits zero', async () => {
+        const dir = makeTempDir();
+        const pulseDir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir);
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: () => Promise.resolve(scanBody({ jobId: 'pulse-exhaust-002' })),
+            });
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: () => Promise.resolve(usageBody({ used: 100000, remaining: 0, ratio: 1 })),
+            });
+
+            const result = await runRemoteScan(
+                { targetPath: dir, api: 'https://cloud.example.com', pulse: true },
+                { sessionDir: dir, pulseResultsDir: pulseDir }
+            );
+            expect(result.exitCode).toBe(0);
+            expect(outputText(result)).toContain('Pulse usage (2026-09): EXHAUSTED');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+            fs.rmSync(pulseDir, { recursive: true, force: true });
+        }
+    });
+
+    it('keeps --json output as the raw scan result even in pulse mode', async () => {
+        const dir = makeTempDir();
+        try {
+            saveSession(buildSession('tok-1'), { sessionDir: dir });
+            writeManifest(dir);
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: () => Promise.resolve(scanBody({ jobId: 'pulse-json-003' })),
+            });
+
+            const result = await runRemoteScan(
+                { targetPath: dir, api: 'https://cloud.example.com', pulse: true, json: true },
+                { sessionDir: dir }
+            );
+            expect(result.exitCode).toBe(0);
+            const parsed = JSON.parse(outputText(result)) as { jobId?: string; verdict?: string };
+            expect(parsed.jobId).toBe('pulse-json-003');
+            expect(parsed.verdict).toBe('MALICIOUS');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});

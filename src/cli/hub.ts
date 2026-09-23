@@ -10,6 +10,7 @@ import { printMetrics } from './telemetry';
 import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
 import { MemoryManager } from './intelligence/memory_manager';
 import { handleClassifiedMenu } from './classify';
+import { loadPulseMode, savePulseMode, isPulseModeEnabled } from './cloud/pulse_mode';
 
 const FREE_TIER_LIMIT = 3;
 
@@ -33,7 +34,11 @@ const i18n: Record<string, Record<string, string>> = {
         menu_opt8: 'Manage Signal Vault (Memory)',
         menu_opt9: 'Your Security — Integrity & Trust Policy',
         menu_opt10: 'Network Auditor',
-        menu_opt11: 'Exit',
+        menu_opt11: 'Pulse Mode — scans via Cloud subscription',
+        menu_opt12: 'Exit',
+        pulse_toggle: 'Pulse mode: {state}',
+        pulse_on: 'ON (full-engine scans consume subscription pulses)',
+        pulse_off: 'OFF (scans run on the local engine)',
         select_opt: 'Select option',
         invalid_sel: 'Invalid selection.',
         workspace_title: 'Workspace Discovery',
@@ -94,7 +99,11 @@ const i18n: Record<string, Record<string, string>> = {
         menu_opt8: 'Gestionar Signal Vault (Memoria)',
         menu_opt9: 'Tu Seguridad — Política de Integridad y Confianza',
         menu_opt10: 'Network Auditor',
-        menu_opt11: 'Salir',
+        menu_opt11: 'Modo Pulso — scans mediante suscripción Cloud',
+        menu_opt12: 'Salir',
+        pulse_toggle: 'Modo pulso: {state}',
+        pulse_on: 'ACTIVADO (los scans del motor full consumen pulsos de la suscripción)',
+        pulse_off: 'DESACTIVADO (los scans corren en el motor local)',
         select_opt: 'Selecciona una opción',
         invalid_sel: 'Selección inválida.',
         workspace_title: 'Descubrimiento de Espacios de Trabajo',
@@ -286,9 +295,12 @@ export async function startInteractiveHub() {
         console.log(pc.blue('  8.') + pc.white(` 🧠 ${t('menu_opt8')}`));
         console.log(pc.blue('  9.') + pc.white(` 🔒 ${t('menu_opt9')}`));
         console.log(pc.blue(' 10.') + pc.white(` 🌐 ${t('menu_opt10')}`));
-        console.log(pc.blue(' 11.') + pc.white(` 🚪 ${t('menu_opt11')}`));
+        const pulseEnabled = isPulseModeEnabled();
+        const pulseSuffix = pulseEnabled ? ' — ' + pc.green('PULSE: ON') : ' — ' + pc.gray('PULSE: OFF');
+        console.log(pc.blue(' 11.') + pc.white(` ⚡ ${t('menu_opt11')}`) + pc.dim(pulseSuffix));
+        console.log(pc.blue(' 12.') + pc.white(` 🚪 ${t('menu_opt12')}`));
 
-        const mainAction = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-11): `));
+        const mainAction = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-12): `));
 
         if (mainAction === '0') {
             await handlePRBot();
@@ -309,7 +321,13 @@ export async function startInteractiveHub() {
             printHeader();
         } else if (mainAction === '5') {
             const target = await askQuestion(pc.blue('  ❯ ') + pc.bold('Enter path/file to scan (default .): '));
-            await runCommand(['scan', target.trim() || '.']);
+            const path5 = target.trim() || '.';
+            if (isPulseModeEnabled()) {
+                console.log(pc.cyan('  ⚡ Pulse mode ON — running full-engine scan (consumes a subscription pulso).'));
+                await runCommand(['pulse-scan', path5]);
+            } else {
+                await runCommand(['scan', path5]);
+            }
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
             printHeader();
         } else if (mainAction === '6') {
@@ -351,6 +369,14 @@ export async function startInteractiveHub() {
             await handleNetworkMenu(askQuestion, t, runCommand, printHeader);
             printHeader();
         } else if (mainAction === '11') {
+            const next = !isPulseModeEnabled();
+            savePulseMode(next);
+            const state = t(next ? 'pulse_on' : 'pulse_off');
+            console.log(pc.cyan(`\n   ⚡ ${t('pulse_toggle').replace('{state}', next ? 'ON' : 'OFF')}`));
+            console.log(pc.white(next ? `      ${state}` : `      ${state}`));
+            await askQuestion(pc.dim(`\n${t('press_enter')}`));
+            printHeader();
+        } else if (mainAction === '12') {
             console.log(pc.cyan(`\n${t('session_end')}\n`));
             if (rlInstance) {
                 rlInstance.close();

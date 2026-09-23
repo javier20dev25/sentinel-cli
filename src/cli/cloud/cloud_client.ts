@@ -17,8 +17,19 @@ export interface CapabilityMap {
 
 export interface CapabilityLimits {
     apiRequestsPerMonth: number;
+    // Commercial alias for the same allowance: one full-engine API call is
+    // sold as a "pulso" (pulse). Optional so sessions minted before the field
+    // existed keep validating; fall back to apiRequestsPerMonth when absent.
+    pulsesPerMonth?: number;
     maxRepos: number;
     retentionDays: number;
+}
+
+/** Monthly "pulso" allowance, resolving the commercial alias when present. */
+export function pulsesPerMonthOf(limits: Pick<CapabilityLimits, 'apiRequestsPerMonth' | 'pulsesPerMonth'>): number {
+    return typeof limits.pulsesPerMonth === 'number' && limits.pulsesPerMonth >= 0
+        ? limits.pulsesPerMonth
+        : limits.apiRequestsPerMonth;
 }
 
 export interface CapabilitiesEnvelope {
@@ -302,17 +313,25 @@ export interface RemoteScanFinding {
     description?: string;
     message?: string;
     evidence?: string;
+    type?: string;
+    category?: string;
+    remediation?: string;
+    script?: string;
 }
 
 export interface RemoteScanResult {
+    jobId?: string;
     status: string;
+    engineVersion?: string;
+    format?: string;
+    scannedAt?: string;
     verdict: RemoteScanVerdict;
     risk: RemoteScanRisk;
     riskScore: number;
     confidence: number;
     findings: RemoteScanFinding[];
-    engineVersion?: string;
     summary?: string;
+    explanation?: string[];
 }
 
 export type RemoteScanFetchResult =
@@ -432,6 +451,53 @@ export async function fetchRemoteScan(
         return { ok: true, data };
     } catch {
         return { ok: false, kind: 'network' };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+export interface CloudUsage {
+    subjectId: string;
+    plan: string | null;
+    period: string;
+    used: number;
+    limit: number;
+    remaining: number;
+    ratio: number;
+}
+
+export type UsageFetchResult =
+    | { ok: true; status: 200; data: CloudUsage }
+    | { ok: false; status: number; error?: string };
+
+/**
+ * GET /api/auth/usage — the caller's monthly pulse consumption, pooled across
+ * every repository/scan. Best effort for the CLI: a failure here must never
+ * change a scan's exit code.
+ */
+export async function fetchUsage(
+    token: string,
+    baseUrl: string,
+    opts?: { timeoutMs?: number }
+): Promise<UsageFetchResult> {
+    const url = baseUrl.replace(/\/+$/, '') + '/api/auth/usage';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts?.timeoutMs ?? REMOTE_SCAN_TIMEOUT_MS);
+    try {
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+            signal: controller.signal,
+        });
+        if (!res.ok) {
+            return { ok: false, status: res.status };
+        }
+        const body = (await res.json()) as CloudUsage;
+        if (typeof body !== 'object' || body === null || typeof body.used !== 'number' || typeof body.limit !== 'number') {
+            return { ok: false, status: res.status };
+        }
+        return { ok: true, status: 200, data: body };
+    } catch {
+        return { ok: false, status: 0 };
     } finally {
         clearTimeout(timer);
     }
@@ -586,6 +652,247 @@ export async function fetchContribute(
     }
 }
 
+export type MatchState = 'NO_MATCH' | 'OBSERVED' | 'CORROBORATED' | 'MALICIOUS';
+export type MatchVerdict = 'KNOWN_SAFE' | 'SUSPICIOUS' | 'MALICIOUS';
+export type MatchMissReason = 'invalid' | 'revoked' | 'not_decisive' | 'scanner_mismatch' | 'ttl_expired';
+export type MatchRiskBand = 'low' | 'medium' | 'high' | 'critical';
+
+export interface MatchContentIdLevel {
+    found: boolean;
+    verified: boolean;
+    usable: boolean;
+    verdict: MatchVerdict | null;
+    confidence: number | null;
+    signature: string | null;
+    reason: MatchMissReason | null;
+    historyLength: number | null;
+}
+
+export interface MatchIdentityLevel {
+    packageIdentity: string;
+    identityKnown: boolean;
+    observations: number;
+    distinctContributors: number;
+    artifacts: number;
+    corroborated: boolean;
+    corroboratedState: MatchVerdict | null;
+    knownSignals: string[];
+    maxRisk: MatchRiskBand | null;
+    firstSeen: number | null;
+    hasCurrentArtifact: boolean;
+}
+
+export interface MatchSharedEvidence {
+    observations: number;
+    distinctContributors: number;
+    artifacts: number;
+    riskBand: MatchRiskBand | null;
+    corroborated: boolean;
+    decisiveState: MatchVerdict | null;
+    firstSeen: number | null;
+}
+
+export interface MatchResult {
+    state: MatchState;
+    decisiveState: MatchVerdict | null;
+    contentId: string;
+    revoked: boolean;
+    contentIdLevel: MatchContentIdLevel;
+    identityLevel: MatchIdentityLevel | null;
+    match: {
+        knownSignals: string[];
+        newBehaviorSignals: string[];
+        sharedEvidence: MatchSharedEvidence | null;
+    };
+}
+
+export interface MatchPayload {
+    contentId: string;
+    identity?: ContributeIdentity;
+    signals?: ContributeSignal[];
+    scannerVersion?: string;
+    maxAgeMs?: number;
+}
+
+export type MatchFetchResult =
+    | { ok: true; data: MatchResult }
+    | {
+          ok: false;
+          kind: 'auth' | 'forbidden' | 'quota' | 'disabled' | 'bad_request' | 'network';
+          status?: number;
+          error?: string;
+          retryAfterSeconds?: number;
+      };
+
+const MATCH_TIMEOUT_MS = 20000;
+
+const MATCH_STATES: ReadonlyArray<string> = ['NO_MATCH', 'OBSERVED', 'CORROBORATED', 'MALICIOUS'];
+const MATCH_VERDICTS: ReadonlyArray<string> = ['KNOWN_SAFE', 'SUSPICIOUS', 'MALICIOUS'];
+const MATCH_MISS_REASONS: ReadonlyArray<string> = [
+    'invalid',
+    'revoked',
+    'not_decisive',
+    'scanner_mismatch',
+    'ttl_expired',
+];
+const MATCH_RISK_BANDS: ReadonlyArray<string> = ['low', 'medium', 'high', 'critical'];
+
+function isNullableString(value: unknown): value is string | null {
+    return value === null || value === undefined || isString(value);
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+    return value === null || value === undefined || isFiniteNumber(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+    return Array.isArray(value) && value.every(isString);
+}
+
+function isRecordOrNull(value: unknown): boolean {
+    return value === null || value === undefined || isRecord(value);
+}
+
+export function validateMatchResult(value: unknown): MatchResult | null {
+    if (!isRecord(value)) return null;
+    if (!isString(value.state) || !MATCH_STATES.includes(value.state)) return null;
+    if (value.decisiveState !== null && value.decisiveState !== undefined) {
+        if (!isString(value.decisiveState) || !MATCH_VERDICTS.includes(value.decisiveState)) return null;
+    }
+    if (!isString(value.contentId) || !CONTRIBUTE_CONTENT_ID_PATTERN.test(value.contentId)) return null;
+    if (typeof value.revoked !== 'boolean') return null;
+
+    const cl = value.contentIdLevel;
+    if (!isRecord(cl)) return null;
+    if (typeof cl.found !== 'boolean') return null;
+    if (typeof cl.verified !== 'boolean') return null;
+    if (typeof cl.usable !== 'boolean') return null;
+    if (cl.verdict !== null && cl.verdict !== undefined) {
+        if (!isString(cl.verdict) || !MATCH_VERDICTS.includes(cl.verdict)) return null;
+    }
+    if (!isNullableFiniteNumber(cl.confidence)) return null;
+    if (cl.confidence !== null && cl.confidence !== undefined && (cl.confidence < 0 || cl.confidence > 1)) return null;
+    if (!isNullableString(cl.signature)) return null;
+    if (cl.signature !== null && cl.signature !== undefined && !SIGNATURE_PATTERN.test(cl.signature)) return null;
+    if (cl.reason !== null && cl.reason !== undefined) {
+        if (!isString(cl.reason) || !MATCH_MISS_REASONS.includes(cl.reason)) return null;
+    }
+    if (!isNullableFiniteNumber(cl.historyLength)) return null;
+
+    if (!isRecordOrNull(value.identityLevel)) return null;
+    if (value.identityLevel !== null && value.identityLevel !== undefined) {
+        const il = value.identityLevel as Record<string, unknown>;
+        if (!isString(il.packageIdentity) || il.packageIdentity.length === 0) return null;
+        if (typeof il.identityKnown !== 'boolean') return null;
+        if (!isFiniteNumber(il.observations) || il.observations < 0) return null;
+        if (!isFiniteNumber(il.distinctContributors) || il.distinctContributors < 0) return null;
+        if (!isFiniteNumber(il.artifacts) || il.artifacts < 0) return null;
+        if (typeof il.corroborated !== 'boolean') return null;
+        if (il.corroboratedState !== null && il.corroboratedState !== undefined) {
+            if (!isString(il.corroboratedState) || !MATCH_VERDICTS.includes(il.corroboratedState)) return null;
+        }
+        if (!isStringArray(il.knownSignals)) return null;
+        if (il.maxRisk !== null && il.maxRisk !== undefined) {
+            if (!isString(il.maxRisk) || !MATCH_RISK_BANDS.includes(il.maxRisk)) return null;
+        }
+        if (!isNullableFiniteNumber(il.firstSeen)) return null;
+        if (typeof il.hasCurrentArtifact !== 'boolean') return null;
+    }
+
+    const m = value.match;
+    if (!isRecord(m)) return null;
+    if (!isStringArray(m.knownSignals)) return null;
+    if (!isStringArray(m.newBehaviorSignals)) return null;
+    if (!isRecordOrNull(m.sharedEvidence)) return null;
+    if (m.sharedEvidence !== null && m.sharedEvidence !== undefined) {
+        const se = m.sharedEvidence as Record<string, unknown>;
+        if (!isFiniteNumber(se.observations) || se.observations < 0) return null;
+        if (!isFiniteNumber(se.distinctContributors) || se.distinctContributors < 0) return null;
+        if (!isFiniteNumber(se.artifacts) || se.artifacts < 0) return null;
+        if (se.riskBand !== null && se.riskBand !== undefined) {
+            if (!isString(se.riskBand) || !MATCH_RISK_BANDS.includes(se.riskBand)) return null;
+        }
+        if (typeof se.corroborated !== 'boolean') return null;
+        if (se.decisiveState !== null && se.decisiveState !== undefined) {
+            if (!isString(se.decisiveState) || !MATCH_VERDICTS.includes(se.decisiveState)) return null;
+        }
+        if (!isNullableFiniteNumber(se.firstSeen)) return null;
+    }
+
+    return value as unknown as MatchResult;
+}
+
+export async function fetchMatch(
+    payload: MatchPayload,
+    token: string,
+    baseUrl: string,
+    opts?: { timeoutMs?: number }
+): Promise<MatchFetchResult> {
+    const url = baseUrl.replace(/\/+$/, '') + '/api/intelligence/match';
+    const timeoutMs = opts?.timeoutMs ?? MATCH_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+        });
+        if (res.status === 401) {
+            return { ok: false, kind: 'auth', status: 401 };
+        }
+        if (res.status === 403) {
+            return { ok: false, kind: 'forbidden', status: 403, error: await readErrorBody(res) };
+        }
+        if (res.status === 429) {
+            const retryHeader = res.headers?.get?.('retry-after');
+            const retryAfterSeconds = retryHeader ? parseInt(retryHeader, 10) : undefined;
+            const validRetryAfter =
+                retryAfterSeconds !== undefined &&
+                Number.isFinite(retryAfterSeconds) &&
+                retryAfterSeconds >= 0
+                    ? retryAfterSeconds
+                    : undefined;
+            return {
+                ok: false,
+                kind: 'quota',
+                status: 429,
+                error: await readErrorBody(res),
+                retryAfterSeconds: validRetryAfter,
+            };
+        }
+        if (res.status === 503) {
+            return { ok: false, kind: 'disabled', status: 503, error: await readErrorBody(res) };
+        }
+        if (res.status === 400 || res.status === 413) {
+            return {
+                ok: false,
+                kind: 'bad_request',
+                status: res.status,
+                error: await readErrorBody(res),
+            };
+        }
+        if (!res.ok) {
+            return { ok: false, kind: 'network', status: res.status };
+        }
+        const responseBody: unknown = await res.json();
+        const data = validateMatchResult(responseBody);
+        if (!data) {
+            return { ok: false, kind: 'network', status: res.status };
+        }
+        return { ok: true, data };
+    } catch {
+        return { ok: false, kind: 'network' };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 export function saveSession(session: Session, opts?: { sessionDir?: string }): void {
     const sessionPath = resolveSessionPath(opts);
     const dir = path.dirname(sessionPath);
@@ -645,13 +952,41 @@ export function clearSession(opts?: { sessionDir?: string }): void {
     }
 }
 
+export function isLoopbackHost(host: string | undefined): boolean {
+    if (!host) return false;
+    const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+    return h === 'localhost' || h === '::1' || /^127(\.\d{1,3}){3}$/.test(h);
+}
+
+/**
+ * Refuses base URLs that would send the bearer token in the clear unless the
+ * server is loopback (local development). Blocks http/ws to non-loopback hosts
+ * and invalid URLs before any authenticated request is attempted.
+ */
+export function assertSecureBaseUrl(rawUrl: string): string {
+    let parsed: URL;
+    try {
+        parsed = new URL(rawUrl);
+    } catch {
+        throw new Error(`Invalid Sentinel Cloud base URL: '${rawUrl}'.`);
+    }
+    if (parsed.protocol !== 'https:' && !isLoopbackHost(parsed.hostname)) {
+        throw new Error(
+            `Refusing insecure Sentinel Cloud base URL '${rawUrl}'. ` +
+                'Only https:// (or loopback for local development) is allowed; ' +
+                'bearer tokens must never travel in the clear.'
+        );
+    }
+    return rawUrl;
+}
+
 export function getResolvedBaseUrl(
     flagValue: string | undefined,
     env: NodeJS.ProcessEnv = process.env
 ): string {
-    if (flagValue) return flagValue;
+    if (flagValue) return assertSecureBaseUrl(flagValue);
     const fromEnv = env.SENTINEL_CLOUD_URL;
-    if (fromEnv) return fromEnv;
+    if (fromEnv) return assertSecureBaseUrl(fromEnv);
     throw new Error(
         'No Sentinel Cloud base URL configured. Set SENTINEL_CLOUD_URL or pass --api <url>.'
     );

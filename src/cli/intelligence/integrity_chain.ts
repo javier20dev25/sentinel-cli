@@ -39,17 +39,70 @@ export interface ChainStatus {
     lastVerified: string;
 }
 
+/**
+ * Cryptographic contract versions.
+ *
+ * The chain was written by two generations of hashing code:
+ *
+ *  V1 (legacy): payloads were stringified with JSON.stringify(...) WITHOUT
+ *     sorting object keys. Links 1..5 were created this way (2026-06-05 and
+ *     2026-06-10, rule hashes d166c870 / 661a936a).
+ *  V2 (current): object keys are sorted before stringify. Links 6+ were
+ *     created this way.
+ *
+ * The boundary is deterministic: a link is legacy (V1) when it lives in the
+ * immutable id range below AND was persisted before the V2 migration date.
+ * The date guard keeps freshly created chains (whose ids also start at 1)
+ * on the current schema. The cutoffs match the real history of the persisted
+ * chain (legacy links stop at 2026-06-10 08:33:38 UTC; V2 starts at
+ * 2026-06-10 13:24:30 UTC) and must not be shifted or historic links will
+ * stop verifying.
+ */
+const LEGACY_SCHEMA_MAX_LINK_ID = 5;
+const LEGACY_SCHEMA_CUTOFF = '2026-06-10 12:00:00';
+
+/** Fields covered by a link's own link_hash (identical set in V1 and V2). */
+const LINK_HASH_FIELDS = [
+    'session_id',
+    'link_number',
+    'code_hash',
+    'previous_link_hash',
+    'started_at',
+    'accumulated_seconds',
+];
+
+/**
+ * Full-row material bound by previous_link_hash (DB column order).
+ * The next link's previous_link_hash covers the ENTIRE previous row,
+ * including id, link_hash and created_at — this is how both generations
+ * actually wrote the chain, and changing it would break the persisted 490
+ * links without touching them.
+ */
+const CHAIN_HASH_FIELDS = [
+    'id',
+    'session_id',
+    'link_number',
+    'code_hash',
+    'previous_link_hash',
+    'link_hash',
+    'started_at',
+    'accumulated_seconds',
+    'created_at',
+];
+
+type SchemaVersion = 'v1' | 'v2';
+
 export class IntegrityChain {
     private db: Database.Database;
     private cliRoot: string;
     private sessionId: string;
     private sessionStart: number;
 
-    constructor() {
-        const dbPath = path.join(os.homedir(), '.sentinel', 'vault.db');
-        const dir = path.dirname(dbPath);
+    constructor(dbPath?: string) {
+        const resolvedPath = dbPath ?? path.join(os.homedir(), '.sentinel', 'vault.db');
+        const dir = path.dirname(resolvedPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        this.db = new Database(dbPath);
+        this.db = new Database(resolvedPath);
         this.cliRoot = path.join(__dirname, '..', '..', '..');
         this.sessionId = crypto.randomBytes(8).toString('hex');
         this.sessionStart = Date.now();
@@ -79,9 +132,7 @@ export class IntegrityChain {
         let previousHash: string | null = null;
 
         if (lastLink) {
-            previousHash = this.hashLink(lastLink);
-            const recomputed = crypto.createHash('sha256').update(previousHash).digest('hex');
-            if (recomputed !== lastLink.link_hash) {
+            if (!this.verifyLink(lastLink)) {
                 chainStatus = 'BROKEN';
             }
 
@@ -89,12 +140,16 @@ export class IntegrityChain {
                 chainStatus = 'BROKEN';
             }
 
+            // New links are always written with the current (V2) schema, so the
+            // chain binding covers the full previous row under V2.
+            previousHash = this.hashForSchema('v2', this.pickFields(lastLink, CHAIN_HASH_FIELDS));
+
             const lastTime = new Date(lastLink.created_at).getTime();
             const elapsed = Math.max(0, (this.sessionStart - lastTime) / 1000);
             accumulated = lastLink.accumulated_seconds + elapsed;
         }
 
-        const linkHash = this.hashLink({
+        const linkHash = this.hashForSchema('v2', {
             session_id: this.sessionId,
             link_number: lastLink ? lastLink.link_number + 1 : 1,
             code_hash: codeHash,
@@ -158,16 +213,27 @@ export class IntegrityChain {
         }
 
         let chainStatus: 'INTACT' | 'BROKEN' | 'EMPTY' = 'INTACT';
-        let current = lastLink;
         const allLinks = this.getAllLinks();
 
-        for (let i = allLinks.length - 1; i >= 1; i--) {
-            const link = allLinks[i];
-            const prev = allLinks[i - 1];
-            const prevHash = this.hashObject(prev);
-            if (prevHash !== link.previous_link_hash) {
+        for (const link of allLinks) {
+            if (!this.verifyLink(link)) {
                 chainStatus = 'BROKEN';
                 break;
+            }
+        }
+
+        if (chainStatus === 'INTACT') {
+            for (let i = 1; i < allLinks.length; i++) {
+                const link = allLinks[i];
+                const prev = allLinks[i - 1];
+                const expected = this.hashForSchema(
+                    this.schemaVersion(link),
+                    this.pickFields(prev, CHAIN_HASH_FIELDS)
+                );
+                if (expected !== link.previous_link_hash) {
+                    chainStatus = 'BROKEN';
+                    break;
+                }
             }
         }
 
@@ -202,14 +268,38 @@ export class IntegrityChain {
         return r.c;
     }
 
-    private hashLink(data: ChainLinkInput): string {
+    private schemaVersion(link: ChainLink): SchemaVersion {
+        const legacy = link.id <= LEGACY_SCHEMA_MAX_LINK_ID
+            && link.created_at < LEGACY_SCHEMA_CUTOFF;
+        return legacy ? 'v1' : 'v2';
+    }
+
+    private pickFields(source: Record<string, unknown>, fields: readonly string[]): Record<string, unknown> {
+        const out: Record<string, unknown> = {};
+        for (const key of fields) out[key] = source[key];
+        return out;
+    }
+
+    private hashForSchema(version: SchemaVersion, data: Record<string, unknown>): string {
+        if (version === 'v1') {
+            return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
+        }
         const sorted: Record<string, unknown> = {};
-        Object.keys(data).sort().forEach(k => { sorted[k] = data[k]; });
+        Object.keys(data).sort().forEach(key => { sorted[key] = data[key]; });
         return crypto.createHash('sha256').update(JSON.stringify(sorted)).digest('hex');
     }
 
-    private hashObject(data: Record<string, unknown>): string {
-        return this.hashLink(data as ChainLinkInput);
+    /**
+     * Verifies a single link's own link_hash using the schema that created it.
+     * The link_hash covers exactly the 6 canonical fields; id and created_at
+     * are not part of a link's own signed material.
+     */
+    public verifyLink(link: ChainLink): boolean {
+        const expected = this.hashForSchema(
+            this.schemaVersion(link),
+            this.pickFields(link, LINK_HASH_FIELDS)
+        );
+        return expected === link.link_hash;
     }
 
     public formatDuration(totalSeconds: number): string {

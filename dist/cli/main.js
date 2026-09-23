@@ -103,6 +103,12 @@ const live_1 = require("./live");
 const cloud_client_1 = require("./cloud/cloud_client");
 const lookup_1 = require("./cloud/lookup");
 const remote_scan_1 = require("./cloud/remote-scan");
+const pulse_scan_1 = require("./cloud/pulse-scan");
+const pulse_mode_1 = require("./cloud/pulse_mode");
+const pulse_store_1 = require("./cloud/pulse_store");
+const pulse_render_1 = require("./cloud/pulse_render");
+const contribute_1 = require("./cloud/contribute");
+const match_1 = require("./cloud/match");
 const program = new commander_1.Command();
 const scanner = new lite_scanner_1.LiteScanner();
 const memory = new memory_manager_1.MemoryManager();
@@ -936,6 +942,7 @@ program
     .option('--ownership', 'Show ownership graph (findings grouped by git author)')
     .option('--teams', 'Group findings by CODEOWNERS team')
     .option('--ci-comment', 'Post results as PR comment (auto-detects CI env)')
+    .option('--cloud-match', 'Annotate the scan with Cloud shared intelligence (read-only, additive)')
     .action((targetPath, options) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
     const host = yield preFlightCheck();
@@ -948,21 +955,30 @@ program
     // --audit-node_modules flag promotes node_modules to a real scan.
     let coverageMeta = null;
     if (options.staged) {
-        const { getStagedFiles } = require('./classify');
-        const staged = getStagedFiles();
+        const { getStagedChanges } = require('./classify');
+        const staged = getStagedChanges();
         if (staged.length === 0) {
             live.stop();
             console.log(pc.dim('No files staged for commit.'));
             return;
         }
-        for (const file of staged) {
+        for (const change of staged) {
             try {
-                const absPath = path.resolve(file);
-                if (!fs.existsSync(absPath))
+                // Use the REAL staged diff so findings map only to lines the
+                // commit actually introduces (+ lines). The old synthetic
+                // "everything is an addition" patch made every pre-existing
+                // line look new, causing false attribution (e.g. an old
+                // secret on line 50 reported as added by this commit).
+                // For renames, pass both paths so git keeps the rename hunks
+                // instead of degrading to a full-file "new" patch.
+                const diffArgs = ['diff', '--cached', '--unified=0', '--no-color', '--'];
+                if (change.oldFile)
+                    diffArgs.push(change.oldFile);
+                diffArgs.push(change.file);
+                const patch = (0, child_process_1.execFileSync)('git', diffArgs, { encoding: 'utf8' });
+                if (!patch)
                     continue;
-                const content = fs.readFileSync(absPath, 'utf8');
-                const patch = `@@ -0,0 +1,1 @@\n+${content.split('\n').join('\n+')}`;
-                const fnds = scanner.scanPatch(file, patch);
+                const fnds = scanner.scanPatch(change.file, patch);
                 findings.push(...fnds);
             }
             catch (_) { }
@@ -1090,6 +1106,18 @@ program
                     }
                 }
             }
+        }
+    }
+    // N3.3C: Cloud shared-intelligence annotation (read-only, additive).
+    // Runs after the local scan output, before any policy gate. Fail-open:
+    // no manifest, no session, or Cloud unavailability leaves the scan
+    // result untouched. Never mutates findings, scoring, verdicts or exits.
+    if (options.cloudMatch && !options.json && !options.sarif && !options.md) {
+        const matchAnnotation = yield (0, match_1.runScanMatchAnnotation)(targetPath, findings, {});
+        if (matchAnnotation.length > 0) {
+            console.log(pc.cyan('\n── Sentinel Cloud intelligence ──'));
+            for (const line of matchAnnotation)
+                console.log(line);
         }
     }
     // Agency Graph (always after main output, before policy)
@@ -3580,6 +3608,7 @@ const CLOUD_CAPABILITY_LABELS = {
     offline_sync: 'Offline Sync',
     sbom: 'SBOM',
     ai_review: 'AI Review',
+    contribute: 'Intelligence Contribution',
 };
 function enabledCapabilityKeys(capabilities) {
     return Object.keys(capabilities).filter((k) => capabilities[k]);
@@ -3604,6 +3633,10 @@ function printSession(session, json) {
     }
     console.log(pc.green(`\n✔ Logged in as ${pc.bold(session.user || session.subjectId)} (${session.planLabel})`));
     console.log(pc.white(`  Plan:          ${session.plan} — ${session.planLabel}`));
+    const pulsesPerMonth = (0, cloud_client_1.pulsesPerMonthOf)(session.limits);
+    if (pulsesPerMonth > 0) {
+        console.log(pc.white(`  Pulsos/mes:    ${pulsesPerMonth} (full-engine API allowance)`));
+    }
     console.log(pc.white(`  Expires:       ${session.expiresAt}`));
     console.log(pc.white(`  Capabilities:  ${enabledCapabilityLabels(session.capabilities).join(', ') || '(none)'}`));
     console.log('');
@@ -3735,6 +3768,179 @@ program
     }
     process.exitCode = result.exitCode;
 }));
+program
+    .command('pulse')
+    .description('Manage pulse mode: route code scans through the Sentinel Cloud full engine, consuming subscription pulses.')
+    .argument('[state]', 'on | off | status (status shows the current mode)', 'status')
+    .action((state, _options) => __awaiter(void 0, void 0, void 0, function* () {
+    const current = (0, pulse_mode_1.loadPulseMode)();
+    const normalized = (state || 'status').toLowerCase();
+    if (normalized === 'on' || normalized === 'enable' || normalized === 'true') {
+        (0, pulse_mode_1.savePulseMode)(true);
+        console.log(pc.green('Pulse mode ON — full-engine scans will consume subscription pulses.'));
+    }
+    else if (normalized === 'off' || normalized === 'disable' || normalized === 'false') {
+        (0, pulse_mode_1.savePulseMode)(false);
+        console.log(pc.green('Pulse mode OFF — scans stay local.'));
+    }
+    else {
+        const enabled = (0, pulse_mode_1.isPulseModeEnabled)();
+        console.log(pc.cyan(`Pulse mode: ${enabled ? pc.green('ON') : pc.gray('OFF')}`));
+        console.log(pc.white(enabled
+            ? '  Full-engine scans consume subscription pulses via Sentinel Cloud.'
+            : '  Scans run on the local engine (LiteScanner).'));
+        if (enabled) {
+            const session = (0, cloud_client_1.loadSession)();
+            if (!session) {
+                console.log(pc.gray("  Uso de pulsos: no hay sesión; corre 'sentinel login'."));
+            }
+            else {
+                try {
+                    const baseUrl = (0, cloud_client_1.getResolvedBaseUrl)(undefined);
+                    const usage = yield (0, cloud_client_1.fetchUsage)(session.token, baseUrl);
+                    if (usage.ok && usage.data.limit > 0) {
+                        const d = usage.data;
+                        const pct = Math.round(d.ratio * 100);
+                        console.log(pc.white(`  Pulsos disponibles: ${d.remaining.toLocaleString('en-US')} de ${d.limit.toLocaleString('en-US')} · usados ${d.used.toLocaleString('en-US')} (${pct}%) — ${d.period}`));
+                    }
+                    else {
+                        console.log(pc.gray('  Uso de pulsos: no disponible (¿base URL configurada y sesión válida?).'));
+                    }
+                }
+                catch (_a) {
+                    console.log(pc.gray('  Uso de pulsos: no disponible (SENTINEL_CLOUD_URL no configurado).'));
+                }
+            }
+        }
+    }
+    void current;
+}));
+program
+    .command('pulse-scan')
+    .description('Full-engine scan that consumes a subscription pulso (requires pulse mode ON).')
+    .argument('<path>', 'Path to package.json or a directory containing it')
+    .option('--json', 'Emit the raw Cloud scan result as JSON')
+    .option('--format <format>', 'Manifest format (default: npm)', 'npm')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--timeout <ms>', 'Request timeout in milliseconds', '20000')
+    .action((targetPath, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsedTimeout = parseInt(options.timeout, 10);
+    const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+    const result = yield (0, pulse_scan_1.runPulseScan)({
+        targetPath,
+        json: options.json,
+        format: options.format,
+        api: options.api,
+        timeoutMs,
+    }, {});
+    for (const line of result.lines) {
+        if (line.stream === 'stderr') {
+            console.error(pc.red(line.text));
+        }
+        else {
+            console.log(line.text);
+        }
+    }
+    process.exitCode = result.exitCode;
+}));
+program
+    .command('results')
+    .description('Browse locally stored full-engine (pulse) scan results.')
+    .argument('[action]', 'list | show <id> (default: list)', 'list')
+    .argument('[id]', 'pulse result id (jobId) required for show')
+    .option('--format <format>', 'table | donut | json (default table)', 'table')
+    .option('--dir <dir>', 'pulse results directory (default ~/.sentinel/pulses)', undefined)
+    .action((action, id, options) => {
+    var _a;
+    const formatValue = String((_a = options.format) !== null && _a !== void 0 ? _a : 'table').toLowerCase();
+    const format = (0, pulse_render_1.isResultsFormat)(formatValue) ? formatValue : 'table';
+    const storeOpts = options.dir ? { dir: options.dir } : undefined;
+    const act = String(action || 'list').toLowerCase();
+    if (act === 'show') {
+        if (!id) {
+            console.error(pc.red('Missing result id: sentinel results show <id> [--format table|donut|json]'));
+            process.exitCode = 1;
+            return;
+        }
+        const result = (0, pulse_store_1.findPulseResult)(String(id), storeOpts);
+        if (!result) {
+            console.error(pc.red(`No stored pulse result matching id '${id}'. Run 'sentinel results list'.`));
+            process.exitCode = 1;
+            return;
+        }
+        if (format === 'json') {
+            console.log((0, pulse_render_1.renderStoredPulseResult)(result, 'json'));
+        }
+        else {
+            console.log((0, pulse_render_1.renderStoredPulseResult)(result, format));
+        }
+        return;
+    }
+    console.log((0, pulse_render_1.renderResultsSummary)((0, pulse_store_1.listPulseResults)(storeOpts)));
+});
+program
+    .command('contribute')
+    .description('Contribute a package manifest to Sentinel Cloud content intelligence.')
+    .argument('<path>', 'Path to package.json or a directory containing it')
+    .option('--json', 'Emit the raw Cloud contribution result as JSON')
+    .option('--format <format>', 'Manifest format (default: npm)', 'npm')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--timeout <ms>', 'Request timeout in milliseconds', '20000')
+    .action((targetPath, options) => __awaiter(void 0, void 0, void 0, function* () {
+    const parsedTimeout = parseInt(options.timeout, 10);
+    const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+    const result = yield (0, contribute_1.runContribute)({
+        targetPath,
+        json: options.json,
+        format: options.format,
+        api: options.api,
+        timeoutMs,
+    }, {});
+    for (const line of result.lines) {
+        if (line.stream === 'stderr') {
+            console.error(pc.red(line.text));
+        }
+        else {
+            console.log(line.text);
+        }
+    }
+    process.exitCode = result.exitCode;
+}));
+program
+    .command('match')
+    .description('Match a package manifest against Cloud shared intelligence (read-only).')
+    .argument('<path>', 'Path to package.json or a directory containing it')
+    .option('--json', 'Emit the raw Cloud match result as JSON')
+    .option('--format <format>', 'Manifest format (default: npm)', 'npm')
+    .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--timeout <ms>', 'Request timeout in milliseconds', '20000')
+    .option('--max-age <ms>', 'Maximum accepted record age (TTL override)')
+    .option('--contribute', 'Best-effort contribute local evidence after the match (Cloud decides)')
+    .action((targetPath, options) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const parsedTimeout = parseInt(options.timeout, 10);
+    const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+    const parsedMaxAge = parseInt((_a = options.maxAge) !== null && _a !== void 0 ? _a : '', 10);
+    const maxAgeMs = Number.isFinite(parsedMaxAge) && parsedMaxAge > 0 ? parsedMaxAge : undefined;
+    const result = yield (0, match_1.runMatch)({
+        targetPath,
+        json: options.json,
+        format: options.format,
+        api: options.api,
+        timeoutMs,
+        maxAgeMs,
+        contribute: options.contribute === true,
+    }, {});
+    for (const line of result.lines) {
+        if (line.stream === 'stderr') {
+            console.error(pc.red(line.text));
+        }
+        else {
+            console.log(line.text);
+        }
+    }
+    process.exitCode = result.exitCode;
+}));
 // --- AI Workflows Help Section ---
 // Appended to --help so AI agents see recommended workflows immediately
 program.on('--help', () => {
@@ -3774,6 +3980,9 @@ program.on('--help', () => {
     console.log(w(`${cmd('sentinel token-inspect <token> --check')}    — ${desc('Verify GitHub token scopes via API')}`));
     console.log(w(`${cmd('sentinel lookup <contentId>')}                    — ${desc('Cloud content intelligence lookup')}`));
     console.log(w(`${cmd('sentinel remote-scan <path>')}                     — ${desc('Cloud engine remote scan of a manifest')}`));
+    console.log(w(`${cmd('sentinel contribute <path>')}                     — ${desc('Contribute a manifest to Cloud content intelligence')}`));
+    console.log(w(`${cmd('sentinel match <path>')}                          — ${desc('Match a manifest against Cloud shared intelligence (read-only)')}`));
+    console.log(w(`${cmd('sentinel scan <path> --cloud-match')}             — ${desc('Scan + Cloud shared-intelligence annotation')}`));
     console.log(w(`${cmd('sentinel trust')}                            — ${desc('Trust calibration: corpus, features, labels')}`));
     console.log(w(`${cmd('sentinel trust --features')}                 — ${desc('Show last extracted feature vector')}`));
     console.log(w(`${cmd('sentinel inspect')}                          — ${desc('Investigate build: graph, dominators, Bayesian')}`));
@@ -3834,9 +4043,16 @@ program.on('--help', () => {
     console.log(pc.magenta(pc.bold('  🛡️  Verdicts: BLOCK=DO NOT MERGE | REVIEW=Human review | PASS=Safe')));
     console.log(pc.dim('  Report issues: https://github.com/anomalyco/opencode/issues'));
 });
-// Default: show help when no subcommand given
+// Default: no subcommand given — launch the interactive Hub TUI when running
+// in a real terminal. Fall back to help when stdin/stdout are not a TTY
+// (scripts, pipelines) so automated callers never hang on the menu.
 if (!process.argv.slice(2).length) {
-    program.help();
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+        program.parse([process.argv[0], 'sentinel-cli', 'hub'], { from: 'node' });
+    }
+    else {
+        program.help();
+    }
 }
 else {
     program.parse(process.argv);

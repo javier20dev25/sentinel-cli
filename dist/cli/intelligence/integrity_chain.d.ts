@@ -25,7 +25,7 @@ export declare class IntegrityChain {
     private cliRoot;
     private sessionId;
     private sessionStart;
-    constructor();
+    constructor(dbPath?: string);
     private initSchema;
     recordBoot(codeHash: string): {
         chainStatus: ChainStatus;
@@ -34,7 +34,14 @@ export declare class IntegrityChain {
     private getLastLink;
     private getAllLinks;
     private getTotalLinks;
-    private hashLink;
-    private hashObject;
+    private schemaVersion;
+    private pickFields;
+    private hashForSchema;
+    /**
+     * Verifies a single link's own link_hash using the schema that created it.
+     * The link_hash covers exactly the 6 canonical fields; id and created_at
+     * are not part of a link's own signed material.
+     */
+    verifyLink(link: ChainLink): boolean;
     formatDuration(totalSeconds: number): string;
 }

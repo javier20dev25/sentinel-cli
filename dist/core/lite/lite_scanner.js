@@ -111,6 +111,14 @@ class LiteScanner {
         if (isAgentFile) {
             findings.push(makeFinding(filename, 0, 'AGENT_RISK', 'AS-INFO', 'agent', 'NEUTRAL', 'LOW', 'high', 0, 'Agent config file', 'AS-INFO: AI agent configuration file detected — running Agent Surface Scanner rules.', `File: ${baseName}`));
         }
+        // Diff integrity: binary changes are opaque — git emits no + lines for
+        // them, so a secret embedded in a new binary would silently pass. Flag
+        // the change so the scanner is honest about what it could NOT inspect.
+        // (Gitlink/submodule pointers are NOT covered here: they emit a real
+        // `+Subproject commit <hash>` line handled by the SUBMODULE_POINTER rule.)
+        if (/^Binary files .* differ$/m.test(patch) || /^GIT binary patch$/m.test(patch)) {
+            findings.push(makeFinding(filename, 0, 'BINARY_CHANGE', 'DIFF-BINARY', 'supply-chain', 'SUSPICIOUS', 'MEDIUM', 'medium', 45, 'Binary file changed', 'Binary file changed — content is opaque to the line scanner; a secret inside the binary would be missed.', 'Binary diff without inspectable text lines'));
+        }
         lines.forEach(line => {
             if (line.startsWith('@@')) {
                 // Parse chunk header: @@ -line,count +line,count @@
@@ -368,4 +376,7 @@ LiteScanner.RULES = [
     r(/skip\s+(?:\S+\s+)?(?:ci|pr\s+review|code\s+review|checks?|pipeline)|avoid\s+(?:ci|checks?|review|pipeline)|merge\s+(?:\S+\s+)?(?:without|no)\s+(?:review|approval|ci|pipeline)|bypass\s+(?:\S+\s+)?(?:ci|review|checks?|approval)/i, 'AGENT_RISK', 'AS-006', 'agent', 'MALICIOUS', 'HIGH', 'high', 70, 'Bypass CI/review', 'AS-006: Agent told to bypass CI or code review gates.'),
     r(/mcp.*(?:filesystem|write\s*(?:file|data)|exec\s*command|shell\s*exec)/i, 'AGENT_RISK', 'AS-007', 'agent', 'VULNERABILITY', 'HIGH', 'high', 70, 'Dangerous MCP capability', 'AS-007: MCP server configured with dangerous capabilities (filesystem, exec, shell).'),
     r(/ignore\s+(?:\S+\s+)?(?:security|policy|restriction|rule|guard)\b|override\s+(?:\S+\s+)?(?:security|policy)\b|disable\s+(?:\S+\s+)?(?:security|protection|guard)\b|turn\s+off\s+(?:\S+\s+)?(?:security|policy|protection|guard)\b|bypass\s+(?:\S+\s+)?(?:security|policies|restrictions)\b|relax\s+(?:\S+\s+)?(?:security|restrictions|policies|rules)\b/i, 'AGENT_RISK', 'AS-008', 'agent', 'MALICIOUS', 'CRITICAL', 'high', 90, 'Override security policies', 'AS-008: Agent instructed to ignore or override security policies.'),
+    // --- DIFF INTEGRITY (v8.0) ---
+    r(/^Subproject\s+commit\s+[0-9a-fA-F]{40,64}$/, 'SUBMODULE_POINTER', 'DIFF-SUBMODULE', 'supply-chain', 'VULNERABILITY', 'HIGH', 'high', 65, 'Submodule pointer change', 'Submodule pointer moved — referenced external code is not scanned locally; inspect the submodule commit before trusting it.'),
+    r(/^Git\s+Submodule$|^Submodule\s+[0-9a-fA-F]{40,64}.*(?:updated|added|removed)/, 'SUBMODULE_POINTER', 'DIFF-SUBMODULE-2', 'supply-chain', 'VULNERABILITY', 'HIGH', 'high', 65, 'Submodule pointer change', 'Submodule pointer moved — referenced external code is not scanned locally; inspect the submodule commit before trusting it.'),
 ];

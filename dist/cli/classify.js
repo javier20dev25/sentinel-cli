@@ -54,7 +54,7 @@ exports.findLocalProjects = findLocalProjects;
 exports.getProjectFiles = getProjectFiles;
 exports.installPreCommitHook = installPreCommitHook;
 exports.checkClassifiedHook = checkClassifiedHook;
-exports.getStagedFiles = getStagedFiles;
+exports.getStagedChanges = getStagedChanges;
 exports.installSastPreCommitHook = installSastPreCommitHook;
 exports.uninstallPreCommitHook = uninstallPreCommitHook;
 exports.isPreCommitHookInstalled = isPreCommitHookInstalled;
@@ -213,17 +213,44 @@ function checkClassifiedHook(repoPath) {
     }
 }
 /**
- * Get list of files staged in git (git diff --cached --name-only).
+ * Get staged changes with git status (git diff --cached --name-status -z).
+ *
+ * Includes A/C/M/R/T so a rename-with-modification is NOT skipped: a file that
+ * is renamed and modified in the same commit would otherwise fall through
+ * --diff-filter=ACM and its new lines would never be scanned.
  */
-function getStagedFiles(repoPath) {
+function getStagedChanges(repoPath) {
     try {
         const spawnOpts = { encoding: 'utf8' };
         if (repoPath)
             spawnOpts.cwd = repoPath;
-        const out = (0, child_process_1.spawnSync)('git', ['diff', '--cached', '--name-only', '--diff-filter=ACM'], spawnOpts);
+        const out = (0, child_process_1.spawnSync)('git', ['diff', '--cached', '--name-status', '-z', '--diff-filter=ACMRT'], spawnOpts);
         if (!out.stdout)
             return [];
-        return out.stdout.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+        const parts = out.stdout.split('\0');
+        const changes = [];
+        for (let i = 0; i < parts.length; i++) {
+            const status = parts[i];
+            if (!status)
+                continue;
+            const code = status.charAt(0);
+            if (code === 'R') {
+                const oldFile = parts[i + 1];
+                const file = parts[i + 2];
+                if (file) {
+                    changes.push({ file, oldFile, status: code });
+                    i += 2;
+                }
+            }
+            else if (code === 'A' || code === 'C' || code === 'M' || code === 'T') {
+                const file = parts[i + 1];
+                if (file) {
+                    changes.push({ file, status: code });
+                    i += 1;
+                }
+            }
+        }
+        return changes;
     }
     catch (_a) {
         return [];

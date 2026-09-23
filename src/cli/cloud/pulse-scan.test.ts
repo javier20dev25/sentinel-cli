@@ -56,6 +56,15 @@ describe('pulse-scan', () => {
         expect(result.lines[0].text).toContain('remote_scan');
     });
 
+    it('refuses to burn a pulso for an explicitly inactive subscription (no ENTER prompt inside the runner)', async () => {
+        mocks.isPulseModeEnabled.mockReturnValue(true);
+        mocks.loadSession.mockReturnValue({ planActive: false, capabilities: { remote_scan: true } });
+        const result = await runPulseScan(BASE_OPTS, {});
+        expect(result.exitCode).toBe(1);
+        expect(result.lines[0].text).toContain('No active subscription');
+        expect(mocks.runRemoteScan).not.toHaveBeenCalled();
+    });
+
     it('delegates to remote scan with pulse framing enabled', async () => {
         mocks.isPulseModeEnabled.mockReturnValue(true);
         mocks.loadSession.mockReturnValue({ capabilities: { remote_scan: true }, token: 'tok' });

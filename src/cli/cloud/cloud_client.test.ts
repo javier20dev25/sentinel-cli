@@ -180,6 +180,46 @@ describe('cloud_client fetchCapabilities', () => {
             expect(result.status).toBe(200);
         }
     });
+
+    it('parses planActive and landingUrl from the envelope', async () => {
+        const envelope = buildEnvelope({
+            planActive: false,
+            landingUrl: 'https://sentinel.example.com/#pricing',
+        });
+        fetchMock.mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(envelope),
+        });
+
+        const result = await fetchCapabilities('tok-123', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.data.planActive).toBe(false);
+            expect(result.data.landingUrl).toBe('https://sentinel.example.com/#pricing');
+        }
+    });
+
+    it('normalizes an absent or malformed planActive to null (legacy servers)', async () => {
+        const envelope = buildEnvelope({
+            planActive: 'yes' as unknown as boolean | null,
+            landingUrl: 42 as unknown as string | null,
+        });
+        fetchMock.mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(envelope),
+        });
+
+        const result = await fetchCapabilities('tok-123', 'https://cloud.example.com');
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.data.planActive).toBeNull();
+            expect(result.data.landingUrl).toBeNull();
+        }
+    });
 });
 
 describe('cloud_client loginWithToken', () => {
@@ -272,6 +312,35 @@ describe('cloud_client loginWithToken', () => {
             fs.rmSync(dir, { recursive: true, force: true });
         }
     });
+
+    it('persists planActive and landingUrl into the session file', async () => {
+        const dir = makeTempDir();
+        try {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                status: 200,
+                json: () =>
+                    Promise.resolve(
+                        buildEnvelope({
+                            planActive: false,
+                            landingUrl: 'https://sentinel.example.com/#pricing',
+                        }),
+                    ),
+            });
+
+            const result = await loginWithToken('tok-123', 'https://cloud.example.com', {
+                sessionDir: dir,
+            });
+
+            expect(result.ok).toBe(true);
+            const sessionPath = path.join(dir, 'auth.json');
+            const saved = JSON.parse(fs.readFileSync(sessionPath, 'utf8')) as Session;
+            expect(saved.planActive).toBe(false);
+            expect(saved.landingUrl).toBe('https://sentinel.example.com/#pricing');
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
 });
 
 describe('cloud_client session persistence', () => {
@@ -304,6 +373,7 @@ describe('cloud_client session persistence', () => {
             const session = loadSession({ sessionDir: dir });
             expect(session?.token).toBe('tok-1');
             expect(session?.plan).toBe('pro');
+            expect(session?.planActive).toBeNull();
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
         }

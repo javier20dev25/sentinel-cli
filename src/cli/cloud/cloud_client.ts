@@ -37,6 +37,10 @@ export interface CapabilitiesEnvelope {
     subjectId: string;
     plan: string;
     planLabel: string;
+    /** True only when the subject holds an active paid entitlement. null when the server does not advertise it. */
+    planActive: boolean | null;
+    /** Public plan-landing URL advertised by the server (origin + /#pricing). */
+    landingUrl: string | null;
     expiresAt: string;
     issuedAt: string;
     capabilities: CapabilityMap;
@@ -49,6 +53,10 @@ export interface Session {
     subjectId: string;
     plan: string;
     planLabel: string;
+    /** True only when the subject holds an active paid entitlement. null for legacy sessions. */
+    planActive: boolean | null;
+    /** Public plan-landing URL advertised by the server (origin + /#pricing). */
+    landingUrl: string | null;
     expiresAt: string;
     capabilities: CapabilityMap;
     limits: CapabilityLimits;
@@ -89,6 +97,17 @@ function isString(value: unknown): value is string {
     return typeof value === 'string';
 }
 
+/** Normalizes the optional subscription state: rejects wrong types, maps undefined -> null. */
+function normalizePlanActive(value: unknown): boolean | null {
+    if (value === true || value === false) return value;
+    return null;
+}
+
+/** Normalizes the optional landing URL: rejects wrong types, maps undefined -> null. */
+function normalizeLandingUrl(value: unknown): string | null {
+    return isString(value) ? value : null;
+}
+
 function parseCapabilitiesAndLimits(
     value: Record<string, unknown>
 ): { capabilities: CapabilityMap; limits: CapabilityLimits } | null {
@@ -127,6 +146,8 @@ function validateEnvelope(body: unknown): CapabilitiesEnvelope | null {
         subjectId: body.subjectId as string,
         plan: body.plan as string,
         planLabel: body.planLabel as string,
+        planActive: normalizePlanActive(body.planActive),
+        landingUrl: normalizeLandingUrl(body.landingUrl),
         expiresAt: body.expiresAt as string,
         issuedAt: body.issuedAt as string,
         ...parsed,
@@ -154,6 +175,8 @@ function validateSession(value: unknown): Session | null {
         subjectId: value.subjectId as string,
         plan: value.plan as string,
         planLabel: value.planLabel as string,
+        planActive: normalizePlanActive(value.planActive),
+        landingUrl: normalizeLandingUrl(value.landingUrl),
         expiresAt: value.expiresAt as string,
         fetchedAt: value.fetchedAt,
         ...parsed,
@@ -919,6 +942,8 @@ export async function loginWithToken(
         subjectId: result.data.subjectId,
         plan: result.data.plan,
         planLabel: result.data.planLabel,
+        planActive: result.data.planActive,
+        landingUrl: result.data.landingUrl,
         expiresAt: result.data.expiresAt,
         capabilities: result.data.capabilities,
         limits: result.data.limits,

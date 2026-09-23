@@ -9,6 +9,7 @@ import {
 } from './cloud_client';
 import type { RemoteScanResult, CloudUsage } from './cloud_client';
 import { savePulseResult } from './pulse_store';
+import { resolvePlanLandingUrl } from './plan_flow';
 
 export interface RemoteScanCommandOptions {
     targetPath: string;
@@ -203,8 +204,15 @@ export async function runRemoteScan(
             clearSession({ sessionDir: ctx.sessionDir });
             return fail("Session expired. Run 'sentinel login'.", 1);
         }
-        case 'forbidden':
+        case 'forbidden': {
+            if (result.error && /no active subscription/i.test(result.error)) {
+                return fail(
+                    `${result.error} Choose a plan at: ${resolvePlanLandingUrl(baseUrl, session.landingUrl)}`,
+                    1,
+                );
+            }
             return fail(result.error || 'Your plan does not include remote scanning.', 1);
+        }
         case 'quota': {
             const suffix = result.error ? ` (${result.error})` : '';
             const retry = result.retryAfterSeconds

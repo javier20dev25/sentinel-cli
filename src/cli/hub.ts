@@ -26,6 +26,10 @@ async function refreshPulseBalance(): Promise<void> {
     const baseUrl = getResolvedBaseUrl(undefined, process.env);
     const usage = await fetchUsage(session.token, baseUrl, {});
     if (!usage.ok) return;
+    if (session.planActive === false) {
+      pulseBalanceLabel = 'sin suscripción activa — elige un plan';
+      return;
+    }
     const { period, used, limit, remaining } = usage.data;
     if (limit <= 0) return;
     if (remaining === 0) {

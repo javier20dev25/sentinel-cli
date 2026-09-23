@@ -55,6 +55,7 @@ import type { CapabilityMap, Session } from './cloud/cloud_client';
 import { runLookup } from './cloud/lookup';
 import { runRemoteScan } from './cloud/remote-scan';
 import { runPulseScan } from './cloud/pulse-scan';
+import { resolvePlanLandingUrl, offerPlanLanding } from './cloud/plan_flow';
 import { loadPulseMode, savePulseMode, isPulseModeEnabled } from './cloud/pulse_mode';
 import { listPulseResults, findPulseResult } from './cloud/pulse_store';
 import { renderResultsSummary, renderStoredPulseResult, isResultsFormat } from './cloud/pulse_render';
@@ -3650,6 +3651,7 @@ function printSession(session: Session, json: boolean): void {
             subjectId: session.subjectId,
             plan: session.plan,
             planLabel: session.planLabel,
+            planActive: session.planActive,
             capabilities: enabled,
             expiresAt: session.expiresAt,
             fetchedAt: session.fetchedAt,
@@ -3659,6 +3661,11 @@ function printSession(session: Session, json: boolean): void {
     }
     console.log(pc.green(`\n✔ Logged in as ${pc.bold(session.user || session.subjectId)} (${session.planLabel})`));
     console.log(pc.white(`  Plan:          ${session.plan} — ${session.planLabel}`));
+    if (session.planActive === false) {
+        console.log(pc.yellow('  Status:        NO ACTIVE SUBSCRIPTION — choose a plan to continue.'));
+    } else if (session.planActive === true) {
+        console.log(pc.green('  Status:        Active subscription'));
+    }
     const pulsesPerMonth = pulsesPerMonthOf(session.limits);
     if (pulsesPerMonth > 0) {
         console.log(pc.white(`  Pulsos/mes:    ${pulsesPerMonth} (full-engine API allowance)`));
@@ -3693,6 +3700,11 @@ program
             process.exit(1);
         }
         printSession(result.session, false);
+        if (result.session.planActive === false) {
+            console.log('');
+            console.log(pc.yellow('No active subscription. Choose a plan to continue.'));
+            await offerPlanLanding(resolvePlanLandingUrl(baseUrl, result.session.landingUrl));
+        }
     });
 
 program
@@ -3724,6 +3736,8 @@ program
                         subjectId: result.data.subjectId,
                         plan: result.data.plan,
                         planLabel: result.data.planLabel,
+                        planActive: result.data.planActive,
+                        landingUrl: result.data.landingUrl,
                         expiresAt: result.data.expiresAt,
                         capabilities: result.data.capabilities,
                         limits: result.data.limits,
@@ -3833,6 +3847,8 @@ program
                 const session = loadSession();
                 if (!session) {
                     console.log(pc.gray("  Uso de pulsos: no hay sesión; corre 'sentinel login'."));
+                } else if (session.planActive === false) {
+                    console.log(pc.yellow('  Sin suscripción activa — elige un plan para consumir pulsos.'));
                 } else {
                     try {
                         const baseUrl = getResolvedBaseUrl(undefined);
@@ -3868,6 +3884,21 @@ program
     .action(async (targetPath, options) => {
         const parsedTimeout = parseInt(options.timeout, 10);
         const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+        const session = loadSession();
+        if (session && session.planActive === false) {
+            console.error(pc.red('No active subscription. Choose a plan to continue.'));
+            let baseUrl: string;
+            try {
+                baseUrl = getResolvedBaseUrl(options.api);
+            } catch {
+                baseUrl = '';
+            }
+            if (baseUrl) {
+                await offerPlanLanding(resolvePlanLandingUrl(baseUrl, session.landingUrl));
+            }
+            process.exitCode = 1;
+            return;
+        }
         const result = await runPulseScan(
             {
                 targetPath,

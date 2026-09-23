@@ -45,6 +45,9 @@ export async function runPulseScan(
             1,
         );
     }
+    if (session.planActive === false) {
+        return fail('No active subscription. Choose a plan to continue.', 1);
+    }
     if (session.capabilities?.remote_scan !== true) {
         return fail(
             "Pulse mode is ON but your plan does not include the remote full engine (remote_scan capability).",

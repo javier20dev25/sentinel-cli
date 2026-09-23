@@ -11,8 +11,34 @@ import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
 import { MemoryManager } from './intelligence/memory_manager';
 import { handleClassifiedMenu } from './classify';
 import { loadPulseMode, savePulseMode, isPulseModeEnabled } from './cloud/pulse_mode';
+import { loadSession, getResolvedBaseUrl, fetchUsage } from './cloud/cloud_client';
 
 const FREE_TIER_LIMIT = 3;
+
+let pulseBalanceLabel: string | null = null;
+let pulseBalanceRefreshNeeded = true;
+
+async function refreshPulseBalance(): Promise<void> {
+  pulseBalanceLabel = null;
+  try {
+    const session = loadSession();
+    if (!session) return;
+    const baseUrl = getResolvedBaseUrl(undefined, process.env);
+    const usage = await fetchUsage(session.token, baseUrl, {});
+    if (!usage.ok) return;
+    const { period, used, limit, remaining } = usage.data;
+    if (limit <= 0) return;
+    if (remaining === 0) {
+      pulseBalanceLabel = `pulsos agotados (${used.toLocaleString('en-US')}/${limit.toLocaleString('en-US')} usados) — renueva en el dashboard`;
+    } else {
+      pulseBalanceLabel = `${remaining.toLocaleString('en-US')} de ${limit.toLocaleString('en-US')} pulsos restantes (${period})`;
+    }
+  } catch {
+    pulseBalanceLabel = null;
+  } finally {
+    pulseBalanceRefreshNeeded = false;
+  }
+}
 
 // i18n Dictionary
 const i18n: Record<string, Record<string, string>> = {
@@ -283,6 +309,10 @@ export async function startInteractiveHub() {
     await refreshDashboard();
 
     while (true) {
+        const pulseEnabled = isPulseModeEnabled();
+        if (pulseEnabled && pulseBalanceRefreshNeeded) {
+            await refreshPulseBalance();
+        }
         console.log(pc.cyan('? ') + pc.bold(t('menu_title')));
         console.log(pc.blue('  0.') + pc.white(` 🤖 ${t('menu_opt0')}`));
         console.log(pc.blue('  1.') + pc.white(` 📦 ${t('menu_opt1')}`));
@@ -295,8 +325,9 @@ export async function startInteractiveHub() {
         console.log(pc.blue('  8.') + pc.white(` 🧠 ${t('menu_opt8')}`));
         console.log(pc.blue('  9.') + pc.white(` 🔒 ${t('menu_opt9')}`));
         console.log(pc.blue(' 10.') + pc.white(` 🌐 ${t('menu_opt10')}`));
-        const pulseEnabled = isPulseModeEnabled();
-        const pulseSuffix = pulseEnabled ? ' — ' + pc.green('PULSE: ON') : ' — ' + pc.gray('PULSE: OFF');
+        const pulseSuffix = pulseEnabled
+            ? ' — ' + pc.green('PULSE: ON') + (pulseBalanceLabel ? pc.dim(' · ' + pulseBalanceLabel) : '')
+            : ' — ' + pc.gray('PULSE: OFF');
         console.log(pc.blue(' 11.') + pc.white(` ⚡ ${t('menu_opt11')}`) + pc.dim(pulseSuffix));
         console.log(pc.blue(' 12.') + pc.white(` 🚪 ${t('menu_opt12')}`));
 
@@ -330,6 +361,7 @@ export async function startInteractiveHub() {
             }
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
             printHeader();
+            pulseBalanceRefreshNeeded = true;
         } else if (mainAction === '6') {
             await handleConfigurationMenu();
         } else if (mainAction === '7') {
@@ -371,6 +403,7 @@ export async function startInteractiveHub() {
         } else if (mainAction === '11') {
             const next = !isPulseModeEnabled();
             savePulseMode(next);
+            pulseBalanceRefreshNeeded = true;
             const state = t(next ? 'pulse_on' : 'pulse_off');
             console.log(pc.cyan(`\n   ⚡ ${t('pulse_toggle').replace('{state}', next ? 'ON' : 'OFF')}`));
             console.log(pc.white(next ? `      ${state}` : `      ${state}`));

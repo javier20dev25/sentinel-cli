@@ -115,9 +115,17 @@ export class NetworkAuditor {
     this.running = true;
 
     this.canarySystem = new CanarySystem(this.config.canaryConfig);
-    this.canarySystem.deployCanaries(process.cwd());
-    if (this.canarySystem.getDeployedCount() > 0) {
+    try {
+      this.canarySystem.deployCanaries(process.cwd());
+    } catch {
+      // canaries are a best-effort decoy layer — never block the audit.
+    }
+    const canaryRootInfo = this.canarySystem.getDeployedRootInfo();
+    if (canaryRootInfo) {
       console.log(`  ${this.canarySystem.getDeployedCount()} canary files deployed`);
+      if (canaryRootInfo.fallback) {
+        console.log(`  Note: canaries deployed to ${canaryRootInfo.root} (current directory is not writable).`);
+      }
     }
 
     this.pipeline.getAntiEvasionEngine().start(this.session.startTime);

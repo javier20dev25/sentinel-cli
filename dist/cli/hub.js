@@ -54,7 +54,40 @@ const telemetry_1 = require("./telemetry");
 const lite_scanner_1 = require("../core/lite/lite_scanner");
 const memory_manager_1 = require("./intelligence/memory_manager");
 const classify_1 = require("./classify");
+const pulse_mode_1 = require("./cloud/pulse_mode");
+const cloud_client_1 = require("./cloud/cloud_client");
 const FREE_TIER_LIMIT = 3;
+let pulseBalanceLabel = null;
+let pulseBalanceRefreshNeeded = true;
+function refreshPulseBalance() {
+    return __awaiter(this, void 0, void 0, function* () {
+        pulseBalanceLabel = null;
+        try {
+            const session = (0, cloud_client_1.loadSession)();
+            if (!session)
+                return;
+            const baseUrl = (0, cloud_client_1.getResolvedBaseUrl)(undefined, process.env);
+            const usage = yield (0, cloud_client_1.fetchUsage)(session.token, baseUrl, {});
+            if (!usage.ok)
+                return;
+            const { period, used, limit, remaining } = usage.data;
+            if (limit <= 0)
+                return;
+            if (remaining === 0) {
+                pulseBalanceLabel = `pulsos agotados (${used.toLocaleString('en-US')}/${limit.toLocaleString('en-US')} usados) — renueva en el dashboard`;
+            }
+            else {
+                pulseBalanceLabel = `${remaining.toLocaleString('en-US')} de ${limit.toLocaleString('en-US')} pulsos restantes (${period})`;
+            }
+        }
+        catch (_a) {
+            pulseBalanceLabel = null;
+        }
+        finally {
+            pulseBalanceRefreshNeeded = false;
+        }
+    });
+}
 // i18n Dictionary
 const i18n = {
     en: {
@@ -75,7 +108,11 @@ const i18n = {
         menu_opt8: 'Manage Signal Vault (Memory)',
         menu_opt9: 'Your Security — Integrity & Trust Policy',
         menu_opt10: 'Network Auditor',
-        menu_opt11: 'Exit',
+        menu_opt11: 'Pulse Mode — scans via Cloud subscription',
+        menu_opt12: 'Exit',
+        pulse_toggle: 'Pulse mode: {state}',
+        pulse_on: 'ON (full-engine scans consume subscription pulses)',
+        pulse_off: 'OFF (scans run on the local engine)',
         select_opt: 'Select option',
         invalid_sel: 'Invalid selection.',
         workspace_title: 'Workspace Discovery',
@@ -136,7 +173,11 @@ const i18n = {
         menu_opt8: 'Gestionar Signal Vault (Memoria)',
         menu_opt9: 'Tu Seguridad — Política de Integridad y Confianza',
         menu_opt10: 'Network Auditor',
-        menu_opt11: 'Salir',
+        menu_opt11: 'Modo Pulso — scans mediante suscripción Cloud',
+        menu_opt12: 'Salir',
+        pulse_toggle: 'Modo pulso: {state}',
+        pulse_on: 'ACTIVADO (los scans del motor full consumen pulsos de la suscripción)',
+        pulse_off: 'DESACTIVADO (los scans corren en el motor local)',
         select_opt: 'Selecciona una opción',
         invalid_sel: 'Selección inválida.',
         workspace_title: 'Descubrimiento de Espacios de Trabajo',
@@ -303,6 +344,10 @@ function startInteractiveHub() {
         console.log(pc.blue('  ❯ ') + pc.green('✔ ') + t('auth_success') + ' ' + pc.bold(pc.white(auth.username || '')) + '\n');
         yield refreshDashboard();
         while (true) {
+            const pulseEnabled = (0, pulse_mode_1.isPulseModeEnabled)();
+            if (pulseEnabled && pulseBalanceRefreshNeeded) {
+                yield refreshPulseBalance();
+            }
             console.log(pc.cyan('? ') + pc.bold(t('menu_title')));
             console.log(pc.blue('  0.') + pc.white(` 🤖 ${t('menu_opt0')}`));
             console.log(pc.blue('  1.') + pc.white(` 📦 ${t('menu_opt1')}`));
@@ -315,8 +360,12 @@ function startInteractiveHub() {
             console.log(pc.blue('  8.') + pc.white(` 🧠 ${t('menu_opt8')}`));
             console.log(pc.blue('  9.') + pc.white(` 🔒 ${t('menu_opt9')}`));
             console.log(pc.blue(' 10.') + pc.white(` 🌐 ${t('menu_opt10')}`));
-            console.log(pc.blue(' 11.') + pc.white(` 🚪 ${t('menu_opt11')}`));
-            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-11): `));
+            const pulseSuffix = pulseEnabled
+                ? ' — ' + pc.green('PULSE: ON') + (pulseBalanceLabel ? pc.dim(' · ' + pulseBalanceLabel) : '')
+                : ' — ' + pc.gray('PULSE: OFF');
+            console.log(pc.blue(' 11.') + pc.white(` ⚡ ${t('menu_opt11')}`) + pc.dim(pulseSuffix));
+            console.log(pc.blue(' 12.') + pc.white(` 🚪 ${t('menu_opt12')}`));
+            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-12): `));
             if (mainAction === '0') {
                 yield handlePRBot();
                 printHeader();
@@ -341,9 +390,17 @@ function startInteractiveHub() {
             }
             else if (mainAction === '5') {
                 const target = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Enter path/file to scan (default .): '));
-                yield runCommand(['scan', target.trim() || '.']);
+                const path5 = target.trim() || '.';
+                if ((0, pulse_mode_1.isPulseModeEnabled)()) {
+                    console.log(pc.cyan('  ⚡ Pulse mode ON — running full-engine scan (consumes a subscription pulso).'));
+                    yield runCommand(['pulse-scan', path5]);
+                }
+                else {
+                    yield runCommand(['scan', path5]);
+                }
                 yield askQuestion(pc.dim(`\n${t('press_enter')}`));
                 printHeader();
+                pulseBalanceRefreshNeeded = true;
             }
             else if (mainAction === '6') {
                 yield handleConfigurationMenu();
@@ -390,6 +447,16 @@ function startInteractiveHub() {
                 printHeader();
             }
             else if (mainAction === '11') {
+                const next = !(0, pulse_mode_1.isPulseModeEnabled)();
+                (0, pulse_mode_1.savePulseMode)(next);
+                pulseBalanceRefreshNeeded = true;
+                const state = t(next ? 'pulse_on' : 'pulse_off');
+                console.log(pc.cyan(`\n   ⚡ ${t('pulse_toggle').replace('{state}', next ? 'ON' : 'OFF')}`));
+                console.log(pc.white(next ? `      ${state}` : `      ${state}`));
+                yield askQuestion(pc.dim(`\n${t('press_enter')}`));
+                printHeader();
+            }
+            else if (mainAction === '12') {
                 console.log(pc.cyan(`\n${t('session_end')}\n`));
                 if (rlInstance) {
                     rlInstance.close();

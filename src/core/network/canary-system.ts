@@ -1,6 +1,7 @@
 'use strict';
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { CanaryConfig, CanaryEvent, FileAccessEvent, generateId } from './types';
 
@@ -32,10 +33,41 @@ const FAKE_SECRET_PATTERNS = [
 
 const SENTINEL_CANARY_MARKER = 'SENTINEL_CANARY_TOKEN_';
 
+function isUnsafeWorkspace(workspacePath: string): boolean {
+  const resolved = path.resolve(workspacePath);
+  const lower = resolved.toLowerCase();
+  if (/^[a-z]:\\$/.test(lower)) return true;
+  if (/^[a-z]:$/.test(lower)) return true;
+  if (!path.isAbsolute(resolved) || resolved.length <= 3) return true;
+  const windir = String(process.env.WINDIR || 'C:\\Windows').toLowerCase();
+  if (windir && lower.startsWith(windir)) return true;
+  return false;
+}
+
+function canWriteDir(dir: string): boolean {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    return fs.accessSync(dir, fs.constants.W_OK) === undefined;
+  } catch {
+    return false;
+  }
+}
+
+export function resolveCanaryRoot(workspacePath: string): { root: string; fallback: boolean } {
+  const workspace = path.resolve(workspacePath);
+  const preferredRoot = path.join(workspace, '.sentinel', 'canaries');
+  if (isUnsafeWorkspace(workspace) || !canWriteDir(preferredRoot)) {
+    return { root: path.join(os.homedir(), '.sentinel', 'canaries'), fallback: true };
+  }
+  return { root: preferredRoot, fallback: false };
+}
+
 export class CanarySystem {
   private config: CanaryConfig;
   private deployedFiles: Map<string, { path: string; hash: string; content: string }> = new Map();
   private canaryEvents: CanaryEvent[] = [];
+  private canaryRoot: string | null = null;
+  private canaryFallback = false;
 
   constructor(config: CanaryConfig) {
     this.config = config;
@@ -51,13 +83,39 @@ export class CanarySystem {
 
   deployCanaries(workspacePath: string): void {
     if (!this.config.enabled) return;
-    this.deployDecoyFiles(workspacePath);
-    if (this.config.fakeSecrets) this.deployFakeSecrets(workspacePath);
-    if (this.config.contaminatedGitHistory) this.deployContaminatedGit(workspacePath);
+    const resolved = resolveCanaryRoot(workspacePath);
+    this.canaryRoot = resolved.root;
+    this.canaryFallback = resolved.fallback;
+
+    try {
+      this.deployDecoyFiles();
+    } catch {
+      // best effort
+    }
+    if (this.config.fakeSecrets) {
+      try {
+        this.deployFakeSecrets();
+      } catch {
+        // best effort
+      }
+    }
+    if (this.config.contaminatedGitHistory) {
+      try {
+        this.deployContaminatedGit(workspacePath);
+      } catch {
+        // best effort
+      }
+    }
   }
 
-  private deployDecoyFiles(workspacePath: string): void {
-    const decoyDir = path.join(workspacePath, '.sentinel', 'canaries');
+  getDeployedRootInfo(): { root: string; fallback: boolean } | null {
+    if (!this.canaryRoot) return null;
+    return { root: this.canaryRoot, fallback: this.canaryFallback };
+  }
+
+  private deployDecoyFiles(): void {
+    if (!this.canaryRoot) return;
+    const decoyDir = this.canaryRoot;
     if (!fs.existsSync(decoyDir)) {
       fs.mkdirSync(decoyDir, { recursive: true });
     }
@@ -75,8 +133,9 @@ export class CanarySystem {
     }
   }
 
-  private deployFakeSecrets(workspacePath: string): void {
-    const secretsPath = path.join(workspacePath, '.sentinel', 'canaries', '.secrets.env');
+  private deployFakeSecrets(): void {
+    if (!this.canaryRoot) return;
+    const secretsPath = path.join(this.canaryRoot, '.secrets.env');
     if (fs.existsSync(secretsPath)) return;
 
     const marker = `${SENTINEL_CANARY_MARKER}${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -100,9 +159,9 @@ export class CanarySystem {
 
   private deployContaminatedGit(workspacePath: string): void {
     const gitDir = path.join(workspacePath, '.git');
-    if (!fs.existsSync(gitDir)) return;
+    if (!fs.existsSync(gitDir) || !this.canaryRoot) return;
 
-    const canaryGitPath = path.join(workspacePath, '.sentinel', 'canaries', '.git_canary_commit');
+    const canaryGitPath = path.join(this.canaryRoot, '.git_canary_commit');
     if (fs.existsSync(canaryGitPath)) return;
 
     const marker = `${SENTINEL_CANARY_MARKER}${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;

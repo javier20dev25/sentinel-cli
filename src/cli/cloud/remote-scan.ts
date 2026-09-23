@@ -210,8 +210,13 @@ export async function runRemoteScan(
             const retry = result.retryAfterSeconds
                 ? ` Retry in ${result.retryAfterSeconds}s.`
                 : '';
-            const label = options.pulse ? 'pulse' : 'Cloud';
-            return fail(`${label} limit reached (quota or rate).${suffix}${retry}`, 1);
+            if (options.pulse) {
+                return fail(
+                    `Pulsos agotados — cuota de suscripción alcanzada.${suffix} Renueva tu suscripción en el dashboard de Sentinel Cloud o espera al reset mensual.${retry}`,
+                    1,
+                );
+            }
+            return fail(`Cloud limit reached (quota or rate).${suffix}${retry}`, 1);
         }
         case 'busy':
             return fail('Scan engine is busy. Retry shortly.', 1);

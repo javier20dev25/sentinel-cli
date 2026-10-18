@@ -19,6 +19,9 @@ export interface RemoteScanCommandOptions {
     timeoutMs?: number;
     // Commercial framing: one full-engine API call = one "pulso" consumed.
     pulse?: boolean;
+    groupKey?: string;
+    memberKey?: string;
+    repositoryId?: string;
 }
 
 export interface RemoteScanRunContext {
@@ -154,12 +157,17 @@ export async function runRemoteScan(
         return fail(`Unsupported format '${format}'. Supported: ['npm'].`, 1);
     }
 
+    const groupKey = options.groupKey ?? env.SENTINEL_GROUP_KEY;
+    const memberKey = options.memberKey ?? env.SENTINEL_MEMBER_KEY;
+    const repositoryId = options.repositoryId ?? env.SENTINEL_GROUP_REPOSITORY_ID;
+    const groupMode = Boolean(groupKey || memberKey || repositoryId);
+    if (groupMode && (!groupKey || !memberKey || !repositoryId)) return fail('Group remote scans require --group-key, --member-key, and --repository-id (or the corresponding SENTINEL_GROUP_* environment variables).', 1);
     const session = loadSession({ sessionDir: ctx.sessionDir });
-    if (!session) {
+    if (!session && !groupMode) {
         return fail("No active session. Run 'sentinel login' first.", 1);
     }
 
-    if (session.capabilities?.remote_scan !== true) {
+    if (!groupMode && session?.capabilities?.remote_scan !== true) {
         return fail('Your plan does not include remote scanning.', 1);
     }
 
@@ -170,8 +178,9 @@ export async function runRemoteScan(
         return fail('Set SENTINEL_CLOUD_URL or pass --api <url>.', 1);
     }
 
-    const result = await fetchRemoteScan(manifest, format, session.token, baseUrl, {
+    const result = await fetchRemoteScan(manifest, format, session?.token ?? '', baseUrl, {
         timeoutMs: options.timeoutMs,
+        groupCredentials: groupMode ? { groupKey: groupKey!, memberKey: memberKey!, repositoryId: repositoryId! } : undefined,
     });
 
     if (result.ok) {
@@ -180,7 +189,7 @@ export async function runRemoteScan(
             return { exitCode: 0, lines };
         }
         out(renderRemoteScan(result.data, options.pulse));
-        if (options.pulse) {
+        if (options.pulse && !groupMode && session) {
             // Best effort: a usage fetch or a local-store failure never changes
             // the exit code.
             const usage = await fetchUsage(session.token, baseUrl, {
@@ -201,13 +210,13 @@ export async function runRemoteScan(
 
     switch (result.kind) {
         case 'auth': {
-            clearSession({ sessionDir: ctx.sessionDir });
+            if (!groupMode) clearSession({ sessionDir: ctx.sessionDir });
             return fail("Session expired. Run 'sentinel login'.", 1);
         }
         case 'forbidden': {
             if (result.error && /no active subscription/i.test(result.error)) {
                 return fail(
-                    `${result.error} Choose a plan at: ${resolvePlanLandingUrl(baseUrl, session.landingUrl)}`,
+                    `${result.error} Choose a plan at: ${resolvePlanLandingUrl(baseUrl, session?.landingUrl)}`,
                     1,
                 );
             }
@@ -231,6 +240,9 @@ export async function runRemoteScan(
         case 'bad_request':
             return fail(result.error || 'Scan service rejected the manifest.', 1);
         case 'network':
+            if (groupMode) {
+                return fail('Cloud scan unavailable; no remote scan was performed. Run the local scan command explicitly if you want an offline analysis.', 1);
+            }
             return fail('Cloud scan unavailable — continuing with local analysis.', 0);
     }
 }

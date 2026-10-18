@@ -3800,6 +3800,9 @@ program
     .option('--json', 'Emit the raw Cloud scan result as JSON')
     .option('--format <format>', 'Manifest format (default: npm)', 'npm')
     .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--group-key <key>', 'Group integration credential for a group-scoped hosted scan')
+    .option('--member-key <key>', 'Your individual member credential for a group-scoped hosted scan')
+    .option('--repository-id <uuid>', 'Shared Cloud repository UUID authorized for this scan')
     .option('--timeout <ms>', 'Request timeout in milliseconds', '20000')
     .action(async (targetPath, options) => {
         const parsedTimeout = parseInt(options.timeout, 10);
@@ -3811,6 +3814,9 @@ program
                 format: options.format,
                 api: options.api,
                 timeoutMs,
+                groupKey: options.groupKey,
+                memberKey: options.memberKey,
+                repositoryId: options.repositoryId,
             },
             {}
         );

@@ -1,6 +1,7 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
 import type { ContributeSignal } from './contribute_signals';
 
 export const SESSION_PATH = path.join(os.homedir(), '.sentinel', 'auth.json');
@@ -416,20 +417,28 @@ export async function fetchRemoteScan(
     format: string,
     token: string,
     baseUrl: string,
-    opts?: { timeoutMs?: number }
+    opts?: { timeoutMs?: number; idempotencyKey?: string; groupCredentials?: { groupKey: string; memberKey: string; repositoryId: string } }
 ): Promise<RemoteScanFetchResult> {
     const url = baseUrl.replace(/\/+$/, '') + '/api/scan/remote';
     const timeoutMs = opts?.timeoutMs ?? REMOTE_SCAN_TIMEOUT_MS;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'Idempotency-Key': opts?.idempotencyKey ?? randomUUID(),
+        };
+        if (opts?.groupCredentials) {
+            headers['x-sentinel-group-key'] = opts.groupCredentials.groupKey;
+            headers['x-sentinel-member-key'] = opts.groupCredentials.memberKey;
+            headers['x-sentinel-repository-id'] = opts.groupCredentials.repositoryId;
+        } else {
+            headers.Authorization = `Bearer ${token}`;
+        }
         const res = await fetch(url, {
             method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-            },
+            headers,
             body: JSON.stringify({ manifest, format }),
             signal: controller.signal,
         });

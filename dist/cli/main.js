@@ -104,6 +104,7 @@ const cloud_client_1 = require("./cloud/cloud_client");
 const lookup_1 = require("./cloud/lookup");
 const remote_scan_1 = require("./cloud/remote-scan");
 const pulse_scan_1 = require("./cloud/pulse-scan");
+const plan_flow_1 = require("./cloud/plan_flow");
 const pulse_mode_1 = require("./cloud/pulse_mode");
 const pulse_store_1 = require("./cloud/pulse_store");
 const pulse_render_1 = require("./cloud/pulse_render");
@@ -3624,6 +3625,7 @@ function printSession(session, json) {
             subjectId: session.subjectId,
             plan: session.plan,
             planLabel: session.planLabel,
+            planActive: session.planActive,
             capabilities: enabled,
             expiresAt: session.expiresAt,
             fetchedAt: session.fetchedAt,
@@ -3633,6 +3635,12 @@ function printSession(session, json) {
     }
     console.log(pc.green(`\n✔ Logged in as ${pc.bold(session.user || session.subjectId)} (${session.planLabel})`));
     console.log(pc.white(`  Plan:          ${session.plan} — ${session.planLabel}`));
+    if (session.planActive === false) {
+        console.log(pc.yellow('  Status:        NO ACTIVE SUBSCRIPTION — choose a plan to continue.'));
+    }
+    else if (session.planActive === true) {
+        console.log(pc.green('  Status:        Active subscription'));
+    }
     const pulsesPerMonth = (0, cloud_client_1.pulsesPerMonthOf)(session.limits);
     if (pulsesPerMonth > 0) {
         console.log(pc.white(`  Pulsos/mes:    ${pulsesPerMonth} (full-engine API allowance)`));
@@ -3667,6 +3675,11 @@ program
         process.exit(1);
     }
     printSession(result.session, false);
+    if (result.session.planActive === false) {
+        console.log('');
+        console.log(pc.yellow('No active subscription. Choose a plan to continue.'));
+        yield (0, plan_flow_1.offerPlanLanding)((0, plan_flow_1.resolvePlanLandingUrl)(baseUrl, result.session.landingUrl));
+    }
 }));
 program
     .command('whoami')
@@ -3692,7 +3705,7 @@ program
         if (baseUrl) {
             const result = yield (0, cloud_client_1.fetchCapabilities)(session.token, baseUrl);
             if (result.ok) {
-                session = Object.assign(Object.assign({}, session), { user: result.data.user, subjectId: result.data.subjectId, plan: result.data.plan, planLabel: result.data.planLabel, expiresAt: result.data.expiresAt, capabilities: result.data.capabilities, limits: result.data.limits, fetchedAt: new Date().toISOString() });
+                session = Object.assign(Object.assign({}, session), { user: result.data.user, subjectId: result.data.subjectId, plan: result.data.plan, planLabel: result.data.planLabel, planActive: result.data.planActive, landingUrl: result.data.landingUrl, expiresAt: result.data.expiresAt, capabilities: result.data.capabilities, limits: result.data.limits, fetchedAt: new Date().toISOString() });
                 (0, cloud_client_1.saveSession)(session);
             }
             else if (result.status === 401) {
@@ -3747,6 +3760,9 @@ program
     .option('--json', 'Emit the raw Cloud scan result as JSON')
     .option('--format <format>', 'Manifest format (default: npm)', 'npm')
     .option('--api <baseUrl>', 'Sentinel Cloud base URL (or set SENTINEL_CLOUD_URL)')
+    .option('--group-key <key>', 'Group integration credential for a group-scoped hosted scan')
+    .option('--member-key <key>', 'Your individual member credential for a group-scoped hosted scan')
+    .option('--repository-id <uuid>', 'Shared Cloud repository UUID authorized for this scan')
     .option('--timeout <ms>', 'Request timeout in milliseconds', '20000')
     .action((targetPath, options) => __awaiter(void 0, void 0, void 0, function* () {
     const parsedTimeout = parseInt(options.timeout, 10);
@@ -3757,6 +3773,9 @@ program
         format: options.format,
         api: options.api,
         timeoutMs,
+        groupKey: options.groupKey,
+        memberKey: options.memberKey,
+        repositoryId: options.repositoryId,
     }, {});
     for (const line of result.lines) {
         if (line.stream === 'stderr') {
@@ -3794,6 +3813,9 @@ program
             if (!session) {
                 console.log(pc.gray("  Uso de pulsos: no hay sesión; corre 'sentinel login'."));
             }
+            else if (session.planActive === false) {
+                console.log(pc.yellow('  Sin suscripción activa — elige un plan para consumir pulsos.'));
+            }
             else {
                 try {
                     const baseUrl = (0, cloud_client_1.getResolvedBaseUrl)(undefined);
@@ -3826,6 +3848,22 @@ program
     .action((targetPath, options) => __awaiter(void 0, void 0, void 0, function* () {
     const parsedTimeout = parseInt(options.timeout, 10);
     const timeoutMs = Number.isFinite(parsedTimeout) ? parsedTimeout : undefined;
+    const session = (0, cloud_client_1.loadSession)();
+    if (session && session.planActive === false) {
+        console.error(pc.red('No active subscription. Choose a plan to continue.'));
+        let baseUrl;
+        try {
+            baseUrl = (0, cloud_client_1.getResolvedBaseUrl)(options.api);
+        }
+        catch (_a) {
+            baseUrl = '';
+        }
+        if (baseUrl) {
+            yield (0, plan_flow_1.offerPlanLanding)((0, plan_flow_1.resolvePlanLandingUrl)(baseUrl, session.landingUrl));
+        }
+        process.exitCode = 1;
+        return;
+    }
     const result = yield (0, pulse_scan_1.runPulseScan)({
         targetPath,
         json: options.json,

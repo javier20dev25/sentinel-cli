@@ -70,6 +70,10 @@ function refreshPulseBalance() {
             const usage = yield (0, cloud_client_1.fetchUsage)(session.token, baseUrl, {});
             if (!usage.ok)
                 return;
+            if (session.planActive === false) {
+                pulseBalanceLabel = 'sin suscripción activa — elige un plan';
+                return;
+            }
             const { period, used, limit, remaining } = usage.data;
             if (limit <= 0)
                 return;

@@ -4,13 +4,33 @@ import * as crypto from 'crypto'
 import { execFileSync } from 'child_process'
 import { BuildIdentity, ToolIdentity } from './build-types'
 
+let cachedIdentity: BuildIdentity | null = null
+
+export function clearBuildIdentityCache(): void {
+  cachedIdentity = null
+}
+
 export function captureBuildIdentity(): BuildIdentity {
+  if (cachedIdentity) {
+    return {
+      ...cachedIdentity,
+      toolVersions: { ...cachedIdentity.toolVersions },
+      toolIdentities: [...cachedIdentity.toolIdentities],
+    }
+  }
   const toolVersions: Record<string, string> = {}
   const tools = ['gcc', 'g++', 'clang', 'clang++', 'ld', 'make', 'cmake', 'node', 'python', 'python3', 'rustc', 'cargo', 'go', 'javac', 'git']
 
+  const toolIdentities: ToolIdentity[] = []
   for (const tool of tools) {
-    const v = tryToolVersion(tool)
-    if (v) toolVersions[tool] = v
+    const ti = resolveToolIdentity(tool)
+    if (ti) {
+      toolIdentities.push(ti)
+      if (ti.version) toolVersions[tool] = ti.version
+    } else {
+      const v = tryToolVersion(tool)
+      if (v) toolVersions[tool] = v
+    }
   }
 
   const hostname = os.hostname()
@@ -40,12 +60,6 @@ export function captureBuildIdentity(): BuildIdentity {
       osVersion = `macOS ${r.trim()}`
     }
   } catch {}
-
-  const toolIdentities: ToolIdentity[] = []
-  for (const tool of tools) {
-    const ti = resolveToolIdentity(tool)
-    if (ti) toolIdentities.push(ti)
-  }
 
   const builderProcess = process.argv0 || process.title || 'unknown'
 

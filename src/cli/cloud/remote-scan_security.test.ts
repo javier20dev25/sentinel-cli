@@ -186,6 +186,7 @@ describe('cloud_client fetchRemoteScan', () => {
         expect(url).toBe('https://cloud.example.com/api/scan/remote');
         const headers = (init as { headers: Record<string, string> }).headers;
         expect(headers.Authorization).toBe('Bearer tok-1');
+        expect(headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/i);
         expect(headers['Content-Type']).toBe('application/json');
         const sentBody = JSON.parse((init as { body: string }).body);
         expect(sentBody.manifest).toBe(MANIFEST);

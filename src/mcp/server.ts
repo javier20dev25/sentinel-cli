@@ -244,27 +244,34 @@ async function runA2Tool(name: string, args: Record<string, string>): Promise<st
       const cwd = process.cwd()
       let lockfilePath = args.lockfile || ''
       if (!lockfilePath) {
-        const candidates = ['package-lock.json', 'yarn.lock']
+        const candidates = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']
         for (const c of candidates) {
           const testPath = path.join(cwd, c)
           if (fs.existsSync(testPath)) { lockfilePath = testPath; break }
         }
       }
       if (!lockfilePath || !fs.existsSync(lockfilePath)) {
-        return JSON.stringify({ error: 'No lockfile found. Run npm install first, or specify --lockfile.' })
+        return JSON.stringify({ status: 'INCOMPLETE', coverageReason: 'no lockfile found (looked for package-lock.json, yarn.lock, pnpm-lock.yaml)', packages: 0, format: 'unknown', vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 })
       }
 
       const parser = new LockfileParser()
+      let lockfileContent = ''
+      try { lockfileContent = fs.readFileSync(lockfilePath, 'utf8') } catch {}
+      const unsupported = parser.detectUnsupported(lockfilePath, lockfileContent)
+      if (unsupported) {
+        return JSON.stringify({ status: 'INCOMPLETE', coverageReason: unsupported, lockfile: lockfilePath, packages: 0, format: 'unknown', vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 })
+      }
       const parsed = parser.parse(lockfilePath)
       if (parsed.entries.length === 0) {
-        return JSON.stringify({ packages: 0, format: parsed.format, vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 })
+        return JSON.stringify({ status: 'INCOMPLETE', coverageReason: `parser returned 0 dependencies (format: ${parsed.format})`, lockfile: lockfilePath, packages: 0, format: parsed.format, vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 })
       }
 
       const startTime = Date.now()
 
       const osv = new OSVIntegrator()
       const osvPackages = parsed.entries.map(e => ({ name: e.name, version: e.version }))
-      const osvResults = await osv.queryBatch(osvPackages)
+      const osvRaw = await osv.queryBatch(osvPackages)
+      const osvResults = await osv.hydrateResults(osvRaw)
 
       const rep = new RegistryReputation()
       const repResults: any[] = []
@@ -305,25 +312,24 @@ async function runA2Tool(name: string, args: Record<string, string>): Promise<st
         }
       }
 
-      const vulnsBySeverity = new Map<string, number>()
-      let totalVulns = 0
-      for (const r of osvResults) {
-        for (const v of r.vulnerabilities) {
-          totalVulns++
-          const maxS = OSVIntegrator.getMaxSeverity(v)
-          const sev = maxS ? OSVIntegrator.toSentinelSeverity(maxS.score) : 'MEDIUM'
-          vulnsBySeverity.set(sev, (vulnsBySeverity.get(sev) || 0) + 1)
-        }
-      }
+      const { summarizeFindings } = await import('../cli/intelligence/audit_deps_report')
+      const summary = summarizeFindings(osvResults)
 
       const suspiciousRep = repResults.filter(r => r.label === 'SUSPICIOUS' || r.label === 'MALICIOUS')
       const verifiedProv = provResults.filter(r => r.verified)
 
       return JSON.stringify({
+        status: 'COMPLETE',
         packages: parsed.entries.length,
         format: parsed.format,
-        vulnerabilities: totalVulns,
-        bySeverity: Object.fromEntries(vulnsBySeverity),
+        vulnerabilities: summary.instances,
+        instances: summary.instances,
+        pkgVersionGhsa: summary.pkgVersionGhsa,
+        uniqueGhsa: summary.uniqueGhsa,
+        bySeverity: summary.bySourceSeverity,
+        bySourceSeverity: summary.bySourceSeverity,
+        sentinelBySeverity: summary.bySentinelSeverity,
+        findings: summary.findings,
         suspiciousPackages: suspiciousRep.length,
         provenance: verifiedProv.length,
         durationMs: Date.now() - startTime

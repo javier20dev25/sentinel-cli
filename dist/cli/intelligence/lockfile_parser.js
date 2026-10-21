@@ -36,6 +36,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LockfileParser = void 0;
 const fs = __importStar(require("fs"));
 class LockfileParser {
+    /**
+     * Detects lockfiles that are recognized by filename but NOT parseable by this
+     * parser (pnpm, Yarn Berry). Returns a human-readable reason, or null when the
+     * file is either supported or unrecognized. This lets callers report an
+     * explicit INCOMPLETE status instead of a misleading "no dependencies".
+     */
+    detectUnsupported(filename, content) {
+        const base = filename.toLowerCase();
+        if (base.endsWith('pnpm-lock.yaml')) {
+            return 'pnpm-lock.yaml (pnpm) is not supported by the parser';
+        }
+        if (base.endsWith('yarn.lock') && /^__metadata:/m.test(content)) {
+            return 'Yarn Berry (v2+) lockfile is not supported by the parser';
+        }
+        return null;
+    }
     detectFormat(content) {
         const trimmed = content.trim();
         if (!trimmed)

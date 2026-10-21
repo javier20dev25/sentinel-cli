@@ -264,7 +264,7 @@ function runA2Tool(name, args) {
                 const cwd = process.cwd();
                 let lockfilePath = args.lockfile || '';
                 if (!lockfilePath) {
-                    const candidates = ['package-lock.json', 'yarn.lock'];
+                    const candidates = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
                     for (const c of candidates) {
                         const testPath = path.join(cwd, c);
                         if (fs.existsSync(testPath)) {
@@ -274,17 +274,27 @@ function runA2Tool(name, args) {
                     }
                 }
                 if (!lockfilePath || !fs.existsSync(lockfilePath)) {
-                    return JSON.stringify({ error: 'No lockfile found. Run npm install first, or specify --lockfile.' });
+                    return JSON.stringify({ status: 'INCOMPLETE', coverageReason: 'no lockfile found (looked for package-lock.json, yarn.lock, pnpm-lock.yaml)', packages: 0, format: 'unknown', vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 });
                 }
                 const parser = new LockfileParser();
+                let lockfileContent = '';
+                try {
+                    lockfileContent = fs.readFileSync(lockfilePath, 'utf8');
+                }
+                catch (_b) { }
+                const unsupported = parser.detectUnsupported(lockfilePath, lockfileContent);
+                if (unsupported) {
+                    return JSON.stringify({ status: 'INCOMPLETE', coverageReason: unsupported, lockfile: lockfilePath, packages: 0, format: 'unknown', vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 });
+                }
                 const parsed = parser.parse(lockfilePath);
                 if (parsed.entries.length === 0) {
-                    return JSON.stringify({ packages: 0, format: parsed.format, vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 });
+                    return JSON.stringify({ status: 'INCOMPLETE', coverageReason: `parser returned 0 dependencies (format: ${parsed.format})`, lockfile: lockfilePath, packages: 0, format: parsed.format, vulnerabilities: 0, bySeverity: {}, suspiciousPackages: 0, provenance: 0, durationMs: 0 });
                 }
                 const startTime = Date.now();
                 const osv = new OSVIntegrator();
                 const osvPackages = parsed.entries.map(e => ({ name: e.name, version: e.version }));
-                const osvResults = yield osv.queryBatch(osvPackages);
+                const osvRaw = yield osv.queryBatch(osvPackages);
+                const osvResults = yield osv.hydrateResults(osvRaw);
                 const rep = new RegistryReputation();
                 const repResults = [];
                 for (const entry of parsed.entries.slice(0, 50)) {
@@ -292,7 +302,7 @@ function runA2Tool(name, args) {
                         const s = yield rep.score(entry.name);
                         repResults.push(s);
                     }
-                    catch (_b) { }
+                    catch (_c) { }
                 }
                 let provResults = [];
                 const checkProvenance = args.provenance === 'true' || args.provenance === '1';
@@ -305,7 +315,7 @@ function runA2Tool(name, args) {
                                 const r = yield prov.verify(entry.name, entry.version);
                                 provResults.push(r);
                             }
-                            catch (_c) { }
+                            catch (_d) { }
                         }
                     }
                 }
@@ -324,27 +334,26 @@ function runA2Tool(name, args) {
                                     qm.quarantinePackage(pkg.packageName, pkg.version, `Critical CVE: ${((_a = pkg.vulnerabilities[0]) === null || _a === void 0 ? void 0 : _a.id) || 'unknown'}`, 'CRITICAL');
                                 }
                             }
-                            catch (_d) { }
+                            catch (_e) { }
                         }
                     }
                 }
-                const vulnsBySeverity = new Map();
-                let totalVulns = 0;
-                for (const r of osvResults) {
-                    for (const v of r.vulnerabilities) {
-                        totalVulns++;
-                        const maxS = OSVIntegrator.getMaxSeverity(v);
-                        const sev = maxS ? OSVIntegrator.toSentinelSeverity(maxS.score) : 'MEDIUM';
-                        vulnsBySeverity.set(sev, (vulnsBySeverity.get(sev) || 0) + 1);
-                    }
-                }
+                const { summarizeFindings } = yield Promise.resolve().then(() => __importStar(require('../cli/intelligence/audit_deps_report')));
+                const summary = summarizeFindings(osvResults);
                 const suspiciousRep = repResults.filter(r => r.label === 'SUSPICIOUS' || r.label === 'MALICIOUS');
                 const verifiedProv = provResults.filter(r => r.verified);
                 return JSON.stringify({
+                    status: 'COMPLETE',
                     packages: parsed.entries.length,
                     format: parsed.format,
-                    vulnerabilities: totalVulns,
-                    bySeverity: Object.fromEntries(vulnsBySeverity),
+                    vulnerabilities: summary.instances,
+                    instances: summary.instances,
+                    pkgVersionGhsa: summary.pkgVersionGhsa,
+                    uniqueGhsa: summary.uniqueGhsa,
+                    bySeverity: summary.bySourceSeverity,
+                    bySourceSeverity: summary.bySourceSeverity,
+                    sentinelBySeverity: summary.bySentinelSeverity,
+                    findings: summary.findings,
                     suspiciousPackages: suspiciousRep.length,
                     provenance: verifiedProv.length,
                     durationMs: Date.now() - startTime
@@ -421,7 +430,7 @@ function runA2Tool(name, args) {
                 try {
                     policies = JSON.parse(fs.readFileSync(policyFile, 'utf8'));
                 }
-                catch (_e) { }
+                catch (_f) { }
                 const action = args.action || 'list';
                 if (action === 'list') {
                     return JSON.stringify({ action: 'list', policies });

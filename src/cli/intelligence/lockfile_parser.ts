@@ -10,23 +10,29 @@ export interface LockfileEntry {
 
 export interface LockfileResult {
   entries: LockfileEntry[]
-  format: 'npm-v6' | 'npm-v7' | 'yarn' | 'unknown'
+  format: 'npm-v6' | 'npm-v7' | 'yarn' | 'pnpm' | 'yarn-berry' | 'unknown'
 }
 
 export class LockfileParser {
   /**
    * Detects lockfiles that are recognized by filename but NOT parseable by this
-   * parser (pnpm, Yarn Berry). Returns a human-readable reason, or null when the
-   * file is either supported or unrecognized. This lets callers report an
-   * explicit INCOMPLETE status instead of a misleading "no dependencies".
+   * parser. Returns a human-readable reason, or null when the file is either
+   * supported or unrecognized. This lets callers report an explicit INCOMPLETE
+   * status instead of a misleading "no dependencies".
    */
   detectUnsupported(filename: string, content: string): string | null {
     const base = filename.toLowerCase()
     if (base.endsWith('pnpm-lock.yaml')) {
-      return 'pnpm-lock.yaml (pnpm) is not supported by the parser'
+      if (this.detectFormat(content) !== 'pnpm') {
+        return 'pnpm-lock.yaml could not be parsed (unexpected or unsupported version)'
+      }
+      return null
     }
     if (base.endsWith('yarn.lock') && /^__metadata:/m.test(content)) {
-      return 'Yarn Berry (v2+) lockfile is not supported by the parser'
+      if (this.detectFormat(content) !== 'yarn-berry') {
+        return 'Yarn Berry (v2+) lockfile could not be parsed (unexpected structure)'
+      }
+      return null
     }
     return null
   }
@@ -38,7 +44,14 @@ export class LockfileParser {
     const firstLine = trimmed.split('\n')[0].trim()
 
     if (firstLine.startsWith('#')) {
+      // Yarn classic starts with a comment too; Berry is identified by __metadata
+      if (/^__metadata:/m.test(content)) return 'yarn-berry'
       return 'yarn'
+    }
+
+    // pnpm uses YAML with a top-level lockfileVersion and importers/packages sections
+    if (/^lockfileVersion:/m.test(content) || /^importers:/m.test(content)) {
+      return 'pnpm'
     }
 
     if (trimmed.startsWith('{')) {
@@ -222,6 +235,173 @@ export class LockfileParser {
     return { entries, format: 'yarn' }
   }
 
+  /**
+   * pnpm lockfiles (lockfileVersion 5.x, 6.x, 9.x). Resolved packages live under
+   * the `packages:` mapping; each key encodes `name@version` (optionally with a
+   * leading slash and/or a peer-dependency suffix).
+   */
+  parsePnpmLock(content: string): LockfileResult {
+    const entries: LockfileEntry[] = []
+    const seen = new Set<string>()
+    const lines = content.split(/\r?\n/)
+
+    let inPackages = false
+    let inImporters = false
+    let currentPkgName = ''
+
+    for (const line of lines) {
+      if (/^packages:/.test(line) || /^snapshots:/.test(line)) { inPackages = true; inImporters = false; continue }
+      if (/^importers:/.test(line)) { inImporters = true; inPackages = false; continue }
+      if (/^[A-Za-z_][A-Za-z0-9_-]*:/.test(line) && !/^ {2,}/.test(line)) { inPackages = false; inImporters = false; continue }
+
+      if (inPackages) {
+        const keyMatch = line.match(/^ {2}['"]?([^'"#\s].*?)['"]?\s*:\s*$/)
+        if (!keyMatch) continue
+        const rawKey = keyMatch[1].trim()
+        if (!rawKey) continue
+        if (/^resolution|^dependencies:|^optionalDependencies:|^transitivePeerDependencies:|^version:|^specifier:/.test(rawKey)) continue
+        const parsed = this.parsePnpmKey(rawKey)
+        if (!parsed) continue
+        const id = `${parsed.name}@${parsed.version}`
+        if (seen.has(id)) continue
+        seen.add(id)
+        entries.push({ name: parsed.name, version: parsed.version, resolved: '', integrity: '', dependencies: [] })
+        continue
+      }
+
+      if (inImporters) {
+        // Workspace importers like "  .:" or "  packages/foo:"
+        const importerMatch = line.match(/^ {2}(.+?):\s*$/)
+        if (importerMatch && !/^ {4}/.test(line)) {
+          currentPkgName = ''
+          continue
+        }
+        // Dependency names at indent level 4 under dependencies/spec/devDependencies
+        const depNameMatch = line.match(/^ {6}([@A-Za-z0-9][^:\s]*?):\s*$/)
+        if (depNameMatch) {
+          currentPkgName = depNameMatch[1]
+          continue
+        }
+        if (currentPkgName) {
+          const verMatch = line.match(/^\s+version:\s*['"]?([0-9][^'"\s]*)['"]?\s*$/)
+          if (verMatch) {
+            const id = `${currentPkgName}@${verMatch[1]}`
+            if (!seen.has(id)) {
+              seen.add(id)
+              entries.push({ name: currentPkgName, version: verMatch[1], resolved: '', integrity: '', dependencies: [] })
+            }
+            currentPkgName = ''
+            continue
+          }
+        }
+      }
+    }
+
+    return { entries, format: 'pnpm' }
+  }
+
+  private parsePnpmKey(rawKey: string): { name: string; version: string } | null {
+    let key = rawKey.trim().replace(/^['"]|['"]$/g, '')
+    if (!key) return null
+    key = key.replace(/^\//, '')
+    while (/\([^()]*\)/.test(key)) { key = key.replace(/\([^()]*\)/, '') }
+    key = key.split(/#/, 1)[0]
+    key = key.split(/,/)[0].trim()
+    if (key.includes('/node_modules/')) return null
+    if (!key.includes('@')) return null
+
+    const at = key.lastIndexOf('@')
+    if (at <= 0) return null
+    const name = key.slice(0, at)
+    const version = key.slice(at + 1)
+    if (!name || !version) return null
+    if (!/^[0-9]/.test(version)) return null
+    return { name, version }
+  }
+
+  /**
+   * Yarn Berry (v2+) lockfiles with __metadata.
+   */
+  parseYarnBerry(content: string): LockfileResult {
+    const entries: LockfileEntry[] = []
+    const lines = content.split(/\r?\n/)
+
+    let currentName = ''
+    let currentVersion = ''
+    let currentResolution = ''
+    let currentDeps: string[] = []
+    let inDeps = false
+
+    const flush = () => {
+      if (!currentName || !currentVersion) return
+      entries.push({ name: currentName, version: currentVersion, resolved: currentResolution, integrity: '', dependencies: currentDeps })
+    }
+
+    for (const line of lines) {
+      if (line.startsWith('__metadata:')) continue
+      if (/^\s*#/.test(line)) continue
+
+      const headerMatch = line.match(/^("?)([^\s].*?)\1:\s*$/)
+      if (headerMatch) {
+        flush()
+        currentName = ''
+        currentVersion = ''
+        currentResolution = ''
+        currentDeps = []
+        inDeps = false
+
+        const header = headerMatch[2].replace(/"/g, '')
+        const descriptors = header.split(/,\s+/)
+        currentName = this.descriptorToName(descriptors[0])
+        continue
+      }
+
+      const versionMatch = line.match(/^\s+version:\s*"?([^"\s]+)"?\s*$/)
+      if (versionMatch && !inDeps) { currentVersion = versionMatch[1]; continue }
+
+      const resolutionMatch = line.match(/^\s+resolution:\s*"?([^"\s]+)"?\s*$/)
+      if (resolutionMatch) {
+        currentResolution = resolutionMatch[1]
+        const parsed = this.parseBerryResolution(resolutionMatch[1])
+        if (parsed) { currentName = parsed.name; currentVersion = parsed.version }
+        continue
+      }
+
+      if (/^\s+dependencies:\s*$/.test(line)) { inDeps = true; continue }
+      if (/^[^ \t]/.test(line) && !line.trim().startsWith('#')) { inDeps = false }
+
+      if (inDeps) {
+        const depMatch = line.match(/^\s{2,}([^\s:]+):\s*"?([^"\s]+)"?\s*$/)
+        if (depMatch) { currentDeps.push(this.normalizeDepName(depMatch[1])); continue }
+      }
+    }
+
+    flush()
+    return { entries, format: 'yarn-berry' }
+  }
+
+  private descriptorToName(descriptor: string): string {
+    let d = descriptor.replace(/^"|"$/g, '')
+    const at = d.lastIndexOf('@')
+    const name = at > 0 ? d.slice(0, at) : d
+    return name
+  }
+
+  private parseBerryResolution(resolution: string): { name: string; version: string } | null {
+    const cleaned = resolution.replace(/^"|"$/g, '')
+    const m = cleaned.match(/^(.+)@(?:npm|workspace|patch|file|link):(.+)$/)
+    if (!m) return null
+    const name = m[1]
+    let version = m[2]
+    version = version.split(/[,(]/)[0].trim()
+    if (!name || !/^[0-9]/.test(version)) return null
+    return { name, version }
+  }
+
+  private normalizeDepName(name: string): string {
+    return name.replace(/^"|"$/g, '').replace(/,\s*$/, '')
+  }
+
   parse(path: string): LockfileResult {
     let content: string
     try {
@@ -238,6 +418,10 @@ export class LockfileParser {
         return this.parsePackageLock(content)
       case 'yarn':
         return this.parseYarnLock(content)
+      case 'pnpm':
+        return this.parsePnpmLock(content)
+      case 'yarn-berry':
+        return this.parseYarnBerry(content)
       default:
         return { entries: [], format: 'unknown' }
     }

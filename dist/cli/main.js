@@ -2034,11 +2034,43 @@ program
     const { ProvenanceVerifier } = yield Promise.resolve().then(() => __importStar(require('./intelligence/provenance_verifier')));
     const { QuarantineManager } = yield Promise.resolve().then(() => __importStar(require('./intelligence/quarantine')));
     const { NpmAuditParser } = yield Promise.resolve().then(() => __importStar(require('./intelligence/npm_audit_parser')));
+    const { summarizeFindings } = yield Promise.resolve().then(() => __importStar(require('./intelligence/audit_deps_report')));
     const cwd = process.cwd();
+    const jsonOut = !!options.json;
+    // Emit an explicit INCOMPLETE result. Dependencies were NOT analyzed, so
+    // this must never be reported as "no findings". With --ci it exits 2 so
+    // automated pipelines can detect the state; otherwise it exits 0.
+    const emitIncomplete = (reason, lockfile) => {
+        if (jsonOut) {
+            console.log(JSON.stringify({
+                status: 'INCOMPLETE',
+                coverageReason: reason,
+                lockfile: lockfile || null,
+                packages: 0,
+                format: 'unknown',
+                instances: 0,
+                pkgVersionGhsa: 0,
+                uniqueGhsa: 0,
+                vulnerabilities: 0,
+                bySeverity: {},
+                bySourceSeverity: {},
+                sentinelBySeverity: {},
+                suspiciousPackages: 0,
+                provenance: 0,
+                npmAudit: null,
+                durationMs: 0
+            }, null, 2));
+        }
+        else {
+            console.log(pc.yellow(`\n  ⚠️  INCOMPLETE — ${reason}`));
+            console.log(pc.dim('  Dependencies were NOT analyzed. This is not a clean result.'));
+        }
+        process.exit(options.ci ? 2 : 0);
+    };
     // 1. Detect and parse lockfile
     let lockfilePath = options.lockfile;
     if (!lockfilePath) {
-        const candidates = ['package-lock.json', 'yarn.lock'];
+        const candidates = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
         for (const c of candidates) {
             const testPath = path.join(cwd, c);
             if (fs.existsSync(testPath)) {
@@ -2048,14 +2080,21 @@ program
         }
     }
     if (!lockfilePath || !fs.existsSync(lockfilePath)) {
-        console.error(pc.red('No lockfile found. Run npm install first, or specify --lockfile.'));
-        return;
+        emitIncomplete('no lockfile found (looked for package-lock.json, yarn.lock, pnpm-lock.yaml)', null);
     }
     const parser = new LockfileParser();
+    let lockfileContent = '';
+    try {
+        lockfileContent = fs.readFileSync(lockfilePath, 'utf8');
+    }
+    catch (_b) { }
+    const unsupported = parser.detectUnsupported(lockfilePath, lockfileContent);
+    if (unsupported) {
+        emitIncomplete(unsupported, lockfilePath);
+    }
     const parsed = parser.parse(lockfilePath);
     if (parsed.entries.length === 0) {
-        console.log(pc.yellow('No dependencies found in lockfile.'));
-        return;
+        emitIncomplete(`parser returned 0 dependencies (format: ${parsed.format})`, lockfilePath);
     }
     console.log(pc.cyan(`\n📋 Audit: ${parsed.entries.length} dependencies (${parsed.format})`));
     console.log(pc.dim(`   Lockfile: ${lockfilePath}`));
@@ -2066,7 +2105,9 @@ program
     // 2. Batch OSV query
     const osv = new osv_integrator_1.OSVIntegrator();
     const osvPackages = parsed.entries.map(e => ({ name: e.name, version: e.version }));
-    const osvResults = yield osv.queryBatch(osvPackages);
+    const osvRaw = yield osv.queryBatch(osvPackages);
+    live.update('Fetching advisory details from OSV...');
+    const osvResults = yield osv.hydrateResults(osvRaw);
     live.update('Checking registry reputation...');
     // 3. Registry reputation
     const rep = new RegistryReputation();
@@ -2076,7 +2117,7 @@ program
             const s = yield rep.score(entry.name);
             repResults.push(s);
         }
-        catch (_b) { }
+        catch (_c) { }
     }
     // 4. Provenance (if --provenance)
     let provResults = [];
@@ -2090,7 +2131,7 @@ program
                     const r = yield prov.verify(entry.name, entry.version);
                     provResults.push(r);
                 }
-                catch (_c) { }
+                catch (_d) { }
             }
         }
     }
@@ -2102,20 +2143,14 @@ program
             const nap = new NpmAuditParser();
             npmAuditResult = yield nap.runAudit();
         }
-        catch (_d) { }
+        catch (_e) { }
     }
     live.stop();
-    // Compile report
-    const vulnsBySeverity = new Map();
-    let totalVulns = 0;
-    for (const r of osvResults) {
-        for (const v of r.vulnerabilities) {
-            totalVulns++;
-            const maxS = osv_integrator_1.OSVIntegrator.getMaxSeverity(v);
-            const sev = maxS ? osv_integrator_1.OSVIntegrator.toSentinelSeverity(maxS.score) : 'MEDIUM';
-            vulnsBySeverity.set(sev, (vulnsBySeverity.get(sev) || 0) + 1);
-        }
-    }
+    // Compile report (severity preserved from source; counts deduplicated)
+    const summary = summarizeFindings(osvResults);
+    const totalVulns = summary.instances;
+    const vulnsBySeverity = new Map(Object.entries(summary.bySourceSeverity));
+    const sentinelBySeverity = new Map(Object.entries(summary.bySentinelSeverity));
     const suspiciousRep = repResults.filter((r) => r.label === 'SUSPICIOUS' || r.label === 'MALICIOUS');
     const verifiedProv = provResults.filter(r => r.verified);
     if (totalVulns > 0 || suspiciousRep.length > 0)
@@ -2128,8 +2163,9 @@ program
     console.log(pc.white(`  Lockfile format:  ${pc.cyan(parsed.format)}`));
     // OSV
     if (totalVulns > 0) {
-        console.log(pc.red(`\n  ⚠️  Known Vulnerabilities: ${pc.bold(String(totalVulns))}`));
-        const order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+        console.log(pc.red(`\n  ⚠️  Known Vulnerabilities: ${pc.bold(String(totalVulns))} instance(s)`));
+        console.log(pc.dim(`     unique advisories (GHSA/CVE): ${summary.uniqueGhsa}   package@version×advisory: ${summary.pkgVersionGhsa}`));
+        const order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
         for (const s of order) {
             const c = vulnsBySeverity.get(s);
             if (c) {
@@ -2137,22 +2173,24 @@ program
                     console.log(`     ${pc.bgRed(pc.white(` ${s.padEnd(8)} `))} ${'■'.repeat(Math.min(c, 20))} ${c}`);
                 }
                 else {
-                    const color = s === 'HIGH' ? pc.red : s === 'MEDIUM' ? pc.yellow : pc.dim;
+                    const color = s === 'HIGH' ? pc.red : s === 'MEDIUM' ? pc.yellow : s === 'LOW' ? pc.dim : pc.magenta;
                     console.log(`     ${color(` ${s.padEnd(8)} `)} ${'■'.repeat(Math.min(c, 20))} ${c}`);
                 }
             }
         }
-        const sorted = osvResults
-            .filter(r => r.vulnerabilities.length > 0)
-            .sort((a, b) => b.vulnerabilities.length - a.vulnerabilities.length)
-            .slice(0, 5);
-        for (const r of sorted) {
-            const worst = r.vulnerabilities.slice(0, 3);
-            for (const v of worst) {
-                const maxS = osv_integrator_1.OSVIntegrator.getMaxSeverity(v);
-                const sStr = maxS ? ` (${maxS.score})` : '';
-                console.log(pc.dim(`     ${r.packageName}@${r.version}: [${v.id}] ${v.summary.substring(0, 70)}${sStr}`));
-            }
+        console.log(pc.dim(`     (severity = published by source, counted over unique advisories)`));
+        const shownAdvisories = new Set();
+        for (const f of summary.findings) {
+            if (shownAdvisories.has(f.ghsa))
+                continue;
+            shownAdvisories.add(f.ghsa);
+            if (shownAdvisories.size > 15)
+                break;
+            const score = f.cvssScore !== undefined ? ` CVSS:${f.cvssScore}` : '';
+            const src = f.sourceSeveritySource !== 'osv.database_specific.severity' && f.sourceSeveritySource !== 'none'
+                ? ` (${f.sourceSeveritySource})` : '';
+            const fix = f.fixedVersions.length ? `  fix: ${f.fixedVersions.join(', ')}` : '';
+            console.log(pc.dim(`     ${f.package}@${f.version}: [${f.ghsa}] ${f.sourceSeverity}${score}${src}${fix}`));
         }
     }
     else {
@@ -2219,7 +2257,7 @@ program
                         console.log(pc.red(`  🔒 Quarantined: ${pkg.packageName}@${pkg.version}`));
                     }
                 }
-                catch (_e) { }
+                catch (_f) { }
             }
         }
         else {
@@ -2228,17 +2266,31 @@ program
     }
     if (options.json) {
         console.log(JSON.stringify({
+            status: 'COMPLETE',
             packages: parsed.entries.length,
             format: parsed.format,
             vulnerabilities: totalVulns,
+            instances: summary.instances,
+            pkgVersionGhsa: summary.pkgVersionGhsa,
+            uniqueGhsa: summary.uniqueGhsa,
             bySeverity: Object.fromEntries(vulnsBySeverity),
+            bySourceSeverity: summary.bySourceSeverity,
+            sentinelBySeverity: summary.bySentinelSeverity,
+            severityMapping: {
+                sourceSeverity: 'published severity (OSV database_specific.severity, else CVSS vector/score); never fabricated',
+                sentinelSeverity: 'derived from CVSS base score (>=9 CRITICAL, >=7 HIGH, >=4 MEDIUM, else LOW); falls back to the published severity when no score is available, else UNKNOWN',
+                counts: 'instances = raw advisory occurrences; pkgVersionGhsa = unique package@version:advisory; uniqueGhsa = unique advisory IDs',
+                cvssSource: 'OSV.dev / GitHub Advisory Database',
+                cvssVersion: 'CVSS v3.0/v3.1 scored locally; v4.0 recorded but not scored'
+            },
+            findings: summary.findings,
             suspiciousPackages: suspiciousRep.length,
             provenance: verifiedProv.length,
             npmAudit: (npmAuditResult === null || npmAuditResult === void 0 ? void 0 : npmAuditResult.metadata) || null,
             durationMs: elapsed
         }, null, 2));
     }
-    // Exit code: --ci fails on any finding, default fails only on CRITICAL
+    // Exit code: --ci fails on any finding, default fails only on real findings
     const shouldFail = options.ci ? anyFindings : totalVulns > 0;
     if (shouldFail)
         process.exit(1);

@@ -4,6 +4,13 @@
 
 Sentinel is a deterministic, local-first security intelligence platform. It scans source code for vulnerabilities, audits software supply chains, monitors network behavior for exfiltration attempts, observes build processes, and verifies system integrity — all without sending data to third-party services.
 
+Sentinel CLI is invoked when you choose to run a command; it is not a background
+service by default. You can run it repeatedly, schedule it in your CI system,
+or let a supported coding agent use its installed skills. Cloud-backed commands
+may send the data documented for those commands; review their help and
+configuration before use. Local commands and integrations can have different
+network behavior.
+
 It also integrates with AI coding agents (Claude, Cursor, Cline, Windsurf, OpenCode, Roo, Gemini, Codex) via platform-specific skills and a Model Context Protocol (MCP) server, but Sentinel works standalone as a CLI security tool for any development workflow.
 
 ---
@@ -90,6 +97,11 @@ sntnl build observe "npm run build"
 # Install skills for AI coding agents (optional)
 sntnl install-skills
 ```
+
+For an ongoing workflow, call the relevant scan from your CI pipeline on the
+events you choose (for example, pull-request updates and scheduled dependency
+reviews). A standalone local invocation only scans when you run it; installing
+the CLI does not enable a persistent watcher by itself.
 
 ---
 

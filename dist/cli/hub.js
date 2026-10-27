@@ -55,6 +55,7 @@ const lite_scanner_1 = require("../core/lite/lite_scanner");
 const memory_manager_1 = require("./intelligence/memory_manager");
 const classify_1 = require("./classify");
 const pulse_mode_1 = require("./cloud/pulse_mode");
+const cloud_keys_cmd_1 = require("./cloud_keys_cmd");
 const cloud_client_1 = require("./cloud/cloud_client");
 const FREE_TIER_LIMIT = 3;
 let pulseBalanceLabel = null;
@@ -113,7 +114,8 @@ const i18n = {
         menu_opt9: 'Your Security — Integrity & Trust Policy',
         menu_opt10: 'Network Auditor',
         menu_opt11: 'Pulse Mode — scans via Cloud subscription',
-        menu_opt12: 'Exit',
+        menu_opt12: 'Cloud Keys Management (Censored / Add / Revoke)',
+        menu_opt13: 'Exit',
         pulse_toggle: 'Pulse mode: {state}',
         pulse_on: 'ON (full-engine scans consume subscription pulses)',
         pulse_off: 'OFF (scans run on the local engine)',
@@ -178,7 +180,8 @@ const i18n = {
         menu_opt9: 'Tu Seguridad — Política de Integridad y Confianza',
         menu_opt10: 'Network Auditor',
         menu_opt11: 'Modo Pulso — scans mediante suscripción Cloud',
-        menu_opt12: 'Salir',
+        menu_opt12: 'Gestión de Claves Cloud (Censuradas / Añadir / Revocar)',
+        menu_opt13: 'Salir',
         pulse_toggle: 'Modo pulso: {state}',
         pulse_on: 'ACTIVADO (los scans del motor full consumen pulsos de la suscripción)',
         pulse_off: 'DESACTIVADO (los scans corren en el motor local)',
@@ -368,8 +371,9 @@ function startInteractiveHub() {
                 ? ' — ' + pc.green('PULSE: ON') + (pulseBalanceLabel ? pc.dim(' · ' + pulseBalanceLabel) : '')
                 : ' — ' + pc.gray('PULSE: OFF');
             console.log(pc.blue(' 11.') + pc.white(` ⚡ ${t('menu_opt11')}`) + pc.dim(pulseSuffix));
-            console.log(pc.blue(' 12.') + pc.white(` 🚪 ${t('menu_opt12')}`));
-            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-12): `));
+            console.log(pc.blue(' 12.') + pc.white(` 🔑 ${t('menu_opt12')}`));
+            console.log(pc.blue(' 13.') + pc.white(` 🚪 ${t('menu_opt13')}`));
+            const mainAction = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-13): `));
             if (mainAction === '0') {
                 yield handlePRBot();
                 printHeader();
@@ -461,6 +465,10 @@ function startInteractiveHub() {
                 printHeader();
             }
             else if (mainAction === '12') {
+                yield (0, cloud_keys_cmd_1.promptKeysInteractive)();
+                printHeader();
+            }
+            else if (mainAction === '13') {
                 console.log(pc.cyan(`\n${t('session_end')}\n`));
                 if (rlInstance) {
                     rlInstance.close();

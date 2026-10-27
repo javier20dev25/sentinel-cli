@@ -61,6 +61,8 @@ import { listPulseResults, findPulseResult } from './cloud/pulse_store';
 import { renderResultsSummary, renderStoredPulseResult, isResultsFormat } from './cloud/pulse_render';
 import { runContribute } from './cloud/contribute';
 import { runMatch, runScanMatchAnnotation } from './cloud/match';
+import { promptKeysInteractive } from './cloud_keys_cmd';
+import { runPRWorkflow } from './pr_cmd';
 
 const program = new Command();
 const scanner = new LiteScanner();
@@ -3792,6 +3794,26 @@ program
         }
         process.exitCode = result.exitCode;
     });
+
+program
+  .command('keys')
+  .description('Manage, list, add, and revoke Sentinel Cloud API keys')
+  .action(async () => {
+    await promptKeysInteractive();
+  });
+
+program
+  .command('pr')
+  .description('Enumerate and audit repository PRs with Lite SAST or Cloud pulses')
+  .option('--repo <owner/repo>', 'Target repository')
+  .option('--pr <number>', 'PR number to audit')
+  .action(async (opts: { repo?: string; pr?: string }) => {
+    await runPRWorkflow({
+      repo: opts.repo,
+      prNumber: opts.pr ? parseInt(opts.pr, 10) : undefined
+    });
+  });
+
 
 program
     .command('remote-scan')

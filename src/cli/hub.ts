@@ -11,6 +11,7 @@ import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
 import { MemoryManager } from './intelligence/memory_manager';
 import { handleClassifiedMenu } from './classify';
 import { loadPulseMode, savePulseMode, isPulseModeEnabled } from './cloud/pulse_mode';
+import { promptKeysInteractive } from './cloud_keys_cmd';
 import { loadSession, getResolvedBaseUrl, fetchUsage } from './cloud/cloud_client';
 
 const FREE_TIER_LIMIT = 3;
@@ -65,7 +66,8 @@ const i18n: Record<string, Record<string, string>> = {
         menu_opt9: 'Your Security — Integrity & Trust Policy',
         menu_opt10: 'Network Auditor',
         menu_opt11: 'Pulse Mode — scans via Cloud subscription',
-        menu_opt12: 'Exit',
+        menu_opt12: 'Cloud Keys Management (Censored / Add / Revoke)',
+        menu_opt13: 'Exit',
         pulse_toggle: 'Pulse mode: {state}',
         pulse_on: 'ON (full-engine scans consume subscription pulses)',
         pulse_off: 'OFF (scans run on the local engine)',
@@ -130,7 +132,8 @@ const i18n: Record<string, Record<string, string>> = {
         menu_opt9: 'Tu Seguridad — Política de Integridad y Confianza',
         menu_opt10: 'Network Auditor',
         menu_opt11: 'Modo Pulso — scans mediante suscripción Cloud',
-        menu_opt12: 'Salir',
+        menu_opt12: 'Gestión de Claves Cloud (Censuradas / Añadir / Revocar)',
+        menu_opt13: 'Salir',
         pulse_toggle: 'Modo pulso: {state}',
         pulse_on: 'ACTIVADO (los scans del motor full consumen pulsos de la suscripción)',
         pulse_off: 'DESACTIVADO (los scans corren en el motor local)',
@@ -333,9 +336,10 @@ export async function startInteractiveHub() {
             ? ' — ' + pc.green('PULSE: ON') + (pulseBalanceLabel ? pc.dim(' · ' + pulseBalanceLabel) : '')
             : ' — ' + pc.gray('PULSE: OFF');
         console.log(pc.blue(' 11.') + pc.white(` ⚡ ${t('menu_opt11')}`) + pc.dim(pulseSuffix));
-        console.log(pc.blue(' 12.') + pc.white(` 🚪 ${t('menu_opt12')}`));
+        console.log(pc.blue(' 12.') + pc.white(` 🔑 ${t('menu_opt12')}`));
+        console.log(pc.blue(' 13.') + pc.white(` 🚪 ${t('menu_opt13')}`));
 
-        const mainAction = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-12): `));
+        const mainAction = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (0-13): `));
 
         if (mainAction === '0') {
             await handlePRBot();
@@ -414,6 +418,9 @@ export async function startInteractiveHub() {
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
             printHeader();
         } else if (mainAction === '12') {
+            await promptKeysInteractive();
+            printHeader();
+        } else if (mainAction === '13') {
             console.log(pc.cyan(`\n${t('session_end')}\n`));
             if (rlInstance) {
                 rlInstance.close();

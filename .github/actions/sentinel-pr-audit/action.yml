@@ -8,9 +8,9 @@ branding:
 
 inputs:
   sentinel-version:
-    description: 'Version of @sentinel/cli to install (npm install -g @sentinel/cli@<version>)'
+    description: 'Deprecated. The CLI is built and installed from the checked-out repository.'
     required: false
-    default: 'latest'
+    default: 'local'
   github-token:
     description: 'GitHub token for API calls (defaults to github.token)'
     required: false
@@ -27,12 +27,12 @@ runs:
       with:
         node-version: 20
 
-    - name: Install Sentinel CLI
+    - name: Install Sentinel CLI from checkout
       shell: bash
-      env:
-        SENTINEL_VERSION: ${{ inputs.sentinel-version }}
       run: |
-        npm install -g @sentinel/cli@"$SENTINEL_VERSION"
+        npm ci
+        npm run build
+        npm install -g .
 
     - name: Audit PR
       id: audit
@@ -46,7 +46,7 @@ runs:
         SENTINEL_OUTPUT: /tmp/sentinel-result.json
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        sentinel pr-audit
+        sntnl pr-audit
 
     - name: Report failure
       if: failure() && steps.audit.outcome == 'failure'

@@ -10,6 +10,7 @@ Architecture, installation, and reference for integrating Sentinel into any AI c
 skills/
   CONSTITUTION.md      # Shared rules (referenced by all adapters)
   GENERIC.md           # Universal skill for any agent
+  sentinel-hardening/SKILL.md # Local dependency hardening review workflow
 
   adapters/
     claude/CLAUDE.md
@@ -32,6 +33,8 @@ install-skills.ps1     # Bootstrap for Windows
 ```
 
 Each adapter contains the same core content (constitution rules, command reference, workflows, evidence policy) formatted for the target agent platform. Only the file format and syntax differ.
+
+The focused `sentinel-hardening` skill is an additional project skill for agents that need package-manager posture reviews. It is distributed with the npm package and can be referenced directly by compatible agents; use `sntnl hardening --path .` for the deterministic local report. It does not execute scripts or upload code.
 
 ---
 

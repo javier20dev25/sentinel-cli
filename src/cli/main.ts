@@ -11,6 +11,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
+import { auditProject, createProfile, loadProfile, profilePath, renderAudit, saveProfile, TOGGLE_LABELS, type SecurityProfileName, type SecurityToggle } from './security_profiles';
 import { calculateAgencyScore } from '../core/agency_score';
 import { buildEvidenceCards } from '../core/evidence_card';
 import { renderEvidenceCards } from './render_evidence';
@@ -82,7 +83,7 @@ async function preFlightCheck() {
 
 program
     .name('sentinel')
-    .version('4.0.0')
+    .version('4.3.0')
     .description('Sentinel Security Intelligence — SAST, supply chain, threat intel + Skills/MCP for AI agents');
 
 // --- Subcommands ---
@@ -2068,7 +2069,7 @@ program
 program
     .command('audit-deps')
     .description('Comprehensive dependency audit: lockfile parse, OSV CVE lookup, registry reputation, provenance, npm audit.')
-    .option('--lockfile <path>', 'Path to lockfile (auto-detect: package-lock.json, yarn.lock)', '')
+    .option('--lockfile <path>', 'Path to lockfile (auto-detect: package-lock.json, pnpm-lock.yaml, yarn.lock)', '')
     .option('--provenance', 'Check npm attestation/provenance for top-level deps')
     .option('--quarantine', 'Auto-quarantine packages with CRITICAL findings')
     .option('--npm-audit', 'Also run npm audit --json and show results')
@@ -2086,7 +2087,7 @@ program
         // 1. Detect and parse lockfile
         let lockfilePath = options.lockfile;
         if (!lockfilePath) {
-            const candidates = ['package-lock.json', 'yarn.lock'];
+            const candidates = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'];
             for (const c of candidates) {
                 const testPath = path.join(cwd, c);
                 if (fs.existsSync(testPath)) { lockfilePath = testPath; break; }
@@ -2419,6 +2420,102 @@ program
             }
             console.log('');
         }
+    });
+
+program
+    .command('hardening')
+    .description('Review package-manager posture, inspect startup scripts, and manage independent security-profile toggles.')
+    .argument('[action]', 'audit | status | preset | toggle | menu', 'audit')
+    .argument('[value]', 'Preset name or toggle name')
+    .argument('[state]', 'on | off (for toggle)')
+    .option('--path <path>', 'Project path to inspect', '.')
+    .option('--json', 'Emit machine-readable audit/profile JSON')
+    .action(async (action: string, value: string | undefined, state: string | undefined, options: { path: string; json?: boolean }) => {
+        let profile = loadProfile();
+        const printProfile = (): void => {
+            const runtime = { guard: isGuardEnabled(), precommit: isPreCommitHookInstalled(process.cwd()) };
+            if (options.json) { console.log(JSON.stringify({ ...profile, runtimeIntegrations: runtime }, null, 2)); return; }
+            console.log(`Security profile: ${profile.preset} (${profilePath()})`);
+            console.log(`Active integrations in current shell/repository: Guard=${runtime.guard ? 'on' : 'off'}, SAST pre-commit=${runtime.precommit ? 'on' : 'off'}`);
+            console.log('Checkboxes are desired preferences; active integrations are shown separately above.');
+            for (const key of Object.keys(profile.toggles) as SecurityToggle[]) {
+                console.log(`  [${profile.toggles[key] ? 'x' : ' '}] ${key}: ${TOGGLE_LABELS[key]}`);
+            }
+        };
+        if (action === 'status') { printProfile(); return; }
+        if (action === 'preset') {
+            if (!value || !['agile', 'strict', 'ci'].includes(value)) {
+                console.error('Choose a preset: agile | strict | ci'); process.exitCode = 2; return;
+            }
+            profile = createProfile(value as SecurityProfileName);
+            saveProfile(profile);
+            console.log(`Applied ${value} preset. Review enabled integrations with 'sentinel hardening status'.`);
+            return;
+        }
+        if (action === 'toggle') {
+            const valid = Object.keys(TOGGLE_LABELS) as SecurityToggle[];
+            if (!value || !valid.includes(value as SecurityToggle) || !['on', 'off'].includes(state || '')) {
+                console.error(`Usage: sentinel hardening toggle <${valid.join('|')}> <on|off>`); process.exitCode = 2; return;
+            }
+            profile.toggles[value as SecurityToggle] = state === 'on';
+            profile.preset = 'custom';
+            saveProfile(profile);
+            console.log(`${value} ${state}. This stores a preference; it does not silently edit project files or install hooks.`);
+            return;
+        }
+        if (action === 'menu') {
+            const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+            const ask = (question: string): Promise<string> => new Promise(resolve => rl.question(question, resolve));
+            try {
+                while (true) {
+                    console.log('\nSentinel security profiles');
+                    console.log('1. Agile   2. Strict   3. CI   4. Toggle   5. Audit project   0. Back');
+                    const choice = (await ask('Select: ')).trim();
+                    if (choice === '0' || !choice) break;
+                    if (choice === '1' || choice === '2' || choice === '3') {
+                        const preset = choice === '1' ? 'agile' : choice === '2' ? 'strict' : 'ci';
+                        profile = createProfile(preset);
+                        saveProfile(profile); console.log(`Applied ${preset} preset.`);
+                        if (preset === 'strict') {
+                            const approve = (await ask('Strict profile can install Sentinel Guard wrappers and a Git pre-commit hook in this repository. Apply those system/repository changes now? (y/N): ')).trim().toLowerCase();
+                            if (approve === 'y' || approve === 'yes') {
+                                const guardResult = enableGuard();
+                                console.log(guardResult.success ? `Guard enabled: ${guardResult.profilePath}` : `Guard: ${guardResult.reason}`);
+                                const hook = installSastPreCommitHook(process.cwd());
+                                console.log(hook ? 'SAST pre-commit hook installed.' : 'SAST pre-commit hook was not installed (check repository state).');
+                            }
+                        }
+                    } else if (choice === '4') {
+                        const keys = Object.keys(TOGGLE_LABELS) as SecurityToggle[];
+                        keys.forEach((key, i) => console.log(`${i + 1}. [${profile.toggles[key] ? 'x' : ' '}] ${key} — ${TOGGLE_LABELS[key]}`));
+                        const selected = parseInt(await ask('Toggle number (0 cancels): '), 10) - 1;
+                        if (selected >= 0 && selected < keys.length) {
+                            const key = keys[selected];
+                            const enabled = !profile.toggles[key];
+                            profile.toggles[key] = enabled; profile.preset = 'custom'; saveProfile(profile);
+                            if (key === 'guard') {
+                                if (enabled) { const result = enableGuard(); console.log(result.success ? `Guard enabled: ${result.profilePath}` : result.reason); }
+                                else { const result = disableGuard(); console.log(result.success ? 'Guard disabled.' : result.reason); }
+                            } else if (key === 'precommit') {
+                                const result = enabled ? installSastPreCommitHook(process.cwd()) : uninstallPreCommitHook(process.cwd());
+                                console.log(result ? `SAST pre-commit ${enabled ? 'installed' : 'removed'}.` : 'Could not change SAST pre-commit hook.');
+                            } else if (key === 'classified') {
+                                console.log('Classified-data check is included in the Sentinel SAST pre-commit hook. Toggle precommit to install/remove that hook.');
+                            } else if (key === 'ignoreScripts') {
+                                console.log('No files changed. To review a safe project-local proposal, use the hardening audit report and edit .npmrc yourself.');
+                            } else if (key === 'lockfile' || key === 'newPackages' || key === 'provenance') {
+                                console.log('Preference saved. This informational check is not an enforcement or registry metadata integration yet.');
+                            }
+                        }
+                    } else if (choice === '5') console.log(renderAudit(auditProject(options.path, scanner)));
+                    else console.log('Choose 0–5.');
+                }
+            } finally { rl.close(); }
+            return;
+        }
+        const audit = auditProject(options.path, scanner);
+        if (options.json) console.log(JSON.stringify({ audit, profile }, null, 2));
+        else console.log(renderAudit(audit));
     });
 
 // --- Pre-commit Hook Command ---

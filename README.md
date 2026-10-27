@@ -141,6 +141,13 @@ sntnl scan ./src
 # Audit all dependencies
 sntnl audit-deps
 
+# Review dependency hardening, startup/lifecycle scripts, and package-manager config
+sntnl hardening --path .
+sntnl hardening --path . --json
+sntnl hardening status
+sntnl hardening preset strict
+sntnl hardening toggle lockfile off
+
 # Start network monitoring
 sntnl network start
 
@@ -234,7 +241,7 @@ PR Bot auto-analyzes all open PRs across your repos, posts findings as PR commen
 
 ### 7. Security Guard
 
-OS-level package manager interception and git hooks:
+Package-manager shell wrappers and Git hooks. Guard applies where Sentinel's shell path/profile setup is active; it is not a kernel-level interceptor. Use the hardening audit for a local, informational review of startup/lifecycle scripts and package-manager configuration. The audit does not execute project code, install packages, or upload project content.
 
 ```bash
 sntnl guard enable            # Intercept npm/yarn/pip installs
@@ -243,6 +250,16 @@ sntnl precommit install       # Block commits with threats
 sntnl prepush install         # Block pushes with threats
 sntnl install npm <pkg>       # Scan then install
 ```
+
+Security profiles store independent local preferences (`agile`, `strict`, or `ci`). The interactive menu can offer to install the existing Guard and SAST pre-commit integrations. The audit reports suspicious static patterns as review signals, not proof of malicious behavior. It does not edit `.npmrc`; disabling lifecycle scripts may break native dependencies and does not prevent runtime scripts. Package-age quarantine and provenance toggles are preferences only in this release.
+
+```bash
+sntnl hardening --path .      # Local package and startup-script review
+sntnl hardening --json        # Machine-readable report
+sntnl hardening menu          # Choose a profile, toggle protections, or audit
+```
+
+See [Security Profiles](./docs/SECURITY_PROFILES.md) for scope, privacy behavior, and limitations.
 
 ### 8. Threat Intelligence Memory
 
@@ -676,6 +693,7 @@ Sentinel evidence (Tier 1) overrides model reasoning (Tier 4).
 | [Risk Engine](./docs/risk-engine.md) | Risk scoring methodology |
 | [Trust Model](./docs/TRUST_MODEL.md) | Evidence hierarchy and calibration |
 | [Skills](./docs/SKILLS.md) | AI agent integration guide |
+| [Security Profiles](./docs/SECURITY_PROFILES.md) | Package-manager hardening review and profile limitations |
 | [CI/CD Security](./docs/CI_CD_SECURITY.md) | CI pipeline security |
 | [Corpus](./docs/corpus.md) | Canonical profile system |
 | [Replay System](./docs/replay-system.md) | Session replay architecture |

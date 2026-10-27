@@ -13,7 +13,6 @@ import { handleClassifiedMenu } from './classify';
 import { loadPulseMode, savePulseMode, isPulseModeEnabled } from './cloud/pulse_mode';
 import { promptKeysInteractive } from './cloud_keys_cmd';
 import { loadSession, getResolvedBaseUrl, fetchUsage } from './cloud/cloud_client';
-import { promptHardeningMenu } from './security_profiles';
 
 const FREE_TIER_LIMIT = 3;
 
@@ -486,8 +485,7 @@ async function handleConfigurationMenu() {
         console.log(pc.blue('  4.') + pc.white(` ⭐ ${t('config_opt4')}`));
         console.log(pc.blue('  5.') + pc.white(' 🛡️  Security Hardening Profiles'));
         console.log(pc.blue('  6.') + pc.white(` 📝 Install/Uninstall SAST Pre-Commit Hook`));
-        console.log(pc.blue('  7.') + pc.white(' Security profiles & dependency hardening'));
-        console.log(pc.blue('  8.') + pc.white(` 🔙 ${t('config_opt5')}`));
+        console.log(pc.blue('  7.') + pc.white(` 🔙 ${t('config_opt5')}`));
         
         const action = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (1-8): `));
 
@@ -505,7 +503,8 @@ async function handleConfigurationMenu() {
             await runCommand(['guard', 'trust-cache']);
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
         } else if (action === '5') {
-            await promptHardeningMenu();
+            await runCommand(['hardening', 'menu']);
+            await askQuestion(pc.dim(`\n${t('press_enter')}`));
         } else if (action === '6') {
             const pwd = process.cwd();
             console.log(pc.cyan(`\n? Targeting repository: ${pwd}`));

@@ -99,7 +99,7 @@ function redactSensitive(value: string): string {
         .replace(/(https?:\/\/)[^/@\s:]+:[^/@\s]+@/gi, '$1[REDACTED]@')
         .replace(/\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})\b/g, '[REDACTED_TOKEN]')
         .replace(/\b(sk_live_|rk_live_|xox[baprs]-|SG\.)[A-Za-z0-9_./+-]{12,}/g, '$1[REDACTED]')
-        .replace(/((?:password|passwd|token|secret|api[_-]?key)\s*[=:]\s*['"]?)[^\s,'";]{6,}/gi, '$1[REDACTED]');
+        .replace(/((?:password|passwd|token|secret|api[_-]?key)\s*[=:]\s*['"]?)[^\s,'";]{6,}/gi, '$1[REDACTED_TOKEN]');
 }
 
 function readBoundedRegularFile(filePath: string, maxBytes: number): string | null {

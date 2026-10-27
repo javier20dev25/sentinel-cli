@@ -73,9 +73,10 @@ describe('security profiles', () => {
 
     it('redacts credentials from emitted script commands and finding snippets', () => {
         const root = fixture();
-        fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ scripts: { start: 'TOKEN=github_pat_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 node app.js' } }));
+        const fakeToken = 'github_pat_' + 'A'.repeat(36);
+        fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ scripts: { start: `TOKEN=${fakeToken} node app.js` } }));
         const report = auditProject(root);
-        expect(JSON.stringify(report)).not.toContain('github_pat_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890');
+        expect(JSON.stringify(report)).not.toContain(fakeToken);
         expect(JSON.stringify(report)).toContain('[REDACTED_TOKEN]');
     });
 });

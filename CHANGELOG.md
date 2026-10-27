@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.1
+
+- Added a live terminal progress map for pull-request scans in Sentinel CLI.
+- Fixed Sentinel Cloud mode to scan the full PR through Cloud Pulses, pinned to the GitHub head SHA; the API key is sent only to Sentinel Cloud.
+- Kept Sentinel Lite as an independent local option that analyzes the PR diff without using Cloud Pulses.
+
 ## v4.3.0
 
 - Added `sntnl hardening` with agile, strict, and CI preference profiles, independently configurable toggles, and an informational local audit of package scripts, `.npmrc`, and lockfile signals.

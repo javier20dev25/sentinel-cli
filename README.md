@@ -111,6 +111,24 @@ sntnl doctor --deep
 sntnl integrity
 ```
 
+`sntnl pr` muestra un mapa en vivo del proceso en stderr. Puedes elegir Sentinel
+Lite para analizar localmente el diff, o Sentinel Cloud para enviar el repositorio
+y número de PR al endpoint completo de análisis de Cloud. La solicitud queda
+fijada al SHA que mostró GitHub; Cloud rechaza el inicio si el head cambió. El
+modo Cloud requiere una API key con permiso de escaneo y consume un pulso. La key
+de Sentinel se envía únicamente a Sentinel Cloud; Sentinel CLI no reenvía el
+token de GitHub. El acceso a repositorios privados depende de que Sentinel Cloud
+pueda acceder al repositorio.
+
+El endpoint devuelve el resultado consolidado del motor Cloud, no eventos en
+vivo de cada analizador interno. El mapa muestra autenticación, PR/SHA, ejecución
+y resultado con esa limitación explícita.
+
+El mapa usa color y animación en terminales interactivas, y texto sencillo en
+CI o pipes. `NO_COLOR` y `TERM=dumb` desactivan color. Consulta
+[`docs/pr-progress-map.md`](./docs/pr-progress-map.md) para el detalle de alcance
+y estados.
+
 ---
 
 ## 📸 Galería Visual de la Interfaz (Sentinel CLI)

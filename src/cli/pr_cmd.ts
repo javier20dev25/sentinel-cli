@@ -1,17 +1,20 @@
 import * as readline from 'readline';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as pc from 'picocolors';
 import { listKeys, getKey, maskToken, DISCLAIMER_TEXT, StoredKey } from './cloud_keys_cmd';
 import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
+import { PRProgressMap } from './pr_progress';
+import { fetchCapabilities, fetchCloudPRScan, fetchUsage, getResolvedBaseUrl } from './cloud/cloud_client';
 
 interface PRInfo {
   number: number;
   title: string;
   author?: { login: string };
   headRefName?: string;
+  headRefOid?: string;
 }
 
 function checkGitHubSession(): { authenticated: boolean; account: string; method: string } {
@@ -183,13 +186,17 @@ export async function runPRWorkflow(options?: { repo?: string; prNumber?: number
       const defaultRepo = options?.repo || detectCurrentRepo();
       const repoInput = await ask(`\nRepositorio [owner/repo] (default: ${defaultRepo}): `);
       const repo = repoInput || defaultRepo;
+      if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+        console.log(pc.red('Repositorio inválido. Usa el formato owner/repo.'));
+        continue;
+      }
 
       // 3. Enumerar PRs abiertos
       console.log(`\nConsultando Pull Requests abiertos en ${repo}...`);
       let prList: PRInfo[] = [];
       try {
-        const cmd = `gh pr list --repo ${repo} --json number,title,author,headRefName --limit 15`;
-        const raw = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('Repositorio inválido; usa owner/repo.');
+        const raw = execFileSync('gh', ['pr', 'list', '--repo', repo, '--json', 'number,title,author,headRefName,headRefOid', '--limit', '15'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
         prList = JSON.parse(raw);
       } catch (err: any) {
         console.log(pc.yellow(`⚠ No se pudo enumerar vía gh (${err.message}).`));
@@ -229,6 +236,10 @@ export async function runPRWorkflow(options?: { repo?: string; prNumber?: number
       }
 
       const engineChoice = await ask('Selecciona [1 o 2]: ');
+      if (engineChoice !== '1' && engineChoice !== '2') {
+        console.log(pc.yellow('Selecciona 1 o 2 para elegir un motor.'));
+        continue;
+      }
       let selectedKey: StoredKey | null = null;
 
       if (engineChoice === '2') {
@@ -250,45 +261,98 @@ export async function runPRWorkflow(options?: { repo?: string; prNumber?: number
         }
       }
 
-      // 5. Descargar Diff de GitHub
-      console.log(`\nDescargando diff de PR #${prNumber} en ${repo}...`);
-      let diff = '';
-      try {
-        diff = execSync(`gh pr diff ${prNumber} --repo ${repo}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-      } catch (err: any) {
-        console.log(pc.red(`Error al obtener diff de GitHub: ${err.message}`));
-        return;
-      }
-
-      console.log(`Diff descargado (${Buffer.byteLength(diff, 'utf8')} bytes). Analizando con Motor Lite...`);
-      const files = parseUnifiedDiff(diff);
-      const scanner = new LiteScanner();
-      const authorInfo = prList.find(p => p.number === prNumber)?.author?.login || 'unknown';
-
-      const auditResult = await scanner.auditPR(repo, prNumber, authorInfo, files);
-      const findings = auditResult.findings || [];
-
-      const criticalCount = findings.filter(f => f.severity === 'CRITICAL').length;
-      const highCount = findings.filter(f => f.severity === 'HIGH').length;
-      const mediumCount = findings.filter(f => f.severity === 'MEDIUM').length;
-      const lowCount = findings.filter(f => f.severity === 'LOW').length;
-
-      let riskScore = 0;
-      if (criticalCount > 0) riskScore = Math.min(100, 70 + criticalCount * 10);
-      else if (highCount > 0) riskScore = Math.min(69, 40 + highCount * 10);
-      else if (mediumCount > 0) riskScore = Math.min(39, 15 + mediumCount * 5);
-      else if (lowCount > 0) riskScore = 10;
-
+      const useCloud = engineChoice === '2' && !!selectedKey;
+      const progress = new PRProgressMap(useCloud ? 'cloud' : 'lite', prNumber);
+      let findings: LiteFinding[] = [];
       let verdict = 'PASS';
-      if (criticalCount > 0 || highCount >= 2) verdict = 'BLOCK';
-      else if (highCount > 0 || mediumCount > 0) verdict = 'FLAG';
+      let riskScore = 0;
+      let cloudVersion = '';
+      let authorInfo = prList.find(p => p.number === prNumber)?.author?.login || 'unknown';
+      let activeStage = 'PR';
+      try {
+        progress.update({ stage: 'PR', state: 'RUNNING', detail: `resolviendo head de PR #${prNumber}` });
+        const listed = prList.find(p => p.number === prNumber);
+        const metadata = listed?.headRefOid ? listed : JSON.parse(execFileSync('gh', ['pr', 'view', String(prNumber), '--repo', repo, '--json', 'headRefOid,author'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+        const headSha = String(metadata.headRefOid || '');
+        if (!/^[0-9a-f]{40}$/i.test(headSha)) throw new Error('GitHub no devolvió el SHA completo del head del PR.');
+        authorInfo = metadata.author?.login || authorInfo;
+        progress.update({ stage: 'PR', state: 'COMPLETE', detail: `head ${headSha.slice(0, 12)}` });
 
-      console.log('\n' + pc.cyan('══════════════════════════════════════════════════════════'));
+        if (useCloud) {
+          activeStage = 'SOURCE';
+          progress.update({ stage: 'SOURCE', state: 'COMPLETE', detail: `Cloud resolverá el PR completo en el SHA ${headSha.slice(0, 12)}` });
+
+          activeStage = 'AUTH';
+          progress.update({ stage: 'AUTH', state: 'RUNNING', detail: 'validando permiso remote_scan' });
+          const baseUrl = getResolvedBaseUrl(undefined, process.env);
+          const capabilities = await fetchCapabilities(selectedKey!.token, baseUrl);
+          if (!capabilities.ok) throw new Error(`No se pudo validar la clave Sentinel Cloud${capabilities.status ? ` (HTTP ${capabilities.status})` : ''}.`);
+          if (!capabilities.data.capabilities.remote_scan) throw new Error('El plan de esta clave no tiene habilitado remote_scan.');
+          progress.update({ stage: 'AUTH', state: 'COMPLETE', detail: `plan ${capabilities.data.planLabel}` });
+
+          activeStage = 'ENGINE';
+          progress.update({ stage: 'ENGINE', state: 'RUNNING', detail: 'Cloud analiza el PR completo; esta solicitud consume 1 pulso' });
+          const remote = await fetchCloudPRScan(repo, prNumber, headSha, selectedKey!.token, baseUrl);
+          if (!remote.ok) throw new Error(remote.kind === 'quota' ? 'Cuota de pulsos agotada.' : remote.kind === 'busy' ? 'El motor Cloud está ocupado; no completó este análisis.' : remote.kind === 'auth' ? 'La clave de Sentinel Cloud fue rechazada.' : remote.error || `Sentinel Cloud no completó el análisis${remote.status ? ` (HTTP ${remote.status})` : ''}.`);
+          const cloudResult = remote.data;
+          cloudVersion = cloudResult.engine_version || 'desconocida';
+          verdict = String(cloudResult.level1.status || 'UNKNOWN').toUpperCase();
+          riskScore = typeof cloudResult.level1.score === 'number' ? cloudResult.level1.score : 0;
+          findings = (cloudResult.level3?.samples || []).map((f) => {
+            const severity = String(f.severity || f.riskLevel || 'INFO').toUpperCase();
+            const title = String(f.title || f.type || f.detector || 'Cloud finding');
+            const description = String(f.description || f.message || f.why || title);
+            const file = String(f.file || f._file || f._fullPath || 'unknown');
+            const line = Number(f.line || f.line_number || 0) || 0;
+            const snippet = String(f.snippet || f.evidence || '');
+            return { type: String(f.type || f.detector || 'cloud'), intent: String(f.category || 'Sentinel Cloud finding'), file, line, severity, title, description, snippet };
+          });
+          progress.update({ stage: 'ENGINE', state: 'COMPLETE', detail: `motor Cloud ${cloudVersion}; ${findings.length} hallazgos; ${cloudResult.scan_degraded ? 'análisis degradado' : verdict}` });
+          activeStage = 'RESULT';
+          progress.update({ stage: 'RESULT', state: 'COMPLETE', detail: `respuesta agregada ${verdict}` });
+          const usage = await fetchUsage(selectedKey!.token, baseUrl);
+          if (usage.ok) console.log(pc.dim(`Pulsos: ${usage.data.remaining} restantes de ${usage.data.limit}.`));
+        } else {
+          activeStage = 'DIFF';
+          progress.update({ stage: 'DIFF', state: 'RUNNING', detail: 'descargando diff con GitHub CLI' });
+          const diff = execFileSync('gh', ['pr', 'diff', String(prNumber), '--repo', repo], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 });
+          progress.update({ stage: 'DIFF', state: 'COMPLETE', detail: `${Buffer.byteLength(diff, 'utf8')} bytes` });
+          activeStage = 'ENGINE';
+          progress.update({ stage: 'ENGINE', state: 'RUNNING', detail: 'Sentinel Lite analiza el diff local' });
+          const files = parseUnifiedDiff(diff);
+          const scanner = new LiteScanner();
+          const auditResult = await scanner.auditPR(repo, prNumber, authorInfo, files);
+          findings = auditResult.findings || [];
+          progress.update({ stage: 'ENGINE', state: 'COMPLETE', detail: `${findings.length} señales locales` });
+          const c = findings.filter(f => f.severity === 'CRITICAL').length;
+          const h = findings.filter(f => f.severity === 'HIGH').length;
+          const m = findings.filter(f => f.severity === 'MEDIUM').length;
+          const l = findings.filter(f => f.severity === 'LOW').length;
+          riskScore = c ? Math.min(100, 70 + c * 10) : h ? Math.min(69, 40 + h * 10) : m ? Math.min(39, 15 + m * 5) : l ? 10 : 0;
+          verdict = c || h >= 2 ? 'BLOCK' : h || m ? 'FLAG' : 'PASS';
+          activeStage = 'RESULT';
+          progress.update({ stage: 'RESULT', state: 'COMPLETE', detail: `resultado Lite ${verdict}` });
+        }
+      } catch (err: any) {
+        progress.update({ stage: activeStage, state: 'FAILED', detail: err.message || String(err) });
+        progress.finish();
+        console.log(pc.red(`No se completó el análisis: ${err.message || err}`));
+        continue;
+      } finally {
+        progress.finish();
+      }
+      const criticalCount = findings.filter(f => f.severity.toUpperCase() === 'CRITICAL').length;
+      const highCount = findings.filter(f => f.severity.toUpperCase() === 'HIGH').length;
+      const mediumCount = findings.filter(f => f.severity.toUpperCase() === 'MEDIUM').length;
+      const lowCount = findings.filter(f => ['LOW', 'WARNING'].includes(f.severity.toUpperCase())).length;
+
+      console.log('\n' + pc.cyan('──────────────────────────────────────────────────────────'));
       console.log(pc.bold(`RESULTADO DEL ESCANEO: PR #${prNumber} (${repo})`));
+      console.log(pc.dim(cloudVersion ? `Motor: Sentinel Cloud ${cloudVersion}; alcance: análisis completo del PR en el SHA fijado.` : 'Motor: Sentinel Lite local; alcance: diff del pull request.'));
       const verdictColor = verdict === 'BLOCK' ? pc.red : (verdict === 'FLAG' ? pc.yellow : pc.green);
       console.log(`VEREDICTO:  ${verdictColor(`[ ${verdict} ]`)}  ·  RIESGO: ${riskScore}/100`);
       console.log(`HALLAZGOS:  CRITICAL: ${criticalCount} | HIGH: ${highCount} | MEDIUM: ${mediumCount} | LOW: ${lowCount}`);
-      console.log(pc.cyan('══════════════════════════════════════════════════════════'));
+      console.log(pc.cyan('──────────────────────────────────────────────────────────'));
 
       if (findings.length > 0) {
         findings.slice(0, 10).forEach((f, idx) => {
@@ -299,7 +363,7 @@ export async function runPRWorkflow(options?: { repo?: string; prNumber?: number
           console.log(pc.dim(`     ... y ${findings.length - 10} hallazgo(s) más.`));
         }
       } else {
-        console.log(pc.green('  ✓ Sin hallazgos sospechosos ni credenciales expuestas.'));
+        console.log(pc.green('  Sin hallazgos reportados por el motor seleccionado.'));
       }
 
       // Post-scan menu

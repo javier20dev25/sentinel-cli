@@ -111,6 +111,18 @@ sntnl doctor --deep
 sntnl integrity
 ```
 
+`sntnl pr` muestra un mapa en vivo del proceso en stderr. Sentinel Lite descarga
+y analiza localmente el diff del PR. Sentinel Cloud lee `package.json` del SHA
+exacto del head, valida `remote_scan` con la clave elegida y envía ese manifiesto
+al endpoint remoto, consumiendo un pulso. El endpoint actual no analiza el diff
+completo y no expone estados de sus analizadores internos; el mapa lo indica y
+muestra solo el estado y veredicto agregados que devuelve la API.
+
+El mapa usa color y animación en terminales interactivas, y texto sencillo en
+CI o pipes. `NO_COLOR` y `TERM=dumb` desactivan color. Consulta
+[`docs/pr-progress-map.md`](./docs/pr-progress-map.md) para el detalle de alcance
+y estados.
+
 ---
 
 ## 📸 Galería Visual de la Interfaz (Sentinel CLI)

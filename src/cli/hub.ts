@@ -13,6 +13,7 @@ import { handleClassifiedMenu } from './classify';
 import { loadPulseMode, savePulseMode, isPulseModeEnabled } from './cloud/pulse_mode';
 import { promptKeysInteractive } from './cloud_keys_cmd';
 import { loadSession, getResolvedBaseUrl, fetchUsage } from './cloud/cloud_client';
+import { promptHardeningMenu } from './security_profiles';
 
 const FREE_TIER_LIMIT = 3;
 
@@ -228,7 +229,7 @@ async function refreshDashboard() {
     }, 80);
 
     try {
-        const stats = ghBridge.getDashboardStats();
+        const stats = await ghBridge.getDashboardStatsAsync();
         done = true;
         clearInterval(spinner);
         const openColor = stats.openPRs > 0 ? (stats.openPRs > 5 ? pc.bgRed : pc.bgYellow) : pc.bgGreen;
@@ -483,7 +484,7 @@ async function handleConfigurationMenu() {
         console.log(pc.blue('  2.') + pc.white(` 🟢 ${t('config_opt2')}`));
         console.log(pc.blue('  3.') + pc.white(` 🔴 ${t('config_opt3')}`));
         console.log(pc.blue('  4.') + pc.white(` ⭐ ${t('config_opt4')}`));
-        console.log(pc.blue('  5.') + pc.white(` 🔐 ${t('config_opt5')}`));
+        console.log(pc.blue('  5.') + pc.white(' 🛡️  Security Hardening Profiles'));
         console.log(pc.blue('  6.') + pc.white(` 📝 Install/Uninstall SAST Pre-Commit Hook`));
         console.log(pc.blue('  7.') + pc.white(' Security profiles & dependency hardening'));
         console.log(pc.blue('  8.') + pc.white(` 🔙 ${t('config_opt5')}`));
@@ -504,6 +505,8 @@ async function handleConfigurationMenu() {
             await runCommand(['guard', 'trust-cache']);
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
         } else if (action === '5') {
+            await promptHardeningMenu();
+        } else if (action === '6') {
             const pwd = process.cwd();
             console.log(pc.cyan(`\n? Targeting repository: ${pwd}`));
             const choice = await askQuestion(pc.blue('  ❯ ') + pc.bold('Install (i), Uninstall (u), Status (s), or Skip (0)? '));
@@ -515,12 +518,9 @@ async function handleConfigurationMenu() {
                 await runCommand(['precommit', 'status']);
             }
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
-        } else if (action === '8') {
+        } else if (action === '7') {
             printHeader();
             break;
-        } else if (action === '7') {
-            await runCommand(['hardening', 'menu']);
-            await askQuestion(pc.dim(`\n${t('press_enter')}`));
         } else {
             console.log(pc.red(`    ${t('invalid_sel')}`));
         }

@@ -56,5 +56,11 @@ export declare class GitHubBridge {
     getPRDiff(repoFullName: string, prNumber: number): string | null;
     listTodayPRs(repoFullName: string): PullRequest[];
     getDashboardStats(): DashboardStats;
+    /**
+     * Non-blocking dashboard variant used by the interactive hub.  The sync
+     * bridge is kept for callers that already depend on it, while the hub can
+     * keep its progress indicator repainting while GitHub CLI responds.
+     */
+    getDashboardStatsAsync(): Promise<DashboardStats>;
 }
 export declare const ghBridge: GitHubBridge;

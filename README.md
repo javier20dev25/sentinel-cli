@@ -129,6 +129,18 @@ CI o pipes. `NO_COLOR` y `TERM=dumb` desactivan color. Consulta
 [`docs/pr-progress-map.md`](./docs/pr-progress-map.md) para el detalle de alcance
 y estados.
 
+### Dashboard, pulso y evidencia
+
+El Hub muestra una animación mientras consulta GitHub y mantiene la interfaz
+responsiva durante la carga del dashboard. En modo Pulso, cada hallazgo
+conserva la evidencia completa devuelta por Sentinel Cloud, incluyendo script,
+tipo, categoría y remediación cuando están disponibles. El modo local mantiene
+el formato compacto; usa `--json` para exportar el cuerpo íntegro del análisis.
+
+La configuración de `Sentinel Guard` tiene una única opción para volver al menú
+principal. Los perfiles de hardening y el hook SAST se gestionan desde sus
+opciones independientes.
+
 ---
 
 ## 📸 Galería Visual de la Interfaz (Sentinel CLI)

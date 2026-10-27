@@ -90,14 +90,25 @@ export function renderRemoteScan(data: RemoteScanResult, pulse?: boolean): strin
     lines.push(`Risk: ${data.risk} (score ${data.riskScore})`);
     lines.push(`Confidence: ${data.confidence}`);
     if (data.findings.length > 0) {
-        lines.push('Findings:');
+        lines.push(pulse ? 'Findings (full pulse evidence):' : 'Findings:');
         for (const finding of data.findings) {
             const suffix = finding.message ?? finding.description ? ` — ${finding.message ?? finding.description}` : '';
             lines.push(`  [${finding.severity}] ${finding.title}${suffix}`);
             if (finding.evidence) {
-                const firstLine = finding.evidence.split(/\r?\n/)[0];
-                lines.push(`      Evidence: ${truncate(firstLine, EVIDENCE_MAX_LENGTH)}`);
+                if (pulse) {
+                    lines.push('      Evidence:');
+                    for (const evidenceLine of finding.evidence.split(/\r?\n/)) {
+                        lines.push(`        ${evidenceLine}`);
+                    }
+                } else {
+                    const firstLine = finding.evidence.split(/\r?\n/)[0];
+                    lines.push(`      Evidence: ${truncate(firstLine, EVIDENCE_MAX_LENGTH)}`);
+                }
             }
+            if (pulse && finding.type) lines.push(`      Type: ${finding.type}`);
+            if (pulse && finding.category) lines.push(`      Category: ${finding.category}`);
+            if (pulse && finding.script) lines.push(`      Script: ${finding.script}`);
+            if (pulse && finding.remediation) lines.push(`      Remediation: ${finding.remediation}`);
         }
     }
     lines.push(summaryLine(data));

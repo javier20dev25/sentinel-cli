@@ -1,7 +1,18 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ghBridge = exports.GitHubBridge = void 0;
 const child_process_1 = require("child_process");
+const util_1 = require("util");
+const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 // Whitelist-only input validators
 const OWNER_REPO_REGEX = /^[a-zA-Z0-9._-]{1,100}\/[a-zA-Z0-9._-]{1,100}$/;
 const PR_NUMBER_REGEX = /^[1-9][0-9]{0,9}$/;
@@ -243,6 +254,67 @@ class GitHubBridge {
             unanalyzedPRs: totalOpen, // All open PRs start as unanalyzed
             repos: repoStats
         };
+    }
+    /**
+     * Non-blocking dashboard variant used by the interactive hub.  The sync
+     * bridge is kept for callers that already depend on it, while the hub can
+     * keep its progress indicator repainting while GitHub CLI responds.
+     */
+    getDashboardStatsAsync() {
+        return __awaiter(this, void 0, void 0, function* () {
+            let repos = [];
+            try {
+                const result = yield execFileAsync('gh', [
+                    'repo', 'list',
+                    '--limit', '50',
+                    '--json', 'name,nameWithOwner,description,visibility,updatedAt'
+                ], { encoding: 'utf8', timeout: 30000 });
+                const parsed = JSON.parse(String(result.stdout));
+                repos = parsed.map((r) => {
+                    var _a, _b, _c, _d, _f;
+                    return ({
+                        name: String((_a = r.name) !== null && _a !== void 0 ? _a : ''),
+                        fullName: String((_b = r.nameWithOwner) !== null && _b !== void 0 ? _b : ''),
+                        description: String((_c = r.description) !== null && _c !== void 0 ? _c : ''),
+                        visibility: String((_d = r.visibility) !== null && _d !== void 0 ? _d : ''),
+                        updatedAt: String((_f = r.updatedAt) !== null && _f !== void 0 ? _f : ''),
+                    });
+                }).filter((repo) => isValidOwnerRepo(repo.fullName));
+            }
+            catch (e) {
+                console.error('Error listing repos:', sanitizeForLog(e.message));
+            }
+            const repoStats = [];
+            let totalOpen = 0;
+            let totalToday = 0;
+            const today = new Date().toISOString().split('T')[0];
+            for (const repo of repos) {
+                try {
+                    const result = yield execFileAsync('gh', [
+                        'pr', 'list',
+                        '--repo', repo.fullName,
+                        '--state', 'open',
+                        '--limit', '30',
+                        '--json', 'number,title,author,updatedAt,createdAt,headRefName,state,url,additions,deletions,changedFiles'
+                    ], { encoding: 'utf8', timeout: 10000 });
+                    const openPRs = JSON.parse(String(result.stdout));
+                    const todayPRs = openPRs.filter((pr) => { var _a; return (_a = pr.createdAt) === null || _a === void 0 ? void 0 : _a.startsWith(today); });
+                    totalOpen += openPRs.length;
+                    totalToday += todayPRs.length;
+                    repoStats.push({ name: repo.name, fullName: repo.fullName, openPRs: openPRs.length, todayPRs: todayPRs.length, prs: openPRs });
+                }
+                catch (_a) {
+                    repoStats.push({ name: repo.name, fullName: repo.fullName, openPRs: 0, todayPRs: 0, prs: [] });
+                }
+            }
+            return {
+                totalRepos: repos.length,
+                openPRs: totalOpen,
+                todayPRs: totalToday,
+                unanalyzedPRs: totalOpen,
+                repos: repoStats,
+            };
+        });
     }
 }
 exports.GitHubBridge = GitHubBridge;

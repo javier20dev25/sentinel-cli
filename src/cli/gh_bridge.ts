@@ -1,4 +1,7 @@
-import { execFileSync, spawn } from 'child_process';
+import { execFile, execFileSync, spawn } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 // Whitelist-only input validators
 const OWNER_REPO_REGEX = /^[a-zA-Z0-9._-]{1,100}\/[a-zA-Z0-9._-]{1,100}$/;
@@ -283,6 +286,64 @@ export class GitHubBridge {
       todayPRs: totalToday,
       unanalyzedPRs: totalOpen, // All open PRs start as unanalyzed
       repos: repoStats
+    };
+  }
+
+  /**
+   * Non-blocking dashboard variant used by the interactive hub.  The sync
+   * bridge is kept for callers that already depend on it, while the hub can
+   * keep its progress indicator repainting while GitHub CLI responds.
+   */
+  async getDashboardStatsAsync(): Promise<DashboardStats> {
+    let repos: UserRepo[] = [];
+    try {
+      const result = await execFileAsync('gh', [
+        'repo', 'list',
+        '--limit', '50',
+        '--json', 'name,nameWithOwner,description,visibility,updatedAt'
+      ], { encoding: 'utf8', timeout: 30000 });
+      const parsed = JSON.parse(String(result.stdout)) as Array<Record<string, unknown>>;
+      repos = parsed.map((r) => ({
+        name: String(r.name ?? ''),
+        fullName: String(r.nameWithOwner ?? ''),
+        description: String(r.description ?? ''),
+        visibility: String(r.visibility ?? ''),
+        updatedAt: String(r.updatedAt ?? ''),
+      })).filter((repo) => isValidOwnerRepo(repo.fullName));
+    } catch (e: unknown) {
+      console.error('Error listing repos:', sanitizeForLog((e as Error).message));
+    }
+
+    const repoStats: DashboardStats['repos'] = [];
+    let totalOpen = 0;
+    let totalToday = 0;
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const repo of repos) {
+      try {
+        const result = await execFileAsync('gh', [
+          'pr', 'list',
+          '--repo', repo.fullName,
+          '--state', 'open',
+          '--limit', '30',
+          '--json', 'number,title,author,updatedAt,createdAt,headRefName,state,url,additions,deletions,changedFiles'
+        ], { encoding: 'utf8', timeout: 10000 });
+        const openPRs = JSON.parse(String(result.stdout)) as PullRequest[];
+        const todayPRs = openPRs.filter((pr) => pr.createdAt?.startsWith(today));
+        totalOpen += openPRs.length;
+        totalToday += todayPRs.length;
+        repoStats.push({ name: repo.name, fullName: repo.fullName, openPRs: openPRs.length, todayPRs: todayPRs.length, prs: openPRs });
+      } catch {
+        repoStats.push({ name: repo.name, fullName: repo.fullName, openPRs: 0, todayPRs: 0, prs: [] });
+      }
+    }
+
+    return {
+      totalRepos: repos.length,
+      openPRs: totalOpen,
+      todayPRs: totalToday,
+      unanalyzedPRs: totalOpen,
+      repos: repoStats,
     };
   }
 }

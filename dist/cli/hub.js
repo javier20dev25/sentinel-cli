@@ -57,6 +57,7 @@ const classify_1 = require("./classify");
 const pulse_mode_1 = require("./cloud/pulse_mode");
 const cloud_keys_cmd_1 = require("./cloud_keys_cmd");
 const cloud_client_1 = require("./cloud/cloud_client");
+const security_profiles_1 = require("./security_profiles");
 const FREE_TIER_LIMIT = 3;
 let pulseBalanceLabel = null;
 let pulseBalanceRefreshNeeded = true;
@@ -269,7 +270,7 @@ function refreshDashboard() {
             process.stdout.write(`\r${pc.cyan(SPIN[idx++ % SPIN.length])} ${pc.dim('Loading dashboard...')}  `);
         }, 80);
         try {
-            const stats = gh_bridge_1.ghBridge.getDashboardStats();
+            const stats = yield gh_bridge_1.ghBridge.getDashboardStatsAsync();
             done = true;
             clearInterval(spinner);
             const openColor = stats.openPRs > 0 ? (stats.openPRs > 5 ? pc.bgRed : pc.bgYellow) : pc.bgGreen;
@@ -528,7 +529,7 @@ function handleConfigurationMenu() {
             console.log(pc.blue('  2.') + pc.white(` 🟢 ${t('config_opt2')}`));
             console.log(pc.blue('  3.') + pc.white(` 🔴 ${t('config_opt3')}`));
             console.log(pc.blue('  4.') + pc.white(` ⭐ ${t('config_opt4')}`));
-            console.log(pc.blue('  5.') + pc.white(` 🔐 ${t('config_opt5')}`));
+            console.log(pc.blue('  5.') + pc.white(' 🛡️  Security Hardening Profiles'));
             console.log(pc.blue('  6.') + pc.white(` 📝 Install/Uninstall SAST Pre-Commit Hook`));
             console.log(pc.blue('  7.') + pc.white(` 🔙 ${t('config_opt5')}`));
             const action = yield askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (1-7): `));
@@ -550,6 +551,9 @@ function handleConfigurationMenu() {
                 yield askQuestion(pc.dim(`\n${t('press_enter')}`));
             }
             else if (action === '5') {
+                yield (0, security_profiles_1.promptHardeningMenu)();
+            }
+            else if (action === '6') {
                 const pwd = process.cwd();
                 console.log(pc.cyan(`\n? Targeting repository: ${pwd}`));
                 const choice = yield askQuestion(pc.blue('  ❯ ') + pc.bold('Install (i), Uninstall (u), Status (s), or Skip (0)? '));
@@ -564,7 +568,7 @@ function handleConfigurationMenu() {
                 }
                 yield askQuestion(pc.dim(`\n${t('press_enter')}`));
             }
-            else if (action === '6') {
+            else if (action === '7') {
                 printHeader();
                 break;
             }

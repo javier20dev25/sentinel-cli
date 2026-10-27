@@ -485,9 +485,10 @@ async function handleConfigurationMenu() {
         console.log(pc.blue('  4.') + pc.white(` ⭐ ${t('config_opt4')}`));
         console.log(pc.blue('  5.') + pc.white(` 🔐 ${t('config_opt5')}`));
         console.log(pc.blue('  6.') + pc.white(` 📝 Install/Uninstall SAST Pre-Commit Hook`));
-        console.log(pc.blue('  7.') + pc.white(` 🔙 ${t('config_opt5')}`));
+        console.log(pc.blue('  7.') + pc.white(' Security profiles & dependency hardening'));
+        console.log(pc.blue('  8.') + pc.white(` 🔙 ${t('config_opt5')}`));
         
-        const action = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (1-7): `));
+        const action = await askQuestion(pc.blue('  ❯ ') + pc.bold(`${t('select_opt')} (1-8): `));
 
         console.log('');
         if (action === '1') {
@@ -514,9 +515,12 @@ async function handleConfigurationMenu() {
                 await runCommand(['precommit', 'status']);
             }
             await askQuestion(pc.dim(`\n${t('press_enter')}`));
-        } else if (action === '6') {
+        } else if (action === '8') {
             printHeader();
             break;
+        } else if (action === '7') {
+            await runCommand(['hardening', 'menu']);
+            await askQuestion(pc.dim(`\n${t('press_enter')}`));
         } else {
             console.log(pc.red(`    ${t('invalid_sel')}`));
         }

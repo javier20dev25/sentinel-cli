@@ -141,6 +141,9 @@ sntnl scan ./src
 # Audit all dependencies
 sntnl audit-deps
 
+# Review dependency hardening, startup/lifecycle scripts, and package-manager config
+sntnl hardening --path .
+
 # Start network monitoring
 sntnl network start
 
@@ -676,6 +679,7 @@ Sentinel evidence (Tier 1) overrides model reasoning (Tier 4).
 | [Risk Engine](./docs/risk-engine.md) | Risk scoring methodology |
 | [Trust Model](./docs/TRUST_MODEL.md) | Evidence hierarchy and calibration |
 | [Skills](./docs/SKILLS.md) | AI agent integration guide |
+| [Security Profiles](./docs/SECURITY_PROFILES.md) | Package-manager hardening review and profile limitations |
 | [CI/CD Security](./docs/CI_CD_SECURITY.md) | CI pipeline security |
 | [Corpus](./docs/corpus.md) | Canonical profile system |
 | [Replay System](./docs/replay-system.md) | Session replay architecture |

@@ -10,6 +10,7 @@ import {
     getResolvedBaseUrl,
     resolveToken,
     fetchLookup,
+    fetchCloudPRScan,
 } from './cloud_client';
 import type { CapabilitiesEnvelope, Session } from './cloud_client';
 
@@ -218,6 +219,39 @@ describe('cloud_client fetchCapabilities', () => {
         if (result.ok) {
             expect(result.data.planActive).toBeNull();
             expect(result.data.landingUrl).toBeNull();
+        }
+    });
+});
+
+describe('cloud_client fetchCloudPRScan', () => {
+    const fetchMock = vi.fn();
+
+    beforeEach(() => vi.stubGlobal('fetch', fetchMock));
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('sends the full PR coordinates, expected SHA, bearer key, and idempotency key', async () => {
+        fetchMock.mockResolvedValue(new Response(JSON.stringify({ level1: { status: 'PASS', score: 0 }, level3: { samples: [] }, engine_version: '5.0' }), { status: 200 }));
+        const result = await fetchCloudPRScan('acme/app', 17, 'a'.repeat(40), 'sentinel-secret', 'https://cloud.example.com///', { idempotencyKey: 'scan-id-1' });
+        expect(result.ok).toBe(true);
+        const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe('https://cloud.example.com/api/scan/pr');
+        expect(request.headers).toMatchObject({ Authorization: 'Bearer sentinel-secret', 'Idempotency-Key': 'scan-id-1' });
+        expect(JSON.parse(String(request.body))).toEqual({ repo: 'acme/app', prNumber: 17, expectedHeadSha: 'a'.repeat(40) });
+    });
+
+    it('returns the Cloud result without translating the engine verdict', async () => {
+        fetchMock.mockResolvedValue(new Response(JSON.stringify({ level1: { status: 'DEGRADED', score: 32 }, level3: { samples: [{ severity: 'HIGH' }] } }), { status: 200 }));
+        const result = await fetchCloudPRScan('acme/app', 17, 'a'.repeat(40), 'key', 'https://cloud.example.com');
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.data.level1.status).toBe('DEGRADED');
+    });
+
+    it('surfaces auth, quota, and stale-head responses as distinct errors', async () => {
+        for (const [status, kind] of [[401, 'auth'], [429, 'quota'], [409, 'conflict']] as const) {
+            fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'rejected' }), { status }));
+            const result = await fetchCloudPRScan('acme/app', 17, 'a'.repeat(40), 'key', 'https://cloud.example.com');
+            expect(result.ok).toBe(false);
+            if (!result.ok) expect(result.kind).toBe(kind);
         }
     });
 });

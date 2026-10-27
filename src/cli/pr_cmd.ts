@@ -7,8 +7,7 @@ import * as pc from 'picocolors';
 import { listKeys, getKey, maskToken, DISCLAIMER_TEXT, StoredKey } from './cloud_keys_cmd';
 import { LiteScanner, LiteFinding } from '../core/lite/lite_scanner';
 import { PRProgressMap } from './pr_progress';
-import { fetchCapabilities, fetchRemoteScan, fetchUsage, getResolvedBaseUrl } from './cloud/cloud_client';
-import type { RemoteScanResult } from './cloud/cloud_client';
+import { fetchCapabilities, fetchCloudPRScan, fetchUsage, getResolvedBaseUrl } from './cloud/cloud_client';
 
 interface PRInfo {
   number: number;
@@ -280,14 +279,8 @@ export async function runPRWorkflow(options?: { repo?: string; prNumber?: number
         progress.update({ stage: 'PR', state: 'COMPLETE', detail: `head ${headSha.slice(0, 12)}` });
 
         if (useCloud) {
-          activeStage = 'MANIFEST';
-          progress.update({ stage: 'MANIFEST', state: 'RUNNING', detail: 'leyendo package.json del commit del PR' });
-          const content = JSON.parse(execFileSync('gh', ['api', `repos/${repo}/contents/package.json?ref=${encodeURIComponent(headSha)}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1024 * 1024 }));
-          if (content.encoding !== 'base64' || typeof content.content !== 'string') throw new Error('GitHub no devolvió package.json en base64.');
-          const manifest = Buffer.from(content.content.replace(/\s/g, ''), 'base64').toString('utf8');
-          if (Buffer.byteLength(manifest, 'utf8') > 262144) throw new Error('package.json supera el límite Cloud de 256 KB.');
-          JSON.parse(manifest);
-          progress.update({ stage: 'MANIFEST', state: 'COMPLETE', detail: `${Buffer.byteLength(manifest, 'utf8')} bytes; SHA ${headSha.slice(0, 12)}` });
+          activeStage = 'SOURCE';
+          progress.update({ stage: 'SOURCE', state: 'COMPLETE', detail: `Cloud resolverá el PR completo en el SHA ${headSha.slice(0, 12)}` });
 
           activeStage = 'AUTH';
           progress.update({ stage: 'AUTH', state: 'RUNNING', detail: 'validando permiso remote_scan' });
@@ -298,15 +291,23 @@ export async function runPRWorkflow(options?: { repo?: string; prNumber?: number
           progress.update({ stage: 'AUTH', state: 'COMPLETE', detail: `plan ${capabilities.data.planLabel}` });
 
           activeStage = 'ENGINE';
-          progress.update({ stage: 'ENGINE', state: 'RUNNING', detail: 'enviando manifiesto; esta solicitud consume 1 pulso' });
-          const remote = await fetchRemoteScan(manifest, 'npm', selectedKey!.token, baseUrl);
-          if (!remote.ok) throw new Error(remote.kind === 'quota' ? 'Cuota de pulsos agotada.' : remote.kind === 'busy' ? 'El motor Cloud está ocupado; no completó este análisis.' : remote.kind === 'auth' ? 'La clave de Sentinel Cloud fue rechazada.' : remote.error || 'Sentinel Cloud no completó el análisis.');
-          const cloudResult: RemoteScanResult = remote.data;
-          cloudVersion = cloudResult.engineVersion || 'desconocida';
-          verdict = cloudResult.verdict;
-          riskScore = cloudResult.riskScore;
-          findings = cloudResult.findings.map(f => ({ type: 'cloud', intent: 'remote scan', file: 'package.json', line: 0, severity: String(f.severity).toUpperCase(), title: f.title, description: f.message || f.description || f.title, snippet: f.evidence || '' }));
-          progress.update({ stage: 'ENGINE', state: 'COMPLETE', detail: `motor Cloud ${cloudVersion}; ${findings.length} hallazgos` });
+          progress.update({ stage: 'ENGINE', state: 'RUNNING', detail: 'Cloud analiza el PR completo; esta solicitud consume 1 pulso' });
+          const remote = await fetchCloudPRScan(repo, prNumber, headSha, selectedKey!.token, baseUrl);
+          if (!remote.ok) throw new Error(remote.kind === 'quota' ? 'Cuota de pulsos agotada.' : remote.kind === 'busy' ? 'El motor Cloud está ocupado; no completó este análisis.' : remote.kind === 'auth' ? 'La clave de Sentinel Cloud fue rechazada.' : remote.error || `Sentinel Cloud no completó el análisis${remote.status ? ` (HTTP ${remote.status})` : ''}.`);
+          const cloudResult = remote.data;
+          cloudVersion = cloudResult.engine_version || 'desconocida';
+          verdict = String(cloudResult.level1.status || 'UNKNOWN').toUpperCase();
+          riskScore = typeof cloudResult.level1.score === 'number' ? cloudResult.level1.score : 0;
+          findings = (cloudResult.level3?.samples || []).map((f) => {
+            const severity = String(f.severity || f.riskLevel || 'INFO').toUpperCase();
+            const title = String(f.title || f.type || f.detector || 'Cloud finding');
+            const description = String(f.description || f.message || f.why || title);
+            const file = String(f.file || f._file || f._fullPath || 'unknown');
+            const line = Number(f.line || f.line_number || 0) || 0;
+            const snippet = String(f.snippet || f.evidence || '');
+            return { type: String(f.type || f.detector || 'cloud'), intent: String(f.category || 'Sentinel Cloud finding'), file, line, severity, title, description, snippet };
+          });
+          progress.update({ stage: 'ENGINE', state: 'COMPLETE', detail: `motor Cloud ${cloudVersion}; ${findings.length} hallazgos; ${cloudResult.scan_degraded ? 'análisis degradado' : verdict}` });
           activeStage = 'RESULT';
           progress.update({ stage: 'RESULT', state: 'COMPLETE', detail: `respuesta agregada ${verdict}` });
           const usage = await fetchUsage(selectedKey!.token, baseUrl);
@@ -347,7 +348,7 @@ export async function runPRWorkflow(options?: { repo?: string; prNumber?: number
 
       console.log('\n' + pc.cyan('──────────────────────────────────────────────────────────'));
       console.log(pc.bold(`RESULTADO DEL ESCANEO: PR #${prNumber} (${repo})`));
-      console.log(pc.dim(cloudVersion ? `Motor: Sentinel Cloud ${cloudVersion}; evidencia enviada: package.json del head fijado.` : 'Motor: Sentinel Lite local; alcance: diff del pull request.'));
+      console.log(pc.dim(cloudVersion ? `Motor: Sentinel Cloud ${cloudVersion}; alcance: análisis completo del PR en el SHA fijado.` : 'Motor: Sentinel Lite local; alcance: diff del pull request.'));
       const verdictColor = verdict === 'BLOCK' ? pc.red : (verdict === 'FLAG' ? pc.yellow : pc.green);
       console.log(`VEREDICTO:  ${verdictColor(`[ ${verdict} ]`)}  ·  RIESGO: ${riskScore}/100`);
       console.log(`HALLAZGOS:  CRITICAL: ${criticalCount} | HIGH: ${highCount} | MEDIUM: ${mediumCount} | LOW: ${lowCount}`);

@@ -13,14 +13,14 @@ provided by the diff; it is not a full repository scan.
 
 ## Sentinel Cloud
 
-Cloud mode pins the PR head SHA, retrieves `package.json` from that exact commit,
-checks the stored API key's `remote_scan` capability, and submits the manifest
-to `/api/scan/remote`. A successful request consumes one pulse. The output
-reports the returned engine version, verdict, risk score, findings, and pulse
-balance when the usage endpoint is available.
+Cloud mode pins the PR head SHA, checks the stored API key's `remote_scan`
+capability, and submits the repository and PR number to `/api/scan/pr`. Cloud
+validates that the PR head still matches the pinned SHA before scanning. A
+successful full PR scan consumes one pulse. The output reports the returned
+engine version, verdict, risk score, findings, and pulse balance when the usage
+endpoint is available.
 
-This API currently accepts an npm manifest, not the pull request diff or a
-repository archive. It returns an aggregate result and no per-analyzer execution
+The full PR endpoint returns an aggregate result and no per-analyzer execution
 events. Therefore the progress map reports the remote request and aggregate
 response only; it does not imply that individual Cloud tools were observed.
 Cloud and Lite findings and verdicts are shown using their selected engine's
@@ -33,7 +33,7 @@ Example Cloud view:
 ```text
 Sentinel CLI | PR #42 | Sentinel Cloud | mapa de análisis
   [OK] Metadatos del pull request: COMPLETE — head 3f8a21c4d019
-  [OK] Manifiesto del commit propuesto: COMPLETE — 812 bytes; SHA 3f8a21c4d019
+  [OK] Pull request fijado por SHA: COMPLETE — Cloud resolverá el PR completo en el SHA 3f8a21c4d019
   [OK] Acceso a Sentinel Cloud: COMPLETE — plan Team
   [OK] Motor de análisis: COMPLETE — motor Cloud 4.3; 2 hallazgos
   [OK] Veredicto y evidencia: COMPLETE — respuesta agregada SUSPICIOUS
@@ -43,5 +43,6 @@ Sentinel CLI | PR #42 | Sentinel Cloud | mapa de análisis
 Progress is written to stderr. Colors and redraw animation are enabled only for
 interactive terminals and are disabled by `NO_COLOR` or `TERM=dumb`. The API key
 is sent only as a bearer token over the configured Sentinel Cloud URL; the map
-prints its label or plan, never the token. GitHub commands use argument arrays,
-and the manifest is read from the pinned commit SHA.
+prints its label or plan, never the token. Sentinel CLI does not forward its
+GitHub CLI credential to Cloud. Public repositories can be scanned directly;
+private repository access depends on Cloud's configured GitHub access.

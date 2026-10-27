@@ -358,6 +358,74 @@ export interface RemoteScanResult {
     explanation?: string[];
 }
 
+/** Full hosted pull request scan returned by Sentinel Cloud's PR engine. */
+export interface CloudPRScanResult {
+    level1: {
+        status?: string;
+        score?: number;
+        filesAnalyzed?: number;
+        files_analyzed?: number;
+        [key: string]: unknown;
+    };
+    level3?: { samples?: Array<Record<string, unknown>> };
+    engine_version?: string;
+    jobId?: string;
+    scan_degraded?: boolean;
+    degraded_reasons?: string[];
+    breakdown?: Record<string, unknown>;
+    [key: string]: unknown;
+}
+
+export type CloudPRScanFetchResult =
+    | { ok: true; data: CloudPRScanResult }
+    | { ok: false; kind: 'auth' | 'forbidden' | 'quota' | 'busy' | 'bad_request' | 'conflict' | 'network'; status?: number; error?: string };
+
+function validateCloudPRScan(value: unknown): CloudPRScanResult | null {
+    if (!isRecord(value) || !isRecord(value.level1)) return null;
+    if (value.level3 !== undefined && (!isRecord(value.level3) || (value.level3.samples !== undefined && !Array.isArray(value.level3.samples)))) return null;
+    return value as unknown as CloudPRScanResult;
+}
+
+/** Requests the complete Cloud PR scan. The bearer key is sent only to Sentinel Cloud. */
+export async function fetchCloudPRScan(
+    repo: string,
+    prNumber: number,
+    expectedHeadSha: string,
+    token: string,
+    baseUrl: string,
+    opts?: { timeoutMs?: number; idempotencyKey?: string },
+): Promise<CloudPRScanFetchResult> {
+    const url = baseUrl.replace(/\\+$/, '') + '/api/scan/pr';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts?.timeoutMs ?? 180000);
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'Idempotency-Key': opts?.idempotencyKey ?? randomUUID(),
+            },
+            body: JSON.stringify({ repo, prNumber, expectedHeadSha }),
+            signal: controller.signal,
+        });
+        if (res.status === 401) return { ok: false, kind: 'auth', status: 401 };
+        if (res.status === 403) return { ok: false, kind: 'forbidden', status: 403, error: await readErrorBody(res) };
+        if (res.status === 429) return { ok: false, kind: 'quota', status: 429, error: await readErrorBody(res) };
+        if (res.status === 503) return { ok: false, kind: 'busy', status: 503, error: await readErrorBody(res) };
+        if (res.status === 409) return { ok: false, kind: 'conflict', status: 409, error: await readErrorBody(res) };
+        if (res.status === 400 || res.status === 413) return { ok: false, kind: 'bad_request', status: res.status, error: await readErrorBody(res) };
+        if (!res.ok) return { ok: false, kind: 'network', status: res.status, error: await readErrorBody(res) };
+        const data = validateCloudPRScan(await res.json());
+        return data ? { ok: true, data } : { ok: false, kind: 'network', status: res.status, error: 'Invalid Cloud PR scan response.' };
+    } catch (err) {
+        return { ok: false, kind: 'network', error: err instanceof Error ? err.message : String(err) };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 export type RemoteScanFetchResult =
     | { ok: true; data: RemoteScanResult }
     | {

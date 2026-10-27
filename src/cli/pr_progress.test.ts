@@ -15,11 +15,11 @@ describe('PR progress map', () => {
   it('shows actual stage states and cloud API scope without ANSI in pipes', () => {
     const stream = new Capture();
     const map = new PRProgressMap('cloud', 17, stream);
-    map.update({ stage: 'MANIFEST', state: 'COMPLETE', detail: 'package.json loaded' });
+    map.update({ stage: 'SOURCE', state: 'COMPLETE', detail: 'PR SHA pinned' });
     map.update({ stage: 'ENGINE', state: 'RUNNING', detail: 'remote request' });
     map.finish();
     expect(stream.data).toContain('PR #17');
-    expect(stream.data).toContain('Manifiesto del commit propuesto: COMPLETE');
+    expect(stream.data).toContain('Pull request fijado por SHA: COMPLETE');
     expect(stream.data).toContain('remote request');
     expect(stream.data).toContain('no publica eventos internos');
     expect(stream.data).not.toContain('\u001b[');

@@ -395,7 +395,7 @@ export async function fetchCloudPRScan(
     baseUrl: string,
     opts?: { timeoutMs?: number; idempotencyKey?: string },
 ): Promise<CloudPRScanFetchResult> {
-    const url = baseUrl.replace(/\\+$/, '') + '/api/scan/pr';
+    const url = baseUrl.replace(/\/+$/, '') + '/api/scan/pr';
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), opts?.timeoutMs ?? 180000);
     try {

@@ -79,6 +79,59 @@ npm run build
 node dist/cli/main.js scan ./src
 ```
 
+### ⚡ Modos de Ejecución y Comandos Principales
+
+Sentinel CLI soporta ejecución interactiva mediante terminal TUI, comandos directos por CLI o integración en pipelines:
+
+```bash
+# 1. Menú interactivo TUI completo (Hub de operaciones)
+sntnl hub
+# O simplemente (si ejecutas sin argumentos):
+sentinel
+
+# 2. Auditoría guiada de Pull Requests (Enumeración, Motor Lite/Pulsos y Exportación a Descargas)
+sntnl pr
+# Con parámetros directos:
+sntnl pr --repo owner/repo --pr 12
+
+# 3. Gestor de Claves Cloud (Tokens censurados, añadir y revocar de forma segura)
+sntnl keys
+
+# 4. Escaneo de código estático (SAST - 30 reglas deterministas)
+sntnl scan ./src
+
+# 5. Auditoría de dependencias y cadena de suministro (OSV / SLSA / Reputación)
+sntnl audit-deps
+
+# 6. Monitoreo de actividad de red y exfiltración
+sntnl network start
+
+# 7. Diagnóstico de salud e integridad del entorno
+sntnl doctor --deep
+sntnl integrity
+```
+
+---
+
+## 📸 Galería Visual de la Interfaz (Sentinel CLI)
+
+| Vista | Captura | Descripción |
+|---|---|---|
+| **Menú Principal (TUI Hub)** | ![CLI Hub Main](docs/screenshots/cli_hub_main.png) | Interfaz interactiva TUI con acceso a todos los módulos: auditoría de PRs, escaneo, guardianes de NPM y modo pulso. |
+| **Pasarela de Pull Requests** | ![PR Gateway](docs/screenshots/cli_pr_gateway.png) | Detección de repositorios y selección guiada de PRs activos para análisis preventivo. |
+| **Resultados de Auditoría** | ![PR Results](docs/screenshots/cli_pr_results.png) | Resumen forense con puntuación de riesgo, severidades y veredicto (`BLOCK`, `FLAG`, `PASS`). |
+| **Detección de Vectores** | ![Merx Audit Vector](docs/screenshots/cli_merx_audit_vector.png) | Localización quirúrgica de código malicioso en diffs con archivo, línea y fragmento. |
+| **Descubrimiento de Workspaces** | ![Workspace Discovery](docs/screenshots/cli_workspace_discovery.png) | Exploración y escaneo simultáneo de múltiples espacios de trabajo y repositorios. |
+| **Clasificación y Secretos** | ![Classify Files](docs/screenshots/cli_classify_files.png) | Identificación de secretos expuestos, tokens de API y documentos clasificados. |
+
+---
+
+## ⚖️ Aviso Legal y de Responsabilidad
+
+> **AVISO DE RESPONSABILIDAD:** El usuario es el único responsable del uso de esta herramienta y de las decisiones de seguridad, fusión o despliegue tomadas con base en sus resultados. El desarrollador y los mantenedores no se hacen responsables de daños directos o indirectos, fallas de seguridad, código malicioso o vulnerabilidades no detectadas por Sentinel. Ningún motor de análisis estático o heurístico garantiza la detección del 100% de las amenazas.
+
+---
+
 ### Usage
 
 ```bash

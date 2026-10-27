@@ -83,7 +83,7 @@ async function preFlightCheck() {
 
 program
     .name('sentinel')
-    .version('4.0.0')
+    .version('4.3.0')
     .description('Sentinel Security Intelligence — SAST, supply chain, threat intel + Skills/MCP for AI agents');
 
 // --- Subcommands ---

@@ -19,7 +19,7 @@ describe('PR progress map', () => {
     map.update({ stage: 'ENGINE', state: 'RUNNING', detail: 'remote request' });
     map.finish();
     expect(stream.data).toContain('PR #17');
-    expect(stream.data).toContain('MANIFEST');
+    expect(stream.data).toContain('Manifiesto del commit propuesto: COMPLETE');
     expect(stream.data).toContain('remote request');
     expect(stream.data).toContain('no publica eventos internos');
     expect(stream.data).not.toContain('\u001b[');

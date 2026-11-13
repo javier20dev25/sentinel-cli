@@ -1,5 +1,7 @@
 # Sentinel — Security Intelligence Platform
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/javier20dev25-sentinel-cli-nm2f4g?v=997ab9a5f9bb5524b62bab08223581ac)](https://m8ven.ai/mcp/javier20dev25-sentinel-cli-nm2f4g?s=readme)
+
 > SAST Scanner · Supply Chain Shield · Network Auditor · Build Intelligence · Skills System · MCP Server
 
 Sentinel is a deterministic, local-first security intelligence platform. It scans source code for vulnerabilities, audits software supply chains, monitors network behavior for exfiltration attempts, observes build processes, and verifies system integrity — all without sending data to third-party services.

@@ -850,7 +850,8 @@ sentinel-cli network doctor                    Health check completo
                       --drift              Test de deriva de confianza
 
 sentinel-cli network blindspots list           Lista puntos ciegos registrados
-sentinel-cli network blindspots add            Registra nuevo punto ciego
+sentinel-cli network blindspots add <title> <sensor> <how> <expected> <actual> [impact] [severity]
+                                      o un payload JSON como único argumento
 sentinel-cli network blindspots stats          Estadísticas de puntos ciegos
 
 sentinel-cli network campaign list             Lista campañas de validación

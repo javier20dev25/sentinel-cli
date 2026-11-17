@@ -617,33 +617,41 @@ export class NetworkAuditor {
         break;
       }
       case 'add': {
-        const rl = require('readline').createInterface({
-          input: process.stdin, output: process.stdout,
+        const usage = 'Usage: sentinel network blindspots add <title> <sensor> <how> <expected> <actual> [impact] [severity]\n       sentinel network blindspots add \'<json>\'';
+        let data: Record<string, string>;
+        if (args[0] && args[0].trim().startsWith('{')) {
+          try {
+            data = JSON.parse(args[0]);
+          } catch {
+            console.log('Invalid JSON payload');
+            console.log(usage);
+            return;
+          }
+        } else {
+          const [title, sensor, how, expected, actual, impact, severity] = args;
+          if (!title || !sensor || !how || !expected || !actual) {
+            console.log(usage);
+            return;
+          }
+          data = {
+            title, sensor_failed: sensor, how_it_happened: how,
+            expected_behavior: expected, actual_observation: actual,
+            impact: impact || 'Unknown', severity: severity || 'medium',
+          };
+        }
+        const severity = ['low', 'medium', 'high', 'critical'].includes(data.severity)
+          ? data.severity : 'medium';
+        const id = generateId();
+        const now = new Date().toISOString();
+        this.db.insertBlindSpot({
+          id, title: data.title || 'Untitled', description: data.description || '',
+          how_it_happened: data.how_it_happened || '', sensor_failed: data.sensor_failed || '',
+          expected_behavior: data.expected_behavior || '', actual_observation: data.actual_observation || '',
+          impact: data.impact || 'Unknown', severity, status: 'open',
+          session_id: this.session?.id || null,
+          created_at: now, updated_at: now, resolved_at: null, resolution: null,
         });
-        const ask = (q: string): Promise<string> => new Promise(r => rl.question(q, r));
-        (async () => {
-          const title = await ask('Title: ');
-          const sensor = await ask('Sensor that failed: ');
-          const how = await ask('How it happened: ');
-          const expected = await ask('What was expected: ');
-          const actual = await ask('What was actually observed: ');
-          const impact = await ask('Impact: ');
-          const severity = await ask('Severity (low/medium/high/critical): ') || 'medium';
-          const id = generateId();
-          const now = new Date().toISOString();
-          this.db.insertBlindSpot({
-            id, title: title || 'Untitled',
-            description: '', how_it_happened: how,
-            sensor_failed: sensor, expected_behavior: expected,
-            actual_observation: actual, impact: impact || 'Unknown',
-            severity: severity, status: 'open',
-            session_id: this.session?.id || null,
-            created_at: now, updated_at: now,
-            resolved_at: null, resolution: null,
-          });
-          console.log(`\nBlind spot logged: ${id}`);
-          rl.close();
-        })();
+        console.log(`\nBlind spot logged: ${id}`);
         break;
       }
       case 'show': {

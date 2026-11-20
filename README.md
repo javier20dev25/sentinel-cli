@@ -741,6 +741,17 @@ Sentinel evidence (Tier 1) overrides model reasoning (Tier 4).
 
 ---
 
+## Defensive Ecosystem & AI Agent Governance
+
+Sentinel CLI coordinates directly with the broader NIGHTTRACE defensive security ecosystem:
+
+- **[NOARTEX](https://github.com/javier20dev25/NOARTEX)** ([Architecture & Docs](https://sentinel-psi-nine.vercel.app/noartex)) — Autonomous defensive coordination and capability governance control plane for AI agents countering machine-speed malware (such as the ARTEX adversarial class). Features a fail-closed policy engine (R0–R3), continuous eBPF Tetragon streaming, and sub-250ms reactive containment.
+- **[Sentinel Cloud](https://sentinel-psi-nine.vercel.app/)** — Full-engine remote PR audits, team collaboration, and cryptographic verification receipts.
+- **[Sentinel Runtime](https://github.com/javier20dev25/sentinel-runtime)** — Kernel-level behavioral observation via Tetragon eBPF and immutable SQLite evidence ledgers.
+- **[Sentinel Oracle](https://sentinel-psi-nine.vercel.app/sentinel-oracle)** — Hardware-token (FIDO2/WebAuthn) merge authorization with separation of duties.
+
+---
+
 ## Requirements
 
 - **Node.js** >= 20.0.0
